@@ -1,0 +1,15 @@
+## Ignore Visual Studio & .NET temporary build files
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+
+## Ignore SQLite local test database & logs
+wtt.db
+wtt.db-shm
+wtt.db-wal
+*.log
+Logs/
