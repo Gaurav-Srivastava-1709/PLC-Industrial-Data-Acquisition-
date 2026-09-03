@@ -27,10 +27,23 @@
             <!-- Navigation Menu Items (Left Sidebar) -->
             <ui:NavigationView.MenuItems>
                 <ui:NavigationViewItem Content="Dashboard" Icon="Home24" TargetPageType="{x:Type pages:DashboardPage}"/>
-                <ui:NavigationViewItem Content="Devices" Icon="Router24" TargetPageType="{x:Type pages:DevicesPage}"/>
-                <ui:NavigationViewItem Content="Tags" Icon="Tag24" IsEnabled="False"/>
-                <ui:NavigationViewItem Content="Live Data" Icon="PulseSquare24" IsEnabled="False"/>
-                <ui:NavigationViewItem Content="Transfer" Icon="ArrowSync24" IsEnabled="False"/>
+                
+                <!-- Devices: Admin & Operator can view -->
+                <ui:NavigationViewItem Content="Devices" Icon="Router24" TargetPageType="{x:Type pages:DevicesPage}"
+                                       Visibility="{Binding IsOperatorOrAbove, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                
+                <!-- Tags & Live Data: Everyone can view -->
+                <ui:NavigationViewItem Content="Tags" Icon="Tag24" TargetPageType="{x:Type pages:TagsPage}"/>
+                <ui:NavigationViewItem Content="Live Data" Icon="PulseSquare24" TargetPageType="{x:Type pages:LiveDataPage}"/>
+                
+                <!-- Data Transfer: Admin & Operator can view -->
+                <ui:NavigationViewItem Content="Transfer" Icon="ArrowSync24" TargetPageType="{x:Type pages:DataTransferPage}"
+                                       Visibility="{Binding IsOperatorOrAbove, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                
+                <!-- Users: Admin Only -->
+                <ui:NavigationViewItem Content="Users" Icon="People24" TargetPageType="{x:Type pages:UsersPage}"
+                                       Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                
                 <ui:NavigationViewItem Content="Logs" Icon="DocumentText24" IsEnabled="False"/>
             </ui:NavigationView.MenuItems>
 

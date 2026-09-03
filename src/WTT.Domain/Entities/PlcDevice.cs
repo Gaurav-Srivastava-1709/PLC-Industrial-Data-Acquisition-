@@ -12,4 +12,7 @@ public class PlcDevice
     public string? Description { get; set; }
     public bool IsEnabled { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    // Navigation property for 1-to-Many relationship with DeviceTag
+    public ICollection<DeviceTag> Tags { get; set; } = new List<DeviceTag>();
 }

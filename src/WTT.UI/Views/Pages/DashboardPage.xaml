@@ -8,9 +8,9 @@
         <StackPanel>
 
             <!-- Welcome Header -->
-            <TextBlock Text="📊 Dashboard" FontSize="28" FontWeight="SemiBold" Margin="0,0,0,4"
+            <TextBlock Text="📊 Industrial DAQ Dashboard" FontSize="28" FontWeight="SemiBold" Margin="0,0,0,4"
                        Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}"/>
-            <TextBlock Text="System overview and quick actions" FontSize="14" Margin="0,0,0,24"
+            <TextBlock Text="System overview, live connection telemetry, and quick actions" FontSize="14" Margin="0,0,0,24"
                        Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
 
             <!-- Stats Cards Row -->
@@ -22,8 +22,8 @@
                         BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,12,0">
                     <StackPanel>
                         <ui:SymbolIcon Symbol="Router24" FontSize="32" Foreground="#3498DB" HorizontalAlignment="Left" Margin="0,0,0,12"/>
-                        <TextBlock Text="0" FontSize="32" FontWeight="Bold" Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}"/>
-                        <TextBlock Text="PLC Devices" FontSize="13" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="{Binding DeviceCount}" FontSize="32" FontWeight="Bold" Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}"/>
+                        <TextBlock Text="Configured PLCs" FontSize="13" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
                 </Border>
 
@@ -33,8 +33,8 @@
                         BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,12,0">
                     <StackPanel>
                         <ui:SymbolIcon Symbol="Tag24" FontSize="32" Foreground="#2ECC71" HorizontalAlignment="Left" Margin="0,0,0,12"/>
-                        <TextBlock Text="0" FontSize="32" FontWeight="Bold" Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}"/>
-                        <TextBlock Text="Active Tags" FontSize="13" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="{Binding ActiveTagCount}" FontSize="32" FontWeight="Bold" Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}"/>
+                        <TextBlock Text="Active Sensor Tags" FontSize="13" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
                 </Border>
 
@@ -44,8 +44,8 @@
                         BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,0,12,0">
                     <StackPanel>
                         <ui:SymbolIcon Symbol="Database24" FontSize="32" Foreground="#E67E22" HorizontalAlignment="Left" Margin="0,0,0,12"/>
-                        <TextBlock Text="0" FontSize="32" FontWeight="Bold" Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}"/>
-                        <TextBlock Text="Records Today" FontSize="13" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="{Binding RecordsToday}" FontSize="32" FontWeight="Bold" Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}"/>
+                        <TextBlock Text="Readings Stored Today" FontSize="13" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
                 </Border>
 
@@ -55,8 +55,8 @@
                         BorderThickness="1" CornerRadius="8" Padding="20">
                     <StackPanel>
                         <ui:SymbolIcon Symbol="ErrorCircle24" FontSize="32" Foreground="#E74C3C" HorizontalAlignment="Left" Margin="0,0,0,12"/>
-                        <TextBlock Text="0" FontSize="32" FontWeight="Bold" Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}"/>
-                        <TextBlock Text="Errors Today" FontSize="13" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="{Binding ErrorCount}" FontSize="32" FontWeight="Bold" Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}"/>
+                        <TextBlock Text="Communication Errors" FontSize="13" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
                 </Border>
             </UniformGrid>
@@ -66,42 +66,54 @@
                     BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1" CornerRadius="8" Padding="24" Margin="0,0,0,24">
                 <StackPanel>
-                    <TextBlock Text="🔧 System Status" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,16"
+                    <TextBlock Text="🔧 Engine Status" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,16"
                                Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}"/>
 
                     <Grid Margin="0,0,0,12">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="200"/>
+                            <ColumnDefinition Width="220"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Data Capture Service" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Grid.Column="0" Text="Data Capture Service (10s Polling)" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
                         <StackPanel Grid.Column="1" Orientation="Horizontal">
-                            <Ellipse Width="10" Height="10" Fill="#95A5A6" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="Not Running" Foreground="{ui:ThemeResource TextFillColorTertiaryBrush}"/>
-                        </StackPanel>
-                    </Grid>
-
-                    <Grid Margin="0,0,0,12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="200"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Data Transfer Service" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal">
-                            <Ellipse Width="10" Height="10" Fill="#95A5A6" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="Not Running" Foreground="{ui:ThemeResource TextFillColorTertiaryBrush}"/>
+                            <Ellipse Width="10" Height="10" Margin="0,0,8,0" VerticalAlignment="Center">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="#2ECC71"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsDataCaptureRunning}" Value="False">
+                                                <Setter Property="Fill" Value="#E74C3C"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <TextBlock FontWeight="SemiBold">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="Running (Polling Active)"/>
+                                        <Setter Property="Foreground" Value="#2ECC71"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsDataCaptureRunning}" Value="False">
+                                                <Setter Property="Text" Value="Paused / Stopped"/>
+                                                <Setter Property="Foreground" Value="#E74C3C"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                         </StackPanel>
                     </Grid>
 
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="200"/>
+                            <ColumnDefinition Width="220"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Database" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Grid.Column="0" Text="Local SQLite Telemetry DB" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
                         <StackPanel Grid.Column="1" Orientation="Horizontal">
                             <Ellipse Width="10" Height="10" Fill="#2ECC71" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                            <TextBlock Text="Connected (SQLite)" Foreground="#2ECC71"/>
+                            <TextBlock Text="Connected (30-Day Auto Retention Active)" Foreground="#2ECC71"/>
                         </StackPanel>
                     </Grid>
                 </StackPanel>
@@ -115,13 +127,24 @@
                     <TextBlock Text="⚡ Quick Actions" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,16"
                                Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}"/>
                     <WrapPanel>
-                        <ui:Button Content="Add New Device" Icon="Add24" Appearance="Primary" Margin="0,0,12,8" IsEnabled="False"/>
-                        <ui:Button Content="Start Data Capture" Icon="Play24" Margin="0,0,12,8" IsEnabled="False"/>
-                        <ui:Button Content="Export Data (CSV)" Icon="ArrowDownload24" Margin="0,0,12,8" IsEnabled="False"/>
-                        <ui:Button Content="View Logs" Icon="DocumentText24" Margin="0,0,12,8" IsEnabled="False"/>
+                        <ui:Button Command="{Binding ToggleDataCaptureCommand}" Margin="0,0,12,8">
+                            <ui:Button.Style>
+                                <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+                                    <Setter Property="Content" Value="Pause Data Capture"/>
+                                    <Setter Property="Icon" Value="Pause24"/>
+                                    <Setter Property="Appearance" Value="Secondary"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsDataCaptureRunning}" Value="False">
+                                            <Setter Property="Content" Value="Start Data Capture"/>
+                                            <Setter Property="Icon" Value="Play24"/>
+                                            <Setter Property="Appearance" Value="Primary"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ui:Button.Style>
+                        </ui:Button>
+                        <ui:Button Content="Refresh Stats" Icon="ArrowClockwise24" Command="{Binding RefreshDashboardCommand}" Margin="0,0,12,8"/>
                     </WrapPanel>
-                    <TextBlock Text="(These features will be enabled in Phase 3+)" FontSize="12" FontStyle="Italic"
-                               Foreground="{ui:ThemeResource TextFillColorTertiaryBrush}" Margin="0,4,0,0"/>
                 </StackPanel>
             </Border>
 

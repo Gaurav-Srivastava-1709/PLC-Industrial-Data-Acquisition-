@@ -1,15 +1,14 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
+using System.Threading.Tasks;
 using System.Windows;
-using Microsoft.Extensions.DependencyInjection;
 using WTT.Application.Interfaces;
+using WTT.Infrastructure.Services;
+using Wpf.Ui;
 
 namespace WTT.UI.ViewModels;
 
-/// <summary>
-/// MainViewModel: Navigation shell ka brain — sidebar navigation, user info, aur logout ka kaam.
-/// </summary>
 public partial class MainViewModel : ObservableObject
 {
     private readonly IAuthService _authService;
@@ -27,17 +26,33 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isDarkMode = true;
 
+    // RBAC: Role-based Visibility Properties
+    [ObservableProperty]
+    private bool _isAdmin;
+
+    [ObservableProperty]
+    private bool _isOperatorOrAbove;
+
     public MainViewModel(IAuthService authService, IServiceProvider serviceProvider, Services.SessionManager sessionManager)
     {
         _authService = authService;
         _serviceProvider = serviceProvider;
         _sessionManager = sessionManager;
 
-        // Set current user info from auth service
+        UpdateUserContext();
+    }
+
+    private void UpdateUserContext()
+    {
         if (_authService.CurrentUser != null)
         {
             CurrentUsername = _authService.CurrentUser.Username;
             CurrentUserRole = _authService.CurrentUser.Role.ToString();
+            
+            // Set visibility flags based on Role
+            IsAdmin = _authService.CurrentUser.Role == WTT.Domain.Entities.UserRole.Admin;
+            IsOperatorOrAbove = _authService.CurrentUser.Role == WTT.Domain.Entities.UserRole.Admin || 
+                                _authService.CurrentUser.Role == WTT.Domain.Entities.UserRole.Operator;
         }
     }
 
@@ -62,7 +77,7 @@ public partial class MainViewModel : ObservableObject
         await _authService.LogoutAsync();
 
         // Login window kholo
-        var loginWindow = _serviceProvider.GetRequiredService<Views.LoginWindow>();
+        var loginWindow = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<Views.LoginWindow>(_serviceProvider);
         loginWindow.Show();
 
         // Saari MainWindows band karo

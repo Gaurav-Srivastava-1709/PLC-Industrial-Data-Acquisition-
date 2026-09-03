@@ -1,17 +1,20 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System;
 using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using System.Windows;
 using WTT.Application.Interfaces;
 using WTT.Domain.Entities;
+using WTT.UI.Views.Windows;
 
 namespace WTT.UI.ViewModels;
 
 public partial class DevicesViewModel : ObservableObject
 {
     private readonly IDeviceService _deviceService;
-    private readonly System.IServiceProvider _serviceProvider;
+    private readonly IServiceProvider _serviceProvider;
+    private readonly IAuthService _authService;
 
     [ObservableProperty]
     private ObservableCollection<PlcDevice> _devices = new();
@@ -22,10 +25,16 @@ public partial class DevicesViewModel : ObservableObject
     [ObservableProperty]
     private bool _isLoading;
 
-    public DevicesViewModel(IDeviceService deviceService, System.IServiceProvider serviceProvider)
+    [ObservableProperty]
+    private bool _isAdmin;
+
+    public DevicesViewModel(IDeviceService deviceService, IServiceProvider serviceProvider, IAuthService authService)
     {
         _deviceService = deviceService;
         _serviceProvider = serviceProvider;
+        _authService = authService;
+        
+        IsAdmin = _authService.CurrentUser?.Role == UserRole.Admin;
         _ = LoadDevicesAsync();
     }
 
@@ -51,6 +60,12 @@ public partial class DevicesViewModel : ObservableObject
     [RelayCommand]
     private async Task DeleteDeviceAsync(PlcDevice? device)
     {
+        if (!IsAdmin)
+        {
+            MessageBox.Show("Only administrators can delete devices.", "Access Denied", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         if (device == null) return;
         
         var result = MessageBox.Show($"Are you sure you want to delete {device.Name}?", "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning);
@@ -62,26 +77,35 @@ public partial class DevicesViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void AddDevice()
+    private async Task AddDeviceAsync()
     {
-        var viewModel = new DeviceEditViewModel(_deviceService);
-        var window = new Views.Windows.DeviceEditWindow(viewModel);
+        if (!IsAdmin)
+        {
+            MessageBox.Show("Only administrators can add devices.", "Access Denied", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var vm = new DeviceEditViewModel(_deviceService);
+        var window = new DeviceEditWindow(vm);
         window.ShowDialog();
-        
-        // Reload devices after closing the window
-        _ = LoadDevicesAsync();
+        await LoadDevicesAsync();
     }
 
     [RelayCommand]
-    private void EditDevice(PlcDevice? device)
+    private async Task EditDeviceAsync(PlcDevice? device)
     {
+        if (!IsAdmin)
+        {
+            MessageBox.Show("Only administrators can edit devices.", "Access Denied", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         if (device == null) return;
 
-        var viewModel = new DeviceEditViewModel(_deviceService, device);
-        var window = new Views.Windows.DeviceEditWindow(viewModel);
+        var vm = new DeviceEditViewModel(_deviceService, device);
+        var window = new DeviceEditWindow(vm);
         window.ShowDialog();
         
-        // Reload devices after closing the window
-        _ = LoadDevicesAsync();
+        await LoadDevicesAsync();
     }
 }

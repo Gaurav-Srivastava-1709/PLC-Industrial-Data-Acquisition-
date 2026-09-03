@@ -1,0 +1,126 @@
+<Page x:Class="WTT.UI.Views.Pages.LiveDataPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Title="Live Data">
+
+    <ScrollViewer Padding="24">
+        <StackPanel>
+            <!-- Header with Status and Pause/Resume button -->
+            <Grid Margin="0,0,0,24">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="⚡ Live Telemetry Monitor" FontSize="28" FontWeight="SemiBold" Margin="0,0,0,4"
+                               Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Real-time PLC readings (Polls every " FontSize="14" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="{Binding PollingInterval}" FontSize="14" FontWeight="Bold" Foreground="#3498DB"/>
+                        <TextBlock Text="s) — " FontSize="14" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
+                        
+                        <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center"
+                                 Fill="{Binding IsServiceRunning, Converter={x:Null}}">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="#2ECC71"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsServiceRunning}" Value="False">
+                                            <Setter Property="Fill" Value="#E74C3C"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        
+                        <TextBlock FontWeight="SemiBold">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="Service Active"/>
+                                    <Setter Property="Foreground" Value="#2ECC71"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsServiceRunning}" Value="False">
+                                            <Setter Property="Text" Value="Service Paused"/>
+                                            <Setter Property="Foreground" Value="#E74C3C"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+                </StackPanel>
+
+                <ui:Button Grid.Column="1" Command="{Binding ToggleServiceCommand}" VerticalAlignment="Center">
+                    <ui:Button.Style>
+                        <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+                            <Setter Property="Content" Value="Pause Capture"/>
+                            <Setter Property="Icon" Value="Pause24"/>
+                            <Setter Property="Appearance" Value="Secondary"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsServiceRunning}" Value="False">
+                                    <Setter Property="Content" Value="Resume Capture"/>
+                                    <Setter Property="Icon" Value="Play24"/>
+                                    <Setter Property="Appearance" Value="Primary"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ui:Button.Style>
+                </ui:Button>
+            </Grid>
+
+            <!-- Cards Container -->
+            <ItemsControl ItemsSource="{Binding Cards}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="{ui:ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,0,16,16" Width="250">
+                            <StackPanel>
+                                <!-- Top Row: Device Name & Quality Dot -->
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding DeviceName}" FontSize="12" FontWeight="Medium"
+                                               Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
+                                    <Border Grid.Column="1" Background="#1A2ECC71" CornerRadius="4" Padding="6,2">
+                                        <TextBlock Text="{Binding Quality}" FontSize="11" FontWeight="Bold" Foreground="#2ECC71"/>
+                                    </Border>
+                                </Grid>
+
+                                <!-- Tag Name -->
+                                <TextBlock Text="{Binding TagName}" FontSize="16" FontWeight="SemiBold"
+                                           Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}" Margin="0,0,0,12"/>
+
+                                <!-- Value Display Box -->
+                                <Border Background="{ui:ThemeResource LayerFillColorDefaultBrush}" CornerRadius="8" Padding="12,10" Margin="0,0,0,12">
+                                    <TextBlock Text="{Binding Value}" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"
+                                               Foreground="#3498DB"/>
+                                </Border>
+
+                                <!-- Footer: Address & Timestamp -->
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding Address}" FontSize="11" Foreground="{ui:ThemeResource TextFillColorTertiaryBrush}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Timestamp}" FontSize="11" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

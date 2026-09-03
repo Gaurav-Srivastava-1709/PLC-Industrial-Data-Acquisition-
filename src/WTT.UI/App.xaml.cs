@@ -41,13 +41,26 @@ public partial class App : System.Windows.Application
                 // Register ViewModels
                 services.AddTransient<ViewModels.LoginViewModel>();
                 services.AddTransient<ViewModels.MainViewModel>();
+                services.AddTransient<ViewModels.DashboardViewModel>();
                 services.AddTransient<ViewModels.DevicesViewModel>();
+                services.AddTransient<ViewModels.TagsViewModel>();
+                services.AddTransient<ViewModels.LiveDataViewModel>();
                 services.AddTransient<ViewModels.SettingsViewModel>();
+                services.AddTransient<ViewModels.DataTransferViewModel>();
+                services.AddTransient<ViewModels.UsersViewModel>();
+                services.AddTransient<ViewModels.UserEditViewModel>();
 
                 // Register Pages
                 services.AddTransient<Views.Pages.DashboardPage>();
                 services.AddTransient<Views.Pages.DevicesPage>();
+                services.AddTransient<Views.Pages.TagsPage>();
+                services.AddTransient<Views.Pages.LiveDataPage>();
+                services.AddTransient<Views.Pages.DataTransferPage>();
+                services.AddTransient<Views.Pages.UsersPage>();
                 services.AddTransient<Views.Pages.SettingsPage>();
+                
+                // Register Windows (Modals)
+                services.AddTransient<Views.Windows.UserEditWindow>();
 
                 // Register Application Services — WPF-UI Navigation
                 services.AddNavigationViewPageProvider();
@@ -55,11 +68,29 @@ public partial class App : System.Windows.Application
                 services.AddSingleton<Services.SessionManager>();
 
                 // Register Infrastructure/Domain Services
-                services.AddSingleton<WTT.Application.Interfaces.IAuthService, WTT.Infrastructure.Services.AuthService>();
+                services.AddScoped<WTT.Application.Interfaces.IAuthService, WTT.Infrastructure.Services.AuthService>();
                 services.AddScoped<WTT.Application.Interfaces.IDeviceService, WTT.Infrastructure.Services.DeviceService>();
-                
+                services.AddScoped<WTT.Application.Interfaces.ITagService, WTT.Infrastructure.Services.TagService>();
+                services.AddScoped<WTT.Application.Interfaces.IUserService, WTT.Infrastructure.Services.UserService>();
+
+                // Background Services
+                services.AddSingleton<WTT.Infrastructure.Services.DataCaptureBackgroundService>();
+                services.AddSingleton<WTT.Application.Interfaces.IDataCaptureService>(sp => 
+                    sp.GetRequiredService<WTT.Infrastructure.Services.DataCaptureBackgroundService>());
+                services.AddHostedService(sp => 
+                    sp.GetRequiredService<WTT.Infrastructure.Services.DataCaptureBackgroundService>());
+
+                services.AddSingleton<WTT.Infrastructure.Services.DataTransferBackgroundService>();
+                services.AddSingleton<WTT.Application.Interfaces.IDataTransferService>(sp => 
+                    sp.GetRequiredService<WTT.Infrastructure.Services.DataTransferBackgroundService>());
+                services.AddHostedService(sp => 
+                    sp.GetRequiredService<WTT.Infrastructure.Services.DataTransferBackgroundService>());
+
                 // PLC Drivers
                 services.AddTransient<WTT.Infrastructure.PlcDrivers.MockPlcDriver>();
+                services.AddTransient<WTT.Infrastructure.PlcDrivers.ModbusTcpDriver>();
+                services.AddTransient<WTT.Infrastructure.PlcDrivers.SiemensS7Driver>();
+                services.AddTransient<WTT.Infrastructure.PlcDrivers.AllenBradleyDriver>();
                 services.AddSingleton<WTT.Infrastructure.PlcDrivers.PlcDriverFactory>();
 
                 services.AddDbContext<AppDbContext>(options =>

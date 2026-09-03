@@ -61,6 +61,7 @@ public partial class LoginViewModel : ObservableObject
 
                 // Navigate to MainWindow on successful login
                 var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+                App.Current.MainWindow = mainWindow;
                 mainWindow?.Show();
 
                 // Close current window (Login Window)

@@ -27,7 +27,12 @@ public class PlcDriverFactory
             return _serviceProvider.GetRequiredService<MockPlcDriver>();
         }
 
-        // In Phase 3, we will return actual drivers based on device.Protocol
-        throw new NotImplementedException($"Real PLC driver for {device.Protocol} is not implemented yet. Turn on 'UseMockPlc' in settings.");
+        return device.Protocol.ToUpperInvariant() switch
+        {
+            "MODBUSTCP" => _serviceProvider.GetRequiredService<ModbusTcpDriver>(),
+            "SIEMENSS7" => _serviceProvider.GetRequiredService<SiemensS7Driver>(),
+            "ETHERNETIP" => _serviceProvider.GetRequiredService<AllenBradleyDriver>(),
+            _ => _serviceProvider.GetRequiredService<MockPlcDriver>()
+        };
     }
 }
