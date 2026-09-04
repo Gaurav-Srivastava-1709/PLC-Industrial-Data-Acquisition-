@@ -1,93 +1,65 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using System;
-using System.Threading.Tasks;
-using System.Windows;
+using Microsoft.Extensions.Logging;
 using WTT.Application.Interfaces;
-using WTT.Infrastructure.Services;
-using Wpf.Ui;
+using WTT.Application.Security;
+using WTT.UI.Services;
 
 namespace WTT.UI.ViewModels;
 
-public partial class MainViewModel : ObservableObject
+public partial class MainViewModel : ViewModelBase
 {
-    private readonly IAuthService _authService;
-    private readonly IServiceProvider _serviceProvider;
-    private readonly Services.SessionManager _sessionManager;
+    private readonly ICurrentUserService _currentUser;
+    private readonly ShellNavigator _shell;
+    private readonly Func<ChangePasswordViewModel> _changePasswordFactory;
 
-    // Current logged-in user ki info dikhane ke liye
-    [ObservableProperty]
-    private string _currentUsername = "admin";
-
-    [ObservableProperty]
-    private string _currentUserRole = "Administrator";
-
-    // Dark Mode toggle state
-    [ObservableProperty]
-    private bool _isDarkMode = true;
-
-    // RBAC: Role-based Visibility Properties
-    [ObservableProperty]
-    private bool _isAdmin;
-
-    [ObservableProperty]
-    private bool _isOperatorOrAbove;
-
-    public MainViewModel(IAuthService authService, IServiceProvider serviceProvider, Services.SessionManager sessionManager)
+    public MainViewModel(ICurrentUserService currentUser, ShellNavigator shell, Func<ChangePasswordViewModel> changePasswordFactory,
+        IDialogService dialogs, ILogger<MainViewModel> logger) : base(dialogs, logger)
     {
-        _authService = authService;
-        _serviceProvider = serviceProvider;
-        _sessionManager = sessionManager;
-
-        UpdateUserContext();
+        _currentUser = currentUser;
+        _shell = shell;
+        _changePasswordFactory = changePasswordFactory;
+        _currentUser.Changed += (_, _) => OnUi(RefreshUser);
+        RefreshUser();
     }
 
-    private void UpdateUserContext()
+    [ObservableProperty] private string _displayName = string.Empty;
+    [ObservableProperty] private string _roleName = string.Empty;
+
+    public bool CanViewDevices => _currentUser.HasPermission(Permission.ViewDevices);
+    public bool CanViewLiveData => _currentUser.HasPermission(Permission.ViewLiveData);
+    public bool CanViewTransfer => _currentUser.HasPermission(Permission.ViewTransfer);
+    public bool CanManageUsers => _currentUser.HasPermission(Permission.ManageUsers);
+    public bool CanViewLogs => _currentUser.HasPermission(Permission.ViewLogs);
+    public bool CanManageSettings => _currentUser.HasPermission(Permission.ManageSettings);
+
+    public event EventHandler<ChangePasswordViewModel>? ChangePasswordRequested;
+
+    private void RefreshUser()
     {
-        if (_authService.CurrentUser != null)
-        {
-            CurrentUsername = _authService.CurrentUser.Username;
-            CurrentUserRole = _authService.CurrentUser.Role.ToString();
-            
-            // Set visibility flags based on Role
-            IsAdmin = _authService.CurrentUser.Role == WTT.Domain.Entities.UserRole.Admin;
-            IsOperatorOrAbove = _authService.CurrentUser.Role == WTT.Domain.Entities.UserRole.Admin || 
-                                _authService.CurrentUser.Role == WTT.Domain.Entities.UserRole.Operator;
-        }
+        var u = _currentUser.User;
+        DisplayName = u is null ? string.Empty : (string.IsNullOrWhiteSpace(u.FullName) ? u.Username : u.FullName);
+        RoleName = u?.Role.ToString() ?? string.Empty;
+        OnPropertyChanged(nameof(CanViewDevices));
+        OnPropertyChanged(nameof(CanViewLiveData));
+        OnPropertyChanged(nameof(CanViewTransfer));
+        OnPropertyChanged(nameof(CanManageUsers));
+        OnPropertyChanged(nameof(CanViewLogs));
+        OnPropertyChanged(nameof(CanManageSettings));
     }
 
-    /// <summary>
-    /// Dark/Light mode toggle karne ka command
-    /// </summary>
-    partial void OnIsDarkModeChanged(bool value)
-    {
-        if (value)
-            Wpf.Ui.Appearance.ApplicationThemeManager.Apply(Wpf.Ui.Appearance.ApplicationTheme.Dark);
-        else
-            Wpf.Ui.Appearance.ApplicationThemeManager.Apply(Wpf.Ui.Appearance.ApplicationTheme.Light);
-    }
-
-    /// <summary>
-    /// Logout button ka command — session band karo, login screen dikhao
-    /// </summary>
     [RelayCommand]
     private async Task LogoutAsync()
     {
-        _sessionManager.StopSession();
-        await _authService.LogoutAsync();
+        if (await Dialogs.ConfirmAsync("Sign out", "Do you want to sign out?", "Sign out"))
+            await _shell.LogoutAsync();
+    }
 
-        // Login window kholo
-        var loginWindow = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<Views.LoginWindow>(_serviceProvider);
-        loginWindow.Show();
-
-        // Saari MainWindows band karo
-        foreach (Window window in System.Windows.Application.Current.Windows)
-        {
-            if (window is MainWindow)
-            {
-                window.Close();
-                break;
-            }
-        }
+    [RelayCommand]
+    private void ChangePassword()
+    {
+        var vm = _changePasswordFactory();
+        vm.Initialize(_currentUser.User!.Id, forced: false);
+        ChangePasswordRequested?.Invoke(this, vm);
     }
 }

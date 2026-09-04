@@ -1,17 +1,22 @@
-using System.Windows.Controls;
+using System.Windows;
+using Wpf.Ui.Abstractions.Controls;
 using WTT.UI.ViewModels;
+using WTT.UI.Views.Windows;
 
 namespace WTT.UI.Views.Pages;
 
-public partial class LiveDataPage : Page
+public partial class LiveDataPage : INavigableView<LiveDataViewModel>, INavigationAware
 {
-    private readonly LiveDataViewModel _viewModel;
+    public LiveDataViewModel ViewModel { get; }
 
     public LiveDataPage(LiveDataViewModel viewModel)
     {
+        ViewModel = viewModel;
+        DataContext = viewModel;
         InitializeComponent();
-        _viewModel = viewModel;
-        DataContext = _viewModel;
-        Loaded += async (_, _) => await _viewModel.InitializeAsync();
+        viewModel.WriteRequested += (_, vm) => new WriteTagWindow(vm) { Owner = Window.GetWindow(this) }.ShowDialog();
     }
+
+    public Task OnNavigatedToAsync() => ViewModel.OnNavigatedToAsync();
+    public Task OnNavigatedFromAsync() => ViewModel.OnNavigatedFromAsync();
 }

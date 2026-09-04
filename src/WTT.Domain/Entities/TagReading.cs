@@ -1,28 +1,36 @@
-using System;
+using WTT.Domain.Enums;
 
 namespace WTT.Domain.Entities;
 
 /// <summary>
-/// TagReading: Data Capture Service dwara har 10 second me read ki gayi historical value.
-/// Industry standard ke hisaab se 30 days retention policy apply hogi.
+/// One historised sample. This is the local store-and-forward buffer that the
+/// transfer service ships to the central server (table "TagDetail").
 /// </summary>
 public class TagReading
 {
     public long Id { get; set; }
 
-    // Foreign key to DeviceTag
-    public int DeviceTagId { get; set; }
-    public DeviceTag DeviceTag { get; set; } = null!;
+    public int DeviceId { get; set; }
 
-    // String form me capture ki gayi value (e.g. "72.45", "TRUE", "1250")
+    /// <summary>Denormalised for fast transfer and to survive device renames.</summary>
+    public string DeviceName { get; set; } = string.Empty;
+
+    public string TagName { get; set; } = string.Empty;
+
+    /// <summary>Invariant-culture string representation of the value.</summary>
     public string Value { get; set; } = string.Empty;
 
-    // Quality flag: "Good" (agar success), "Bad" (agar communication error), "Unknown"
-    public string Quality { get; set; } = "Good";
+    public TagQuality Quality { get; set; }
 
-    // Reading capture hone ka exact UTC timestamp
-    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    /// <summary>Local wall-clock time of the scan.</summary>
+    public DateTime Timestamp { get; set; }
 
-    // Central Server (Phase 4) ko transfer hua ya nahi
-    public bool IsTransferred { get; set; } = false;
+    /// <summary>UTC time of the scan.</summary>
+    public DateTime TimestampUtc { get; set; }
+
+    /// <summary>All rows produced by one poll share the same ScanId (enables row-wise pivoting downstream).</summary>
+    public Guid ScanId { get; set; }
+
+    public bool IsTransferred { get; set; }
+    public DateTime? TransferredAtUtc { get; set; }
 }

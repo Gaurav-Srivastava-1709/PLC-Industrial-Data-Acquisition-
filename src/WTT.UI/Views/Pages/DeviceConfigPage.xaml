@@ -1,0 +1,330 @@
+<Page x:Class="WTT.UI.Views.Pages.DeviceConfigPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Title="Device configuration">
+    <Page.Resources>
+        <Style x:Key="RowBtn" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+            <Setter Property="Padding" Value="6,2" />
+            <Setter Property="Margin" Value="0,0,4,0" />
+            <Setter Property="Appearance" Value="Secondary" />
+        </Style>
+    </Page.Resources>
+
+    <Grid Style="{StaticResource PageRoot}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="0,0,0,12">
+            <StackPanel Orientation="Horizontal">
+                <ui:Button Icon="{ui:SymbolIcon ArrowLeft24}" Command="{Binding BackCommand}" Appearance="Secondary" Margin="0,0,12,0" VerticalAlignment="Top" />
+                <StackPanel>
+                    <TextBlock Text="{Binding Title}" Style="{StaticResource PageTitle}" />
+                    <TextBlock Text="Tags, address blocks, external context, capture trigger and the central transfer target of this device." Style="{StaticResource PageSubtitle}" Margin="0" />
+                </StackPanel>
+            </StackPanel>
+            <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RefreshCommand}" HorizontalAlignment="Right" VerticalAlignment="Top" />
+        </Grid>
+
+        <TabControl Grid.Row="1">
+            <!-- ================= PLC TAGS ================= -->
+            <TabItem Header="PLC tags">
+                <Grid Margin="0,12,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0" Margin="0,0,0,8">
+                        <ui:TextBox PlaceholderText="Filter tags…" Icon="{ui:SymbolIcon Search24}" Width="300" HorizontalAlignment="Left" Text="{Binding TagFilter, UpdateSourceTrigger=PropertyChanged}" />
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}">
+                            <ui:Button Content="Select all" Command="{Binding SelectAllCommand}" CommandParameter="true" Margin="0,0,6,0" />
+                            <ui:Button Content="Deselect all" Command="{Binding SelectAllCommand}" CommandParameter="false" Margin="0,0,12,0" />
+                            <ui:Button Content="Browse controller" Icon="{ui:SymbolIcon Search24}" Command="{Binding BrowseTagsCommand}" Margin="0,0,6,0"
+                                       Visibility="{Binding CanBrowse, Converter={StaticResource BoolToVis}}" />
+                            <ui:Button Content="Add PLC tag" Icon="{ui:SymbolIcon Add24}" Appearance="Primary" Command="{Binding AddTagCommand}" CommandParameter="Plc" />
+                        </StackPanel>
+                    </Grid>
+                    <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding PlcTags}" SelectedItem="{Binding SelectedPlcTag}">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="On" Width="44">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsSelected, Mode=OneWay}" HorizontalAlignment="Center"
+                                                  Command="{Binding DataContext.ToggleSelectedCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
+                                                  IsEnabled="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Tag name" Binding="{Binding Name}" Width="200" />
+                            <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" Width="140" />
+                            <DataGridTextColumn Header="Address" Binding="{Binding PlcAddress}" Width="160" />
+                            <DataGridTextColumn Header="Type" Binding="{Binding DataType}" Width="70" />
+                            <DataGridTextColumn Header="Reg" Binding="{Binding RegisterType, Converter={StaticResource EnumDesc}}" Width="110" />
+                            <DataGridTextColumn Header="Count" Binding="{Binding ElementCount}" Width="55" />
+                            <DataGridTextColumn Header="Scale" Binding="{Binding ScaleFactor}" Width="60" />
+                            <DataGridTextColumn Header="Unit" Binding="{Binding EngineeringUnit}" Width="60" />
+                            <DataGridTemplateColumn Header="Current" Width="120">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Ellipse Style="{StaticResource Dot}" Width="8" Height="8" Fill="{Binding CurrentQuality, Converter={StaticResource QualityToBrush}}" />
+                                            <TextBlock Text="{Binding CurrentValue}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="" Width="*">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}">
+                                            <ui:Button Style="{StaticResource RowBtn}" Icon="{ui:SymbolIcon Edit24}" Command="{Binding DataContext.EditTagCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                                            <ui:Button Style="{StaticResource RowBtn}" Icon="{ui:SymbolIcon Delete24}" Appearance="Danger" Command="{Binding DataContext.DeleteTagCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- ================= ADDRESS BLOCKS (Modbus) ================= -->
+            <TabItem Header="Address blocks" Visibility="{Binding IsModbus, Converter={StaticResource BoolToVis}}">
+                <Grid Margin="0,12,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0" Margin="0,0,0,8">
+                        <TextBlock Style="{StaticResource Hint}" VerticalAlignment="Center" MaxWidth="700" HorizontalAlignment="Left"
+                                   Text="Sequential blocks auto-generate one tag per point (e.g. CH001…CH060 for a Yokogawa). Discrete blocks are containers for manually defined tags." />
+                        <ui:Button Content="Add block" Icon="{ui:SymbolIcon Add24}" Appearance="Primary" Command="{Binding AddBlockCommand}" HorizontalAlignment="Right"
+                                   Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}" />
+                    </Grid>
+                    <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding AddressBlocks}" SelectedItem="{Binding SelectedBlock}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Type" Binding="{Binding AddressType}" Width="100" />
+                            <DataGridTextColumn Header="Register" Binding="{Binding RegisterType, Converter={StaticResource EnumDesc}}" Width="130" />
+                            <DataGridTextColumn Header="Start" Binding="{Binding StartAddress}" Width="70" />
+                            <DataGridTextColumn Header="Data type" Binding="{Binding DataType}" Width="90" />
+                            <DataGridTextColumn Header="Points" Binding="{Binding PointCount}" Width="70" />
+                            <DataGridTextColumn Header="Prefix" Binding="{Binding TagPrefix}" Width="100" />
+                            <DataGridCheckBoxColumn Header="0-based" Binding="{Binding ZeroBasedTagIndex}" Width="70" />
+                            <DataGridTextColumn Header="Offset" Binding="{Binding ModuleOffset}" Width="70" />
+                            <DataGridTextColumn Header="Decimals" Binding="{Binding DecimalPlaces}" Width="75" />
+                            <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" />
+                            <DataGridTemplateColumn Header="" Width="200">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}">
+                                            <ui:Button Style="{StaticResource RowBtn}" Content="Regenerate" Command="{Binding DataContext.RegenerateBlockCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                                            <ui:Button Style="{StaticResource RowBtn}" Icon="{ui:SymbolIcon Edit24}" Command="{Binding DataContext.EditBlockCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                                            <ui:Button Style="{StaticResource RowBtn}" Icon="{ui:SymbolIcon Delete24}" Appearance="Danger" Command="{Binding DataContext.DeleteBlockCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- ================= CUSTOM & EXTERNAL ================= -->
+            <TabItem Header="Custom &amp; external tags">
+                <Grid Margin="0,12,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="0,0,0,6">
+                        <TextBlock Text="Custom tags — constant values stamped into every scan (recipe, line id…)" Style="{StaticResource SectionTitle}" VerticalAlignment="Center" />
+                        <ui:Button Content="Add custom tag" Icon="{ui:SymbolIcon Add24}" Command="{Binding AddTagCommand}" CommandParameter="Custom" HorizontalAlignment="Right"
+                                   Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}" />
+                    </Grid>
+                    <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding CustomTags}" MinHeight="90">
+                        <DataGrid.Columns>
+                            <DataGridCheckBoxColumn Header="On" Binding="{Binding IsSelected}" Width="44" />
+                            <DataGridTextColumn Header="Tag name" Binding="{Binding Name}" Width="200" />
+                            <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" Width="140" />
+                            <DataGridTextColumn Header="Value" Binding="{Binding SetValue}" Width="*" />
+                            <DataGridTemplateColumn Header="" Width="90">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}">
+                                            <ui:Button Style="{StaticResource RowBtn}" Icon="{ui:SymbolIcon Edit24}" Command="{Binding DataContext.EditTagCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                                            <ui:Button Style="{StaticResource RowBtn}" Icon="{ui:SymbolIcon Delete24}" Appearance="Danger" Command="{Binding DataContext.DeleteTagCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <Grid Grid.Row="2" Margin="0,16,0,6">
+                        <TextBlock Text="External queries — SQL statements whose first row supplies context (batch, shift, order…)" Style="{StaticResource SectionTitle}" VerticalAlignment="Center" />
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}">
+                            <ui:Button Content="Refresh values now" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding RefreshExternalNowCommand}" Margin="0,0,6,0" />
+                            <ui:Button Content="Add query" Icon="{ui:SymbolIcon Add24}" Command="{Binding AddQueryCommand}" />
+                        </StackPanel>
+                    </Grid>
+                    <DataGrid Grid.Row="3" Style="{StaticResource Grid}" ItemsSource="{Binding Queries}" MinHeight="90">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="" Width="36">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Ellipse Style="{StaticResource Dot}" Fill="{Binding IsVerified, Converter={StaticResource BoolToBrush}}" HorizontalAlignment="Center" Margin="0" ToolTip="Green = verified" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="150" />
+                            <DataGridTextColumn Header="Server" Binding="{Binding ServerName}" Width="150" />
+                            <DataGridTextColumn Header="Database" Binding="{Binding DatabaseName}" Width="120" />
+                            <DataGridTextColumn Header="Type" Binding="{Binding QueryType}" Width="90" />
+                            <DataGridTextColumn Header="Columns" Binding="{Binding Columns.Count}" Width="70" />
+                            <DataGridTextColumn Header="Last error" Binding="{Binding LastError}" Width="*" />
+                            <DataGridTemplateColumn Header="" Width="150">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}">
+                                            <ui:Button Style="{StaticResource RowBtn}" Content="Verify" Command="{Binding DataContext.VerifyQueryCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                                            <ui:Button Style="{StaticResource RowBtn}" Icon="{ui:SymbolIcon Edit24}" Command="{Binding DataContext.EditQueryCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                                            <ui:Button Style="{StaticResource RowBtn}" Icon="{ui:SymbolIcon Delete24}" Appearance="Danger" Command="{Binding DataContext.DeleteQueryCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <Grid Grid.Row="4" Margin="0,16,0,6">
+                        <TextBlock Text="External tags — bound to a column of a verified query; refreshed once per trigger cycle" Style="{StaticResource SectionTitle}" VerticalAlignment="Center" />
+                        <ui:Button Content="Add external tag" Icon="{ui:SymbolIcon Add24}" Command="{Binding AddTagCommand}" CommandParameter="External" HorizontalAlignment="Right"
+                                   Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}" />
+                    </Grid>
+                    <DataGrid Grid.Row="5" Style="{StaticResource Grid}" ItemsSource="{Binding ExternalTags}" MinHeight="90">
+                        <DataGrid.Columns>
+                            <DataGridCheckBoxColumn Header="On" Binding="{Binding IsSelected}" Width="44" />
+                            <DataGridTextColumn Header="Tag name" Binding="{Binding Name}" Width="200" />
+                            <DataGridTextColumn Header="Query" Binding="{Binding Query.Name}" Width="150" />
+                            <DataGridTextColumn Header="Column" Binding="{Binding QueryColumn.ColumnName}" Width="150" />
+                            <DataGridTextColumn Header="Current value" Binding="{Binding SetValue}" Width="*" />
+                            <DataGridTemplateColumn Header="" Width="90">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}">
+                                            <ui:Button Style="{StaticResource RowBtn}" Icon="{ui:SymbolIcon Edit24}" Command="{Binding DataContext.EditTagCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                                            <ui:Button Style="{StaticResource RowBtn}" Icon="{ui:SymbolIcon Delete24}" Appearance="Danger" Command="{Binding DataContext.DeleteTagCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- ================= CAPTURE TRIGGER ================= -->
+            <TabItem Header="Capture trigger">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
+                    <StackPanel MaxWidth="900" HorizontalAlignment="Left">
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="When should scans be written to the historian?" Style="{StaticResource SectionTitle}" />
+                                <StackPanel Orientation="Horizontal">
+                                    <ComboBox ItemsSource="{Binding CaptureModes}" SelectedItem="{Binding CaptureMode}" Width="200" IsEnabled="{Binding CanManageDevice}">
+                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource EnumDesc}}" /></DataTemplate></ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <StackPanel Orientation="Horizontal" Margin="16,0,0,0" Visibility="{Binding ShowPlcTrigger, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="Trigger tag (TRUE = capture):" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                        <ComboBox ItemsSource="{Binding BoolPlcTagNames}" SelectedItem="{Binding TriggerTagName}" Width="240" IsEditable="True" />
+                                    </StackPanel>
+                                    <ui:Button Content="Save mode" Icon="{ui:SymbolIcon Save24}" Appearance="Primary" Command="{Binding SaveCaptureModeCommand}" Margin="16,0,0,0"
+                                               Visibility="{Binding CanManageDevice, Converter={StaticResource BoolToVis}}" />
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0"
+                                           Text="Manual: capture on every poll.  PLC Trigger: capture while a PLC tag reads TRUE/non-zero.  Logical: capture while the expression below is TRUE. External tags are refreshed each time the trigger switches ON." />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" Visibility="{Binding ShowLogical, Converter={StaticResource BoolToVis}}">
+                            <StackPanel>
+                                <TextBlock Text="Logical expression" Style="{StaticResource SectionTitle}" />
+                                <Border Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="4" Padding="12,8" Margin="0,0,0,12">
+                                    <TextBlock Text="{Binding ExpressionText}" FontFamily="Consolas" TextWrapping="Wrap" />
+                                </Border>
+
+                                <DataGrid Style="{StaticResource Grid}" ItemsSource="{Binding Conditions}" MaxHeight="240" Margin="0,0,0,12">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="#" Binding="{Binding Order}" Width="40" />
+                                        <DataGridTextColumn Header="Join" Binding="{Binding Conjunction}" Width="70" />
+                                        <DataGridTextColumn Header="Tag" Binding="{Binding TagName}" Width="220" />
+                                        <DataGridTextColumn Header="Operator" Binding="{Binding Operator, Converter={StaticResource EnumDesc}}" Width="130" />
+                                        <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="*" />
+                                        <DataGridTemplateColumn Header="" Width="50">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <ui:Button Style="{StaticResource RowBtn}" Icon="{ui:SymbolIcon Delete24}" Appearance="Danger" Command="{Binding DataContext.DeleteConditionCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
+                                                               Visibility="{Binding DataContext.CanManageDevice, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <TextBlock Text="Add condition" Style="{StaticResource FieldLabel}" />
+                                <StackPanel Orientation="Horizontal" IsEnabled="{Binding CanManageDevice}">
+                                    <ComboBox ItemsSource="{Binding Conjunctions}" SelectedItem="{Binding NewConjunction}" Width="80" Margin="0,0,6,0"
+                                              Visibility="{Binding HasConditions, Converter={StaticResource BoolToVis}}" />
+                                    <ComboBox ItemsSource="{Binding AllTagNames}" SelectedItem="{Binding NewConditionTag}" Width="220" Margin="0,0,6,0" IsEditable="True" />
+                                    <ComboBox ItemsSource="{Binding Operators}" SelectedItem="{Binding NewOperator}" Width="140" Margin="0,0,6,0">
+                                        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource EnumDesc}}" /></DataTemplate></ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <ui:TextBox Text="{Binding NewValue, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="value" Width="160" Margin="0,0,6,0" IsEnabled="{Binding NewValueEnabled}" />
+                                    <ui:Button Content="Add" Icon="{ui:SymbolIcon Add24}" Command="{Binding AddConditionCommand}" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" Visibility="{Binding ErrorMessage, Converter={StaticResource NotNullToVis}}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ================= TRANSFER SERVER ================= -->
+            <TabItem Header="Central server">
+                <StackPanel Margin="0,12,0,0" MaxWidth="900" HorizontalAlignment="Left">
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="Where do this device's readings go?" Style="{StaticResource SectionTitle}" />
+                            <TextBlock Text="No central server configured. Readings stay in the local buffer until a server is added." Style="{StaticResource PageSubtitle}"
+                                       Visibility="{Binding Server, Converter={StaticResource NullToVis}}" />
+                            <Grid Visibility="{Binding Server, Converter={StaticResource NotNullToVis}}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="160" /><ColumnDefinition /></Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /><RowDefinition /></Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="Server" Style="{StaticResource FieldLabel}" /><TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Server.ServerName}" Margin="0,8,0,4" />
+                                <TextBlock Grid.Row="1" Text="Database / table" Style="{StaticResource FieldLabel}" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,8,0,4"><Run Text="{Binding Server.DatabaseName, Mode=OneWay}" /><Run Text=" . " /><Run Text="{Binding Server.TableName, Mode=OneWay}" /></TextBlock>
+                                <TextBlock Grid.Row="2" Text="Authentication" Style="{StaticResource FieldLabel}" />
+                                <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,8,0,4"><Run Text="{Binding Server.UserId, Mode=OneWay}" /><Run Text=" (password encrypted with DPAPI)" Foreground="{DynamicResource TextFillColorTertiaryBrush}" /></TextBlock>
+                                <TextBlock Grid.Row="3" Text="Transfer enabled" Style="{StaticResource FieldLabel}" /><TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Server.IsEnabled}" Margin="0,8,0,4" />
+                                <TextBlock Grid.Row="4" Text="Last success" Style="{StaticResource FieldLabel}" /><TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding Server.LastSuccessAtUtc, Converter={StaticResource UtcToLocal}}" Margin="0,8,0,4" />
+                                <TextBlock Grid.Row="5" Text="Last error" Style="{StaticResource FieldLabel}" /><TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Server.LastError}" Style="{StaticResource ErrorText}" Margin="0,8,0,4" />
+                            </Grid>
+                            <StackPanel Orientation="Horizontal" Margin="0,16,0,0" Visibility="{Binding CanManageTransfer, Converter={StaticResource BoolToVis}}">
+                                <ui:Button Content="Configure server" Icon="{ui:SymbolIcon Database24}" Appearance="Primary" Command="{Binding EditServerCommand}" Margin="0,0,8,0" />
+                                <ui:Button Content="Enable / disable" Command="{Binding ToggleServerEnabledCommand}" Margin="0,0,8,0" Visibility="{Binding Server, Converter={StaticResource NotNullToVis}}" />
+                                <ui:Button Content="Remove" Appearance="Danger" Command="{Binding DeleteServerCommand}" Visibility="{Binding Server, Converter={StaticResource NotNullToVis}}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Page>

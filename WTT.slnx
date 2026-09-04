@@ -1,8 +1,16 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/WTT.Application/WTT.Application.csproj" />
     <Project Path="src/WTT.Domain/WTT.Domain.csproj" />
+    <Project Path="src/WTT.Application/WTT.Application.csproj" />
     <Project Path="src/WTT.Infrastructure/WTT.Infrastructure.csproj" />
     <Project Path="src/WTT.UI/WTT.UI.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WTT.Tests/WTT.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path=".gitignore" />
   </Folder>
 </Solution>

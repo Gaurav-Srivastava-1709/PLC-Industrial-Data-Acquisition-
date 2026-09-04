@@ -1,32 +1,40 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>WTT.Infrastructure</RootNamespace>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\WTT.Application\WTT.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
-    <PackageReference Include="libplctag" Version="1.5.2" />
-    <PackageReference Include="libplctag.NativeImport" Version="1.0.41" />
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.2" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.2">
+    <!-- Persistence -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.11" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.2" />
-    <PackageReference Include="NModbus4" Version="2.1.0" />
-    <PackageReference Include="S7netplus" Version="0.20.0" />
-    <PackageReference Include="Serilog" Version="4.2.0" />
-    <PackageReference Include="System.IO.Ports" Version="9.0.2" />
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.13" />
-  </ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" />
 
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
+    <!-- Hosting / DI / Options -->
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+
+    <!-- Security -->
+    <PackageReference Include="BCrypt.Net-Next" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+
+    <!-- Resilience -->
+    <PackageReference Include="Polly.Core" />
+
+    <!-- PLC protocol libraries (all open source) -->
+    <PackageReference Include="libplctag" />
+    <PackageReference Include="libplctag.NativeImport" />
+    <PackageReference Include="S7netplus" />
+    <PackageReference Include="NModbus" />
+  </ItemGroup>
 
 </Project>

@@ -1,38 +1,43 @@
-using System;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using WTT.Application.Interfaces;
 using WTT.Domain.Entities;
+using WTT.Domain.Enums;
+using WTT.Domain.Exceptions;
+using WTT.Domain.Interfaces;
+using WTT.Infrastructure.PlcDrivers.AllenBradley;
+using WTT.Infrastructure.PlcDrivers.Modbus;
+using WTT.Infrastructure.PlcDrivers.Siemens;
 
 namespace WTT.Infrastructure.PlcDrivers;
 
-public class PlcDriverFactory
+/// <summary>
+/// Maps a device's protocol/model to a driver. Unknown combinations throw — a misconfigured
+/// device must never silently produce simulated data.
+/// </summary>
+public sealed class PlcDriverFactory : IPlcDriverFactory
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly IConfiguration _configuration;
+    private readonly IRuntimeSettings _runtime;
+    private readonly ILoggerFactory _loggerFactory;
 
-    public PlcDriverFactory(IServiceProvider serviceProvider, IConfiguration configuration)
+    public PlcDriverFactory(IRuntimeSettings runtime, ILoggerFactory loggerFactory)
     {
-        _serviceProvider = serviceProvider;
-        _configuration = configuration;
+        _runtime = runtime;
+        _loggerFactory = loggerFactory;
     }
 
-    public IPlcDriver CreateDriver(PlcDevice device)
+    public IPlcDriver Create(Device device)
     {
-        bool useMockPlc = false;
-        bool.TryParse(_configuration["MockPLC:Enabled"], out useMockPlc);
+        if (_runtime.UseMockPlc)
+            return new MockPlcDriver(device);
 
-        if (useMockPlc)
+        return device.Protocol switch
         {
-            return _serviceProvider.GetRequiredService<MockPlcDriver>();
-        }
-
-        return device.Protocol.ToUpperInvariant() switch
-        {
-            "MODBUSTCP" => _serviceProvider.GetRequiredService<ModbusTcpDriver>(),
-            "SIEMENSS7" => _serviceProvider.GetRequiredService<SiemensS7Driver>(),
-            "ETHERNETIP" => _serviceProvider.GetRequiredService<AllenBradleyDriver>(),
-            _ => _serviceProvider.GetRequiredService<MockPlcDriver>()
+            ProtocolType.ModbusTcp => new ModbusTcpDriver(device, _loggerFactory.CreateLogger<ModbusTcpDriver>()),
+            ProtocolType.SiemensS7 => new SiemensS7Driver(device, _loggerFactory.CreateLogger<SiemensS7Driver>()),
+            ProtocolType.EthernetIp when device.Manufacturer == Manufacturer.AllenBradley
+                => new AllenBradleyDriver(device, _loggerFactory.CreateLogger<AllenBradleyDriver>()),
+            _ => throw new PlcConfigurationException(
+                $"No driver available for device '{device.Name}' ({device.Protocol} / {device.Manufacturer} / {device.Model}). Check the device configuration."),
         };
     }
 }

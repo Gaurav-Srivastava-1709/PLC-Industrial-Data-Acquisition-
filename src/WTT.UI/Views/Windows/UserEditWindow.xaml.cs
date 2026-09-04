@@ -1,61 +1,21 @@
-using System;
-using System.Globalization;
-using System.Windows.Data;
+using System.Windows;
 using Wpf.Ui.Controls;
+using WTT.UI.ViewModels;
 
 namespace WTT.UI.Views.Windows;
 
 public partial class UserEditWindow : FluentWindow
 {
-    private readonly ViewModels.UserEditViewModel _viewModel;
+    private readonly UserEditViewModel _vm;
 
-    public UserEditWindow(ViewModels.UserEditViewModel viewModel)
+    public UserEditWindow(UserEditViewModel vm)
     {
+        _vm = vm;
+        DataContext = vm;
         InitializeComponent();
-        _viewModel = viewModel;
-        DataContext = _viewModel;
-
-        // Wire up close action
-        _viewModel.CloseAction = () =>
-        {
-            DialogResult = _viewModel.DialogResult;
-            Close();
-        };
+        vm.Closed += (_, _) => Dispatcher.Invoke(Close);
     }
 
-    public void SetUserForEdit(Domain.Entities.User user)
-    {
-        _viewModel.SetUserForEdit(user);
-    }
-}
-
-public class InverseBooleanConverter : IValueConverter
-{
-    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        if (value is bool boolValue) return !boolValue;
-        return value;
-    }
-
-    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
-    }
-}
-
-public class PasswordPlaceholderConverter : IValueConverter
-{
-    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        if (value is bool isEditMode)
-        {
-            return isEditMode ? "Leave blank to keep current password" : "Enter a secure password";
-        }
-        return value;
-    }
-
-    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
-    }
+    private void Pwd_Changed(object sender, RoutedEventArgs e) => _vm.Password = PwdBox.Password;
+    private void Confirm_Changed(object sender, RoutedEventArgs e) => _vm.ConfirmPassword = ConfirmBox.Password;
 }

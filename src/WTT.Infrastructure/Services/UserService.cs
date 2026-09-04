@@ -1,160 +1,196 @@
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
+using WTT.Application.DTOs;
 using WTT.Application.Interfaces;
+using WTT.Application.Options;
+using WTT.Application.Security;
+using WTT.Application.Validators;
 using WTT.Domain.Entities;
-using WTT.Infrastructure.Data;
-using BCrypt.Net;
+using WTT.Domain.Enums;
+using WTT.Domain.Exceptions;
+using WTT.Infrastructure.Persistence;
 
 namespace WTT.Infrastructure.Services;
 
-public class UserService : IUserService
+public sealed class UserService : IUserService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IDbContextFactory<AppDbContext> _factory;
+    private readonly IPasswordHasher _hasher;
+    private readonly ICurrentUserService _currentUser;
+    private readonly IAuditService _audit;
+    private readonly SecurityOptions _options;
     private readonly ILogger<UserService> _logger;
-    private readonly IAuthService _authService;
 
-    public UserService(AppDbContext dbContext, ILogger<UserService> logger, IAuthService authService)
+    public UserService(
+        IDbContextFactory<AppDbContext> factory,
+        IPasswordHasher hasher,
+        ICurrentUserService currentUser,
+        IAuditService audit,
+        IOptions<SecurityOptions> options,
+        ILogger<UserService> logger)
     {
-        _dbContext = dbContext;
+        _factory = factory;
+        _hasher = hasher;
+        _currentUser = currentUser;
+        _audit = audit;
+        _options = options.Value;
         _logger = logger;
-        _authService = authService;
     }
 
-    private void EnsureAdminRole()
+    public async Task<IReadOnlyList<UserDto>> GetAllAsync(CancellationToken ct = default)
     {
-        if (_authService.CurrentUser?.Role != UserRole.Admin)
+        _currentUser.Demand(Permission.ManageUsers);
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var users = await db.Users.AsNoTracking().OrderBy(u => u.Username).ToListAsync(ct);
+        return users.Select(AuthService.ToDto).ToList();
+    }
+
+    public async Task<UserDto?> GetByIdAsync(int id, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var u = await db.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct);
+        return u is null ? null : AuthService.ToDto(u);
+    }
+
+    public async Task<UserDto> CreateAsync(CreateUserRequest request, CancellationToken ct = default)
+    {
+        _currentUser.Demand(Permission.ManageUsers);
+        var validation = new CreateUserRequestValidator(_options).Validate(request);
+        if (!validation.IsValid) throw new BusinessRuleException(validation.Errors[0].ErrorMessage);
+
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var normalized = request.Username.Trim().ToUpperInvariant();
+        if (await db.Users.AnyAsync(u => u.NormalizedUsername == normalized, ct))
+            throw new BusinessRuleException($"Username '{request.Username}' already exists.");
+
+        var user = new User
         {
-            throw new UnauthorizedAccessException("Only administrators can perform user management operations.");
-        }
+            Username = request.Username.Trim(),
+            NormalizedUsername = normalized,
+            FullName = request.FullName.Trim(),
+            PasswordHash = _hasher.Hash(request.Password),
+            Role = request.Role,
+            IsActive = true,
+            MustChangePassword = true,
+        };
+        db.Users.Add(user);
+        await db.SaveChangesAsync(ct);
+        await _audit.RecordAsync("CreateUser", user.Username, $"Role={user.Role}", true, ct);
+        _logger.LogInformation("User {User} created with role {Role} by {Actor}.", user.Username, user.Role, _currentUser.Username);
+        return AuthService.ToDto(user);
     }
 
-    public async Task<List<User>> GetAllUsersAsync()
+    public async Task<UserDto> UpdateAsync(UpdateUserRequest request, CancellationToken ct = default)
     {
-        EnsureAdminRole();
-        return await _dbContext.Users.AsNoTracking().ToListAsync();
+        _currentUser.Demand(Permission.ManageUsers);
+        if (string.IsNullOrWhiteSpace(request.FullName)) throw new BusinessRuleException("Full name is required.");
+
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == request.Id, ct) ?? throw new NotFoundException("User", request.Id);
+
+        await EnsureNotLastActiveAdminAsync(db, user, request.Role, request.IsActive, ct);
+
+        user.FullName = request.FullName.Trim();
+        user.Role = request.Role;
+        user.IsActive = request.IsActive;
+        await db.SaveChangesAsync(ct);
+        await _audit.RecordAsync("UpdateUser", user.Username, $"Role={user.Role}; Active={user.IsActive}", true, ct);
+
+        if (_currentUser.User?.Id == user.Id) _currentUser.SetUser(AuthService.ToDto(user));
+        return AuthService.ToDto(user);
     }
 
-    public async Task<User?> GetUserByIdAsync(int id)
+    public async Task ResetPasswordAsync(ResetPasswordRequest request, CancellationToken ct = default)
     {
-        EnsureAdminRole();
-        return await _dbContext.Users.FindAsync(id);
-    }
+        _currentUser.Demand(Permission.ManageUsers);
+        var policy = new PasswordPolicyValidator(_options).Validate(request.NewPassword);
+        if (!policy.IsValid) throw new BusinessRuleException(policy.Errors[0].ErrorMessage);
 
-    public async Task<User> CreateUserAsync(User user, string plainTextPassword)
-    {
-        EnsureAdminRole();
-
-        if (await _dbContext.Users.AnyAsync(u => u.Username.ToLower() == user.Username.ToLower()))
-        {
-            throw new InvalidOperationException($"Username '{user.Username}' already exists.");
-        }
-
-        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(plainTextPassword);
-        user.CreatedAt = DateTime.UtcNow;
-        user.UpdatedAt = DateTime.UtcNow;
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == request.UserId, ct) ?? throw new NotFoundException("User", request.UserId);
+        user.PasswordHash = _hasher.Hash(request.NewPassword);
         user.MustChangePassword = true;
-
-        _dbContext.Users.Add(user);
-        await _dbContext.SaveChangesAsync();
-        
-        _logger.LogInformation("Admin {AdminUser} created new user {NewUser} with role {Role}", 
-            _authService.CurrentUser?.Username, user.Username, user.Role);
-
-        return user;
+        user.FailedLoginCount = 0;
+        user.LockoutEndUtc = null;
+        user.PasswordChangedAtUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+        await _audit.RecordAsync("ResetPassword", user.Username, null, true, ct);
     }
 
-    public async Task<User> UpdateUserAsync(User user)
+    public async Task DeleteAsync(int id, CancellationToken ct = default)
     {
-        EnsureAdminRole();
+        _currentUser.Demand(Permission.ManageUsers);
+        if (_currentUser.User?.Id == id) throw new BusinessRuleException("You cannot delete your own account.");
 
-        var existingUser = await _dbContext.Users.FindAsync(user.Id) 
-            ?? throw new KeyNotFoundException($"User with ID {user.Id} not found.");
-
-        // Check if username is being changed to one that already exists
-        if (existingUser.Username.ToLower() != user.Username.ToLower() && 
-            await _dbContext.Users.AnyAsync(u => u.Username.ToLower() == user.Username.ToLower()))
-        {
-            throw new InvalidOperationException($"Username '{user.Username}' already exists.");
-        }
-
-        existingUser.Username = user.Username;
-        existingUser.FullName = user.FullName;
-        existingUser.Role = user.Role;
-        existingUser.IsActive = user.IsActive;
-        existingUser.UpdatedAt = DateTime.UtcNow;
-
-        await _dbContext.SaveChangesAsync();
-
-        _logger.LogInformation("Admin {AdminUser} updated user {UpdatedUser}", 
-            _authService.CurrentUser?.Username, existingUser.Username);
-
-        return existingUser;
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id, ct) ?? throw new NotFoundException("User", id);
+        await EnsureNotLastActiveAdminAsync(db, user, UserRole.Viewer, false, ct);
+        db.Users.Remove(user);
+        await db.SaveChangesAsync(ct);
+        await _audit.RecordAsync("DeleteUser", user.Username, null, true, ct);
     }
 
-    public async Task DeleteUserAsync(int id)
+    public async Task UnlockAsync(int id, CancellationToken ct = default)
     {
-        EnsureAdminRole();
-
-        var user = await _dbContext.Users.FindAsync(id)
-            ?? throw new KeyNotFoundException($"User with ID {id} not found.");
-
-        if (user.Id == _authService.CurrentUser?.Id)
-        {
-            throw new InvalidOperationException("You cannot delete your own admin account.");
-        }
-
-        _dbContext.Users.Remove(user);
-        await _dbContext.SaveChangesAsync();
-
-        _logger.LogInformation("Admin {AdminUser} deleted user {DeletedUser}", 
-            _authService.CurrentUser?.Username, user.Username);
+        _currentUser.Demand(Permission.ManageUsers);
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id, ct) ?? throw new NotFoundException("User", id);
+        user.LockoutEndUtc = null;
+        user.FailedLoginCount = 0;
+        await db.SaveChangesAsync(ct);
+        await _audit.RecordAsync("UnlockUser", user.Username, null, true, ct);
     }
 
-    public async Task<bool> ChangePasswordAsync(int userId, string currentPassword, string newPassword)
+    private static async Task EnsureNotLastActiveAdminAsync(AppDbContext db, User user, UserRole newRole, bool newActive, CancellationToken ct)
     {
-        // Users can change their own password, or Admin can do it
-        if (_authService.CurrentUser?.Id != userId && _authService.CurrentUser?.Role != UserRole.Admin)
-        {
-            throw new UnauthorizedAccessException("You can only change your own password.");
-        }
+        var losesAdmin = user.Role == UserRole.Admin && user.IsActive && (newRole != UserRole.Admin || !newActive);
+        if (!losesAdmin) return;
+        var otherAdmins = await db.Users.CountAsync(u => u.Id != user.Id && u.Role == UserRole.Admin && u.IsActive, ct);
+        if (otherAdmins == 0)
+            throw new BusinessRuleException("At least one active administrator must remain.");
+    }
+}
 
-        var user = await _dbContext.Users.FindAsync(userId)
-            ?? throw new KeyNotFoundException($"User with ID {userId} not found.");
+public sealed class AuditService : IAuditService
+{
+    private readonly IDbContextFactory<AppDbContext> _factory;
+    private readonly ICurrentUserService _currentUser;
+    private readonly ILogger<AuditService> _logger;
 
-        if (!BCrypt.Net.BCrypt.Verify(currentPassword, user.PasswordHash))
-        {
-            throw new InvalidOperationException("Current password is incorrect.");
-        }
-
-        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
-        user.MustChangePassword = false;
-        user.UpdatedAt = DateTime.UtcNow;
-
-        await _dbContext.SaveChangesAsync();
-
-        _logger.LogInformation("Password changed successfully for user {User}", user.Username);
-        return true;
+    public AuditService(IDbContextFactory<AppDbContext> factory, ICurrentUserService currentUser, ILogger<AuditService> logger)
+    {
+        _factory = factory;
+        _currentUser = currentUser;
+        _logger = logger;
     }
 
-    public async Task<bool> AdminResetPasswordAsync(int userId, string newPassword)
+    public async Task RecordAsync(string action, string? target = null, string? details = null, bool success = true, CancellationToken ct = default)
     {
-        EnsureAdminRole();
+        try
+        {
+            await using var db = await _factory.CreateDbContextAsync(ct);
+            db.AuditLogs.Add(new AuditLog
+            {
+                Username = _currentUser.Username,
+                Action = action,
+                Target = target,
+                Details = details,
+                Success = success,
+            });
+            await db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            // Auditing must never break the primary operation.
+            _logger.LogError(ex, "Failed to write audit record {Action}/{Target}.", action, target);
+        }
+    }
 
-        var user = await _dbContext.Users.FindAsync(userId)
-            ?? throw new KeyNotFoundException($"User with ID {userId} not found.");
-
-        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
-        user.MustChangePassword = true; // Force them to change it on next login
-        user.UpdatedAt = DateTime.UtcNow;
-
-        await _dbContext.SaveChangesAsync();
-
-        _logger.LogInformation("Admin {AdminUser} reset password for user {TargetUser}", 
-            _authService.CurrentUser?.Username, user.Username);
-            
-        return true;
+    public async Task<IReadOnlyList<AuditLog>> GetRecentAsync(int take = 200, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.AuditLogs.AsNoTracking().OrderByDescending(a => a.TimestampUtc).Take(take).ToListAsync(ct);
     }
 }

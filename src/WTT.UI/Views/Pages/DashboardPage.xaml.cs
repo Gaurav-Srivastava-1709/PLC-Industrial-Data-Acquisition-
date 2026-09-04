@@ -1,17 +1,19 @@
-using System.Windows.Controls;
+using Wpf.Ui.Abstractions.Controls;
 using WTT.UI.ViewModels;
 
 namespace WTT.UI.Views.Pages;
 
-public partial class DashboardPage : Page
+public partial class DashboardPage : INavigableView<DashboardViewModel>, INavigationAware
 {
-    private readonly DashboardViewModel _viewModel;
+    public DashboardViewModel ViewModel { get; }
 
     public DashboardPage(DashboardViewModel viewModel)
     {
+        ViewModel = viewModel;
+        DataContext = viewModel;
         InitializeComponent();
-        _viewModel = viewModel;
-        DataContext = _viewModel;
-        Loaded += async (_, _) => await _viewModel.RefreshDashboardAsync();
     }
+
+    public Task OnNavigatedToAsync() => ViewModel.OnNavigatedToAsync();
+    public Task OnNavigatedFromAsync() => ViewModel.OnNavigatedFromAsync();
 }

@@ -1,17 +1,27 @@
-using System;
+using WTT.Domain.Common;
+using WTT.Domain.Enums;
 
 namespace WTT.Domain.Entities;
 
-public class User
+public class User : AuditableEntity
 {
-    public int Id { get; set; }
     public string Username { get; set; } = string.Empty;
-    public string FullName { get; set; } = string.Empty; // Added for display name
+    public string NormalizedUsername { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+
+    /// <summary>BCrypt hash. Never expose outside the auth service.</summary>
     public string PasswordHash { get; set; } = string.Empty;
+
     public UserRole Role { get; set; } = UserRole.Viewer;
     public bool IsActive { get; set; } = true;
-    public bool MustChangePassword { get; set; } = true; // Force password change on first login
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime? UpdatedAt { get; set; } // Track when user was last modified
-    public DateTime? LastLoginAt { get; set; }
+
+    /// <summary>Forces a password change at next login (new accounts, admin resets).</summary>
+    public bool MustChangePassword { get; set; } = true;
+
+    public int FailedLoginCount { get; set; }
+    public DateTime? LockoutEndUtc { get; set; }
+    public DateTime? LastLoginAtUtc { get; set; }
+    public DateTime? PasswordChangedAtUtc { get; set; }
+
+    public bool IsLockedOut(DateTime nowUtc) => LockoutEndUtc.HasValue && LockoutEndUtc.Value > nowUtc;
 }

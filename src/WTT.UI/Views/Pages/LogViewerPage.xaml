@@ -1,0 +1,64 @@
+<Page x:Class="WTT.UI.Views.Pages.LogViewerPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Title="Logs">
+    <Grid Style="{StaticResource PageRoot}">
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+        <Grid Grid.Row="0">
+            <StackPanel>
+                <TextBlock Text="Logs &amp; audit" Style="{StaticResource PageTitle}" />
+                <TextBlock Style="{StaticResource PageSubtitle}"><Run Text="Application log files live in " /><Run Text="{Binding LogDirectory, Mode=OneWay}" FontFamily="Consolas" /></TextBlock>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                <ComboBox ItemsSource="{Binding Levels}" SelectedItem="{Binding MinimumLevel}" Width="130" Margin="0,0,8,0" />
+                <ui:TextBox PlaceholderText="Contains…" Width="220" Text="{Binding Contains, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0" />
+                <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RefreshCommand}" Margin="0,0,8,0" />
+                <ui:Button Content="Open folder" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding OpenFolderCommand}" />
+            </StackPanel>
+        </Grid>
+        <TabControl Grid.Row="1">
+            <TabItem Header="Application log">
+                <DataGrid Style="{StaticResource Grid}" ItemsSource="{Binding Entries}" SelectedItem="{Binding Selected}" Margin="0,8,0,0" RowHeight="NaN">
+                    <DataGrid.InputBindings><KeyBinding Key="C" Modifiers="Control" Command="{Binding CopySelectedCommand}" /></DataGrid.InputBindings>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Time" Binding="{Binding Timestamp, StringFormat=yyyy-MM-dd HH:mm:ss.fff}" Width="160" />
+                        <DataGridTemplateColumn Header="Level" Width="60">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Level}" FontWeight="SemiBold" VerticalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Level}" Value="WRN"><Setter Property="Foreground" Value="{StaticResource WarnBrush}" /></DataTrigger>
+                                                    <DataTrigger Binding="{Binding Level}" Value="ERR"><Setter Property="Foreground" Value="{StaticResource BadBrush}" /></DataTrigger>
+                                                    <DataTrigger Binding="{Binding Level}" Value="FTL"><Setter Property="Foreground" Value="{StaticResource BadBrush}" /></DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="200" />
+                        <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*">
+                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap" /><Setter Property="MaxHeight" Value="120" /></Style></DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+            <TabItem Header="Audit trail">
+                <DataGrid Style="{StaticResource Grid}" ItemsSource="{Binding AuditEntries}" Margin="0,8,0,0">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Time" Binding="{Binding TimestampUtc, Converter={StaticResource UtcToLocal}}" Width="160" />
+                        <DataGridTextColumn Header="User" Binding="{Binding Username}" Width="120" />
+                        <DataGridTextColumn Header="Action" Binding="{Binding Action}" Width="160" />
+                        <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="220" />
+                        <DataGridCheckBoxColumn Header="OK" Binding="{Binding Success}" Width="50" />
+                        <DataGridTextColumn Header="Details" Binding="{Binding Details}" Width="*" />
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Page>

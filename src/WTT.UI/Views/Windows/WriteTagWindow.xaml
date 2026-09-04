@@ -1,0 +1,21 @@
+<ui:FluentWindow x:Class="WTT.UI.Views.Windows.WriteTagWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Title="{Binding Title}" Height="300" Width="440" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ExtendsContentIntoTitleBar="True" WindowBackdropType="Mica">
+    <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+        <ui:TitleBar Grid.Row="0" Title="{Binding Title}" ShowMaximize="False" ShowMinimize="False" />
+        <StackPanel Grid.Row="1" Margin="24,4,24,20">
+            <TextBlock Text="{Binding Description}" Style="{StaticResource PageSubtitle}" />
+            <TextBlock Text="New value" Style="{StaticResource FieldLabel}" />
+            <ui:TextBox x:Name="ValueBox" Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}" FontFamily="Consolas" />
+            <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" Visibility="{Binding ErrorMessage, Converter={StaticResource NotNullToVis}}" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+                <ui:Button Content="Cancel" Command="{Binding CancelCommand}" Margin="0,0,8,0" />
+                <ui:Button Content="Write" Appearance="Danger" Icon="{ui:SymbolIcon Send24}" Command="{Binding WriteCommand}" IsDefault="True" />
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</ui:FluentWindow>

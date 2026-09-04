@@ -1,192 +1,103 @@
+using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Data.SqlClient;
-using System.IO;
-using System.Text.Json;
-using System.Text.Json.Nodes;
-using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using WTT.Application.Interfaces;
+using WTT.Application.Options;
+using WTT.Application.Security;
+using WTT.Domain.Enums;
+using WTT.Infrastructure.Persistence;
+using WTT.UI.Services;
 
 namespace WTT.UI.ViewModels;
 
-public partial class SettingsViewModel : ObservableObject
+public partial class SettingsViewModel : ViewModelBase
 {
-    private readonly IDataTransferService _dataTransferService;
+    private readonly IAppSettingsService _settings;
+    private readonly IRuntimeSettings _runtime;
+    private readonly ThemeManager _theme;
+    private readonly ICurrentUserService _currentUser;
+    private readonly IAuditService _audit;
+    private readonly DatabaseOptions _dbOptions;
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
 
-    [ObservableProperty]
-    private bool _isDarkMode = true;
-
-    [ObservableProperty]
-    private bool _isMockPlcEnabled;
-
-    [ObservableProperty]
-    private bool _isTransferEnabled;
-
-    [ObservableProperty]
-    private string _sqlServerName = string.Empty;
-
-    [ObservableProperty]
-    private string _sqlDatabaseName = string.Empty;
-
-    [ObservableProperty]
-    private bool _sqlUseWindowsAuth;
-
-    [ObservableProperty]
-    private string _sqlUserId = string.Empty;
-
-    [ObservableProperty]
-    private string _sqlPassword = string.Empty;
-
-    [ObservableProperty]
-    private string _connectionTestResult = string.Empty;
-
-    [ObservableProperty]
-    private System.Windows.Media.Brush _testResultColor = System.Windows.Media.Brushes.Transparent;
-
-    public SettingsViewModel(IDataTransferService dataTransferService)
+    public SettingsViewModel(IAppSettingsService settings, IRuntimeSettings runtime, ThemeManager theme, ICurrentUserService currentUser, IAuditService audit,
+        IOptions<DatabaseOptions> dbOptions, IDbContextFactory<AppDbContext> dbFactory, IDialogService dialogs, ILogger<SettingsViewModel> logger) : base(dialogs, logger)
     {
-        _dataTransferService = dataTransferService;
-        _isDarkMode = Wpf.Ui.Appearance.ApplicationThemeManager.GetAppTheme() == Wpf.Ui.Appearance.ApplicationTheme.Dark;
-        LoadSettings();
+        _settings = settings; _runtime = runtime; _theme = theme; _currentUser = currentUser; _audit = audit; _dbOptions = dbOptions.Value; _dbFactory = dbFactory;
     }
 
-    partial void OnIsDarkModeChanged(bool value)
-    {
-        if (value)
-            Wpf.Ui.Appearance.ApplicationThemeManager.Apply(Wpf.Ui.Appearance.ApplicationTheme.Dark);
-        else
-            Wpf.Ui.Appearance.ApplicationThemeManager.Apply(Wpf.Ui.Appearance.ApplicationTheme.Light);
-    }
+    [ObservableProperty] private bool _isDarkMode = true;
+    [ObservableProperty] private bool _useMockPlc;
+    [ObservableProperty] private int _sessionTimeoutMinutes = 30;
+    [ObservableProperty] private int _transferredRetentionDays = 7;
+    [ObservableProperty] private int _transferIntervalSeconds = 5;
+    [ObservableProperty] private string _databasePath = string.Empty;
+    [ObservableProperty] private string _databaseSize = string.Empty;
+    [ObservableProperty] private string _version = string.Empty;
 
-    private string GetConfigFilePath()
-    {
-        var basePath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
-        return File.Exists(basePath) ? basePath : "appsettings.json";
-    }
+    public bool CanManage => _currentUser.HasPermission(Permission.ManageSettings);
 
-    private void LoadSettings()
+    public override async Task OnNavigatedToAsync()
     {
-        try
+        _currentUser.Demand(Permission.ManageSettings);
+        await RunAsync(async () =>
         {
-            var configPath = GetConfigFilePath();
-            if (File.Exists(configPath))
-            {
-                var json = File.ReadAllText(configPath);
-                var node = JsonNode.Parse(json);
-                if (node != null)
-                {
-                    IsMockPlcEnabled = node["MockPLC"]?["Enabled"]?.GetValue<bool>() ?? false;
-                    
-                    var dtNode = node["DataTransfer"];
-                    if (dtNode != null)
-                    {
-                        IsTransferEnabled = dtNode["Enabled"]?.GetValue<bool>() ?? false;
-                    }
+            IsDarkMode = _theme.Current == AppTheme.Dark;
+            UseMockPlc = _runtime.UseMockPlc;
+            SessionTimeoutMinutes = _runtime.SessionTimeoutMinutes;
+            TransferredRetentionDays = _runtime.TransferredRetentionDays;
+            TransferIntervalSeconds = _runtime.TransferIntervalSeconds;
+            DatabasePath = DatabasePathResolver.ResolvePath(_dbOptions);
+            DatabaseSize = File.Exists(DatabasePath) ? $"{new FileInfo(DatabasePath).Length / 1024.0 / 1024.0:F1} MB" : "not created yet";
+            Version = typeof(App).Assembly.GetName().Version?.ToString(3) ?? "?";
+            await Task.CompletedTask;
+        });
+    }
 
-                    var csNode = node["CentralServer"];
-                    if (csNode != null)
-                    {
-                        SqlServerName = csNode["ServerName"]?.GetValue<string>() ?? string.Empty;
-                        SqlDatabaseName = csNode["DatabaseName"]?.GetValue<string>() ?? string.Empty;
-                        SqlUseWindowsAuth = csNode["UseWindowsAuth"]?.GetValue<bool>() ?? false;
-                        SqlUserId = csNode["UserId"]?.GetValue<string>() ?? string.Empty;
-                        SqlPassword = csNode["Password"]?.GetValue<string>() ?? string.Empty;
-                    }
-                }
+    partial void OnIsDarkModeChanged(bool value) => _ = _theme.SetAsync(value ? AppTheme.Dark : AppTheme.Light);
+
+    [RelayCommand]
+    private async Task SaveAsync()
+    {
+        var ok = await RunAsync(async () =>
+        {
+            if (UseMockPlc != _runtime.UseMockPlc && UseMockPlc &&
+                !await Dialogs.ConfirmAsync("Enable simulator?", "ALL devices will read simulated values instead of real controllers while the simulator is on. Data written to the historian during this time is fake.\n\nEnable anyway?", "Enable simulator", destructive: true))
+            {
+                UseMockPlc = false;
+                return;
             }
-        }
-        catch { }
+            await _settings.SetAsync(AppSettingKeys.UseMockPlc, UseMockPlc.ToString());
+            await _settings.SetAsync(AppSettingKeys.SessionTimeoutMinutes, Math.Clamp(SessionTimeoutMinutes, 1, 720).ToString());
+            await _settings.SetAsync(AppSettingKeys.TransferredRetentionDays, Math.Clamp(TransferredRetentionDays, 1, 3650).ToString());
+            await _settings.SetAsync(AppSettingKeys.TransferIntervalSeconds, Math.Clamp(TransferIntervalSeconds, 1, 3600).ToString());
+            await _runtime.ReloadAsync();
+            await _audit.RecordAsync("SaveSettings", null, $"Mock={UseMockPlc}; Session={SessionTimeoutMinutes}m; Retention={TransferredRetentionDays}d; TransferInterval={TransferIntervalSeconds}s");
+            Dialogs.Toast("Settings", "Settings saved and applied.", ToastKind.Success);
+        }, inlineErrors: true);
+        _ = ok;
     }
 
     [RelayCommand]
-    private async Task TestConnectionAsync()
+    private async Task CompactDatabaseAsync()
     {
-        ConnectionTestResult = "Testing connection...";
-        TestResultColor = System.Windows.Media.Brushes.Gray;
-
-        var builder = new SqlConnectionStringBuilder
+        await RunAsync(async () =>
         {
-            DataSource = SqlServerName,
-            InitialCatalog = SqlDatabaseName,
-            Encrypt = false
-        };
-
-        if (SqlUseWindowsAuth)
-        {
-            builder.IntegratedSecurity = true;
-        }
-        else
-        {
-            builder.UserID = SqlUserId;
-            builder.Password = SqlPassword;
-        }
-
-        bool result = await _dataTransferService.TestConnectionAsync(builder.ConnectionString);
-
-        if (result)
-        {
-            ConnectionTestResult = "Connection successful! ✅";
-            TestResultColor = System.Windows.Media.Brushes.Green;
-        }
-        else
-        {
-            ConnectionTestResult = "Connection failed. Check details. ❌";
-            TestResultColor = System.Windows.Media.Brushes.Red;
-        }
+            await using var db = await _dbFactory.CreateDbContextAsync();
+            await db.Database.ExecuteSqlRawAsync("VACUUM;");
+            await db.Database.ExecuteSqlRawAsync("PRAGMA wal_checkpoint(TRUNCATE);");
+            DatabaseSize = $"{new FileInfo(DatabasePath).Length / 1024.0 / 1024.0:F1} MB";
+            Dialogs.Toast("Database", "Database compacted.", ToastKind.Success);
+        });
     }
 
     [RelayCommand]
-    private void SaveSqlConfig()
+    private void OpenDataFolder()
     {
-        try
-        {
-            var configPath = GetConfigFilePath();
-            if (File.Exists(configPath))
-            {
-                var json = File.ReadAllText(configPath);
-                var node = JsonNode.Parse(json);
-                if (node != null)
-                {
-                    if (node["CentralServer"] == null) node["CentralServer"] = new JsonObject();
-                    node["CentralServer"]!["ServerName"] = SqlServerName;
-                    node["CentralServer"]!["DatabaseName"] = SqlDatabaseName;
-                    node["CentralServer"]!["UseWindowsAuth"] = SqlUseWindowsAuth;
-                    node["CentralServer"]!["UserId"] = SqlUserId;
-                    node["CentralServer"]!["Password"] = SqlPassword;
-
-                    if (node["DataTransfer"] == null) node["DataTransfer"] = new JsonObject();
-                    node["DataTransfer"]!["Enabled"] = IsTransferEnabled;
-
-                    var options = new JsonSerializerOptions { WriteIndented = true };
-                    File.WriteAllText(configPath, node.ToJsonString(options));
-
-                    ConnectionTestResult = "Configuration saved! Reboot app to apply.";
-                    TestResultColor = System.Windows.Media.Brushes.DodgerBlue;
-                }
-            }
-        }
-        catch { }
-    }
-
-    partial void OnIsMockPlcEnabledChanged(bool value)
-    {
-        try
-        {
-            var configPath = GetConfigFilePath();
-            if (File.Exists(configPath))
-            {
-                var json = File.ReadAllText(configPath);
-                var node = JsonNode.Parse(json);
-                if (node != null)
-                {
-                    if (node["MockPLC"] == null) node["MockPLC"] = new JsonObject();
-                    node["MockPLC"]!["Enabled"] = value;
-                    
-                    var options = new JsonSerializerOptions { WriteIndented = true };
-                    File.WriteAllText(configPath, node.ToJsonString(options));
-                }
-            }
-        }
-        catch { }
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = Path.GetDirectoryName(DatabasePath)!, UseShellExecute = true }); }
+        catch (Exception ex) { Dialogs.Toast("Settings", ex.Message, ToastKind.Error); }
     }
 }

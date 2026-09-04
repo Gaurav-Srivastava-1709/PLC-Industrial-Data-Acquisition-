@@ -2,63 +2,33 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-        Title="{Binding WindowTitle}" Height="500" Width="400"
-        WindowStartupLocation="CenterOwner"
-        ResizeMode="NoResize"
-        ExtendsContentIntoTitleBar="True"
-        WindowBackdropType="Mica">
-
+        Title="{Binding Title}" Height="520" Width="440" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ExtendsContentIntoTitleBar="True" WindowBackdropType="Mica">
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-
-        <!-- TitleBar -->
-        <ui:TitleBar Grid.Row="0" Title="{Binding WindowTitle}" />
-
-        <!-- Content -->
-        <StackPanel Grid.Row="1" Margin="24,12,24,12">
-            
-            <!-- Error Message -->
-            <ui:InfoBar IsOpen="{Binding HasErrors}" Severity="Error" Title="Error"
-                        Message="{Binding ErrorMessage}" Margin="0,0,0,16"/>
-            
-            <TextBlock Text="Username" Margin="0,0,0,4" Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}"/>
-            <ui:TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" 
-                        PlaceholderText="Enter login username" Margin="0,0,0,16" 
-                        IsEnabled="{Binding IsEditMode, Converter={StaticResource InverseBooleanConverter}}"/>
-
-            <TextBlock Text="Full Name" Margin="0,0,0,4" Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}"/>
-            <ui:TextBox Text="{Binding FullName, UpdateSourceTrigger=PropertyChanged}" 
-                        PlaceholderText="Enter full display name" Margin="0,0,0,16"/>
-
-            <TextBlock Text="Role" Margin="0,0,0,4" Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}"/>
-            <ComboBox ItemsSource="{Binding AvailableRoles}" SelectedItem="{Binding SelectedRole}" Margin="0,0,0,16"/>
-
-            <TextBlock Text="Password" Margin="0,0,0,4" Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}"/>
-            <ui:TextBox Text="{Binding Password, UpdateSourceTrigger=PropertyChanged}" 
-                        PlaceholderText="{Binding IsEditMode, Converter={StaticResource PasswordPlaceholderConverter}}" Margin="0,0,0,16"/>
-            
-            <CheckBox IsChecked="{Binding IsActive}" Content="Is Active User" Margin="0,8,0,0"/>
-            <TextBlock Text="Inactive users cannot log into the system." FontSize="11" Margin="24,2,0,0"
-                       Foreground="{ui:ThemeResource TextFillColorTertiaryBrush}"/>
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+        <ui:TitleBar Grid.Row="0" Title="{Binding Title}" ShowMaximize="False" ShowMinimize="False" />
+        <StackPanel Grid.Row="1" Margin="24,4,24,20">
+            <StackPanel Visibility="{Binding ShowProfile, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="Username *" Style="{StaticResource FieldLabel}" />
+                <ui:TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsNew}" />
+                <TextBlock Text="Full name *" Style="{StaticResource FieldLabel}" />
+                <ui:TextBox Text="{Binding FullName, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock Text="Role" Style="{StaticResource FieldLabel}" />
+                <ComboBox ItemsSource="{Binding Roles}" SelectedItem="{Binding Role}" />
+                <CheckBox Content="Account active" IsChecked="{Binding IsActive}" Margin="0,12,0,0" Visibility="{Binding IsNew, Converter={StaticResource InverseBoolToVis}}" />
+            </StackPanel>
+            <StackPanel Visibility="{Binding ShowPassword, Converter={StaticResource BoolToVis}}">
+                <TextBlock Text="Password *" Style="{StaticResource FieldLabel}" />
+                <ui:PasswordBox x:Name="PwdBox" PasswordChanged="Pwd_Changed" />
+                <TextBlock Text="Confirm password *" Style="{StaticResource FieldLabel}" />
+                <ui:PasswordBox x:Name="ConfirmBox" PasswordChanged="Confirm_Changed" />
+                <TextBlock Style="{StaticResource Hint}" Text="Minimum 8 characters with upper and lower case letters and a digit. The user will be asked to change it at first login." />
+            </StackPanel>
+            <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" Visibility="{Binding ErrorMessage, Converter={StaticResource NotNullToVis}}" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+                <ui:Button Content="Cancel" Command="{Binding CancelCommand}" Margin="0,0,8,0" />
+                <ui:Button Content="Save" Appearance="Primary" Icon="{ui:SymbolIcon Save24}" Command="{Binding SaveCommand}" IsDefault="True" />
+            </StackPanel>
         </StackPanel>
-
-        <!-- Action Buttons -->
-        <Border Grid.Row="2" Background="{ui:ThemeResource ControlFillColorDefaultBrush}" Padding="24,16">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="8"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <ui:Button Grid.Column="0" Content="Cancel" Command="{Binding CancelCommand}" 
-                           HorizontalAlignment="Stretch" Appearance="Secondary"/>
-                <ui:Button Grid.Column="2" Content="Save User" Command="{Binding SaveCommand}" 
-                           HorizontalAlignment="Stretch" Appearance="Primary" Icon="Save24"/>
-            </Grid>
-        </Border>
     </Grid>
 </ui:FluentWindow>

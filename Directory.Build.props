@@ -1,0 +1,20 @@
+<Project>
+  <!-- Common build settings for every project in the WTT solution -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsAsErrors>nullable</WarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <!-- CA1848: LoggerMessage delegates (perf micro-opt, noise) | CA1031: catch general exception (intentional at boundaries) | CA1310/CA1305: culture (we use invariant explicitly where it matters) -->
+    <NoWarn>$(NoWarn);CA1848;CA1031;CA1310;CA1305;CA1304;CA1307;CA1311;CA2007;CA1054;CA1056;CA1062;CA1716;CA1720;CA1002;CA2227;CA1819;CA1024;CA1725;CA1815;CA1051;CA1707;CA1034;CA1000;CA1008;CA1027;CA1711;CA1308;CA1863;CA1860;CA1861</NoWarn>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <Authors>WTT</Authors>
+    <Product>WTT Industrial Data Acquisition</Product>
+    <Version>1.0.0</Version>
+    <NeutralLanguage>en-US</NeutralLanguage>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+</Project>

@@ -2,125 +2,78 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-      Title="Live Data">
+      Title="Live data">
+    <Grid Style="{StaticResource PageRoot}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
-    <ScrollViewer Padding="24">
-        <StackPanel>
-            <!-- Header with Status and Pause/Resume button -->
-            <Grid Margin="0,0,0,24">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+        <Grid Grid.Row="0">
+            <StackPanel>
+                <TextBlock Text="Live data" Style="{StaticResource PageTitle}" />
+                <TextBlock Text="Current values straight from the capture workers. Rows flash when a value changes." Style="{StaticResource PageSubtitle}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                <ComboBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" DisplayMemberPath="Name" Width="240" Margin="0,0,8,0" />
+                <ui:TextBox PlaceholderText="Filter…" Icon="{ui:SymbolIcon Search24}" Width="200" Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0" />
+                <ui:Button Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RefreshCommand}" />
+            </StackPanel>
+        </Grid>
 
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="⚡ Live Telemetry Monitor" FontSize="28" FontWeight="SemiBold" Margin="0,0,0,4"
-                               Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}"/>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Real-time PLC readings (Polls every " FontSize="14" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
-                        <TextBlock Text="{Binding PollingInterval}" FontSize="14" FontWeight="Bold" Foreground="#3498DB"/>
-                        <TextBlock Text="s) — " FontSize="14" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
-                        
-                        <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center"
-                                 Fill="{Binding IsServiceRunning, Converter={x:Null}}">
-                            <Ellipse.Style>
-                                <Style TargetType="Ellipse">
-                                    <Setter Property="Fill" Value="#2ECC71"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsServiceRunning}" Value="False">
-                                            <Setter Property="Fill" Value="#E74C3C"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Ellipse.Style>
-                        </Ellipse>
-                        
-                        <TextBlock FontWeight="SemiBold">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Text" Value="Service Active"/>
-                                    <Setter Property="Foreground" Value="#2ECC71"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsServiceRunning}" Value="False">
-                                            <Setter Property="Text" Value="Service Paused"/>
-                                            <Setter Property="Foreground" Value="#E74C3C"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-                    </StackPanel>
-                </StackPanel>
+        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="12,8" Margin="0,0,0,12">
+            <StackPanel Orientation="Horizontal">
+                <Ellipse Style="{StaticResource Dot}" Fill="{Binding IsConnected, Converter={StaticResource BoolToBrush}}" />
+                <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" />
+                <TextBlock VerticalAlignment="Center" Margin="24,0,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                    <Run Text="{Binding GoodCount, Mode=OneWay}" Foreground="{StaticResource GoodBrush}" FontWeight="SemiBold" /><Run Text=" good · " />
+                    <Run Text="{Binding BadCount, Mode=OneWay}" Foreground="{StaticResource BadBrush}" FontWeight="SemiBold" /><Run Text=" not good · last scan " />
+                    <Run Text="{Binding LastScanUtc, Mode=OneWay, Converter={StaticResource UtcToLocal}, ConverterParameter=HH:mm:ss}" />
+                </TextBlock>
+            </StackPanel>
+        </Border>
 
-                <ui:Button Grid.Column="1" Command="{Binding ToggleServiceCommand}" VerticalAlignment="Center">
-                    <ui:Button.Style>
-                        <Style TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
-                            <Setter Property="Content" Value="Pause Capture"/>
-                            <Setter Property="Icon" Value="Pause24"/>
-                            <Setter Property="Appearance" Value="Secondary"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsServiceRunning}" Value="False">
-                                    <Setter Property="Content" Value="Resume Capture"/>
-                                    <Setter Property="Icon" Value="Play24"/>
-                                    <Setter Property="Appearance" Value="Primary"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </ui:Button.Style>
-                </ui:Button>
-            </Grid>
-
-            <!-- Cards Container -->
-            <ItemsControl ItemsSource="{Binding Cards}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <WrapPanel Orientation="Horizontal"/>
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Background="{ui:ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                BorderBrush="{ui:ThemeResource CardStrokeColorDefaultBrush}"
-                                BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,0,16,16" Width="250">
-                            <StackPanel>
-                                <!-- Top Row: Device Name & Quality Dot -->
-                                <Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{Binding DeviceName}" FontSize="12" FontWeight="Medium"
-                                               Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
-                                    <Border Grid.Column="1" Background="#1A2ECC71" CornerRadius="4" Padding="6,2">
-                                        <TextBlock Text="{Binding Quality}" FontSize="11" FontWeight="Bold" Foreground="#2ECC71"/>
-                                    </Border>
-                                </Grid>
-
-                                <!-- Tag Name -->
-                                <TextBlock Text="{Binding TagName}" FontSize="16" FontWeight="SemiBold"
-                                           Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}" Margin="0,0,0,12"/>
-
-                                <!-- Value Display Box -->
-                                <Border Background="{ui:ThemeResource LayerFillColorDefaultBrush}" CornerRadius="8" Padding="12,10" Margin="0,0,0,12">
-                                    <TextBlock Text="{Binding Value}" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center"
-                                               Foreground="#3498DB"/>
-                                </Border>
-
-                                <!-- Footer: Address & Timestamp -->
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{Binding Address}" FontSize="11" Foreground="{ui:ThemeResource TextFillColorTertiaryBrush}"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Timestamp}" FontSize="11" Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
-                                </Grid>
-                            </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </StackPanel>
-    </ScrollViewer>
+        <DataGrid Grid.Row="2" Style="{StaticResource Grid}" ItemsSource="{Binding Rows}">
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Changed}" Value="True">
+                            <DataTrigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <ColorAnimation Storyboard.TargetProperty="(DataGridRow.Background).(SolidColorBrush.Color)" From="#3D4FA3FF" To="Transparent" Duration="0:0:1.2" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </DataTrigger.EnterActions>
+                        </DataTrigger>
+                    </Style.Triggers>
+                    <Setter Property="Background"><Setter.Value><SolidColorBrush Color="Transparent" /></Setter.Value></Setter>
+                </Style>
+            </DataGrid.RowStyle>
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Header="" Width="30">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Ellipse Style="{StaticResource Dot}" Width="9" Height="9" Margin="0" HorizontalAlignment="Center" Fill="{Binding Quality, Converter={StaticResource QualityToBrush}}" ToolTip="{Binding Quality}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Tag" Binding="{Binding Name}" Width="220" />
+                <DataGridTextColumn Header="Address / kind" Binding="{Binding Address}" Width="180" />
+                <DataGridTextColumn Header="Type" Binding="{Binding DataType}" Width="70" />
+                <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="160" FontFamily="Consolas" FontWeight="SemiBold" />
+                <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="60" />
+                <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="100" />
+                <DataGridTextColumn Header="Updated" Binding="{Binding TimestampUtc, Converter={StaticResource UtcToLocal}, ConverterParameter=HH:mm:ss.fff}" Width="110" />
+                <DataGridTemplateColumn Header="" Width="*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <ui:Button Content="Write" Icon="{ui:SymbolIcon Edit24}" Padding="8,2" HorizontalAlignment="Right" Appearance="Secondary"
+                                       Command="{Binding DataContext.WriteCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
+                                       Visibility="{Binding DataContext.CanWrite, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
 </Page>

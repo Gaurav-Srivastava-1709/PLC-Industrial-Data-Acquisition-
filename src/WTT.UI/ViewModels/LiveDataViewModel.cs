@@ -1,114 +1,210 @@
-using System;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Threading.Tasks;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
 using WTT.Application.Interfaces;
+using WTT.Application.Security;
+using WTT.Domain.Entities;
+using WTT.Domain.Enums;
+using WTT.Domain.ValueObjects;
+using WTT.UI.Services;
 
 namespace WTT.UI.ViewModels;
 
-public class LiveTelemetryCard : ObservableObject
+public partial class LiveDataViewModel : ViewModelBase
 {
-    public int TagId { get; set; }
-    public string TagName { get; set; } = string.Empty;
-    public string DeviceName { get; set; } = string.Empty;
-    public string Address { get; set; } = string.Empty;
-    public string DataType { get; set; } = string.Empty;
+    private readonly IDeviceService _devices;
+    private readonly ITagService _tags;
+    private readonly IDataCaptureController _capture;
+    private readonly ICurrentUserService _currentUser;
+    private readonly NavigationContext _navContext;
+    private readonly Func<WriteTagViewModel> _writeFactory;
+    private readonly DispatcherTimer _statusTimer = new() { Interval = TimeSpan.FromSeconds(2) };
+    private readonly Dictionary<int, LiveTagRow> _rowsByTagId = new();
 
-    private string _value = "--";
-    public string Value
+    public LiveDataViewModel(IDeviceService devices, ITagService tags, IDataCaptureController capture, ICurrentUserService currentUser, NavigationContext navContext,
+        Func<WriteTagViewModel> writeFactory, IDialogService dialogs, ILogger<LiveDataViewModel> logger) : base(dialogs, logger)
     {
-        get => _value;
-        set => SetProperty(ref _value, value);
+        _devices = devices; _tags = tags; _capture = capture; _currentUser = currentUser; _navContext = navContext; _writeFactory = writeFactory;
+        _statusTimer.Tick += (_, _) => RefreshStatus();
     }
 
-    private string _quality = "Unknown";
-    public string Quality
+    public ObservableCollection<Device> Devices { get; } = new();
+    public ObservableCollection<LiveTagRow> Rows { get; } = new();
+
+    [ObservableProperty] private Device? _selectedDevice;
+    [ObservableProperty] private string _filter = string.Empty;
+    [ObservableProperty] private string _statusText = string.Empty;
+    [ObservableProperty] private bool _isConnected;
+    [ObservableProperty] private int _goodCount;
+    [ObservableProperty] private int _badCount;
+    [ObservableProperty] private DateTime? _lastScanUtc;
+
+    public bool CanWrite => _currentUser.HasPermission(Permission.WriteToPlc);
+    public event EventHandler<WriteTagViewModel>? WriteRequested;
+
+    partial void OnSelectedDeviceChanged(Device? value)
     {
-        get => _quality;
-        set => SetProperty(ref _quality, value);
+        if (value is not null) _navContext.SelectedDeviceId = value.Id;
+        _ = RunAsync(LoadTagsAsync);
     }
 
-    private string _timestamp = "Waiting...";
-    public string Timestamp
+    partial void OnFilterChanged(string value) => ApplyFilter();
+
+    public override async Task OnNavigatedToAsync()
     {
-        get => _timestamp;
-        set => SetProperty(ref _timestamp, value);
-    }
-}
-
-public partial class LiveDataViewModel : ObservableObject
-{
-    private readonly ITagService _tagService;
-    private readonly IDataCaptureService _dataCaptureService;
-
-    [ObservableProperty]
-    private ObservableCollection<LiveTelemetryCard> _cards = new();
-
-    [ObservableProperty]
-    private bool _isServiceRunning = true;
-
-    [ObservableProperty]
-    private int _pollingInterval = 10;
-
-    public LiveDataViewModel(ITagService tagService, IDataCaptureService dataCaptureService)
-    {
-        _tagService = tagService;
-        _dataCaptureService = dataCaptureService;
-
-        _isServiceRunning = _dataCaptureService.IsRunning;
-        _pollingInterval = _dataCaptureService.PollingIntervalSeconds;
-
-        _dataCaptureService.TagValueChanged += OnTagValueChanged;
-        _dataCaptureService.ServiceStatusChanged += (_, running) => IsServiceRunning = running;
-    }
-
-    private void OnTagValueChanged(object? sender, TagValueChangedEventArgs e)
-    {
-        System.Windows.Application.Current?.Dispatcher?.Invoke(() =>
+        _capture.TagValueChanged += OnTagValueChanged;
+        await RunAsync(async () =>
         {
-            var card = Cards.FirstOrDefault(c => c.TagId == e.TagId);
-            if (card != null)
-            {
-                card.Value = e.Value;
-                card.Quality = e.Quality;
-                card.Timestamp = e.Timestamp.ToLocalTime().ToString("HH:mm:ss");
-            }
+            Devices.Clear();
+            foreach (var d in await _devices.GetAllAsync()) Devices.Add(d);
+            SelectedDevice = Devices.FirstOrDefault(d => d.Id == _navContext.SelectedDeviceId) ?? Devices.FirstOrDefault();
         });
+        _statusTimer.Start();
     }
 
-    public async Task InitializeAsync()
+    public override Task OnNavigatedFromAsync()
     {
-        var tags = await _tagService.GetAllTagsAsync();
-        var latest = await _dataCaptureService.GetLatestValuesAsync();
+        _statusTimer.Stop();
+        _capture.TagValueChanged -= OnTagValueChanged;
+        return Task.CompletedTask;
+    }
 
-        var list = tags.Where(t => t.IsActive).Select(t => new LiveTelemetryCard
+    private List<LiveTagRow> _allRows = new();
+
+    private async Task LoadTagsAsync()
+    {
+        _rowsByTagId.Clear();
+        _allRows = new List<LiveTagRow>();
+        if (SelectedDevice is null) { Rows.Clear(); return; }
+
+        var tags = await _tags.GetForDeviceAsync(SelectedDevice.Id);
+        var live = _capture.GetLiveValues(SelectedDevice.Id).ToDictionary(v => v.TagId);
+        foreach (var t in tags.Where(t => t.IsSelected).OrderBy(t => t.Kind).ThenBy(t => t.Name))
         {
-            TagId = t.Id,
-            TagName = t.TagName,
-            DeviceName = t.Device?.Name ?? "PLC",
-            Address = t.Address,
-            DataType = t.DataType,
-            Value = latest.TryGetValue(t.Id, out var v) ? v : "--",
-            Quality = latest.ContainsKey(t.Id) ? "Good" : "Unknown",
-            Timestamp = DateTime.Now.ToString("HH:mm:ss")
-        });
+            var row = new LiveTagRow(t);
+            if (live.TryGetValue(t.Id, out var v)) row.Apply(v);
+            else if (t.Kind != TagKind.Plc) row.Apply(new LiveTagValue(t.DeviceId, t.Id, t.Name, t.SetValue, TagQuality.Good, t.CurrentValueAtUtc ?? DateTime.UtcNow));
+            _allRows.Add(row);
+            _rowsByTagId[t.Id] = row;
+        }
+        ApplyFilter();
+        RefreshStatus();
+    }
 
-        Cards = new ObservableCollection<LiveTelemetryCard>(list);
+    private void ApplyFilter()
+    {
+        var q = string.IsNullOrWhiteSpace(Filter) ? _allRows : _allRows.Where(r => r.Name.Contains(Filter, StringComparison.OrdinalIgnoreCase) || r.Address.Contains(Filter, StringComparison.OrdinalIgnoreCase));
+        Rows.Clear();
+        foreach (var r in q) Rows.Add(r);
+    }
+
+    private void OnTagValueChanged(object? sender, LiveTagValue v)
+    {
+        if (SelectedDevice is null || v.DeviceId != SelectedDevice.Id) return;
+        OnUi(() => { if (_rowsByTagId.TryGetValue(v.TagId, out var row)) row.Apply(v); });
+    }
+
+    private void RefreshStatus()
+    {
+        if (SelectedDevice is null) { StatusText = string.Empty; return; }
+        var s = _capture.GetStatus(SelectedDevice.Id);
+        IsConnected = s?.IsConnected ?? false;
+        LastScanUtc = s?.LastScanUtc;
+        StatusText = s is null ? "Worker not running — enable Capture or Monitor on the dashboard."
+            : !s.IsConnected ? $"Not connected{(s.LastError is null ? string.Empty : " — " + s.LastError)}"
+            : $"{(s.IsCapturing ? "Capturing" : "Monitoring")} · {s.ScanCount:N0} scans · {s.ReadingsWritten:N0} readings written · trigger {(s.LastTriggerState is true ? "ON" : "OFF")}";
+        GoodCount = _allRows.Count(r => r.Quality == TagQuality.Good);
+        BadCount = _allRows.Count - GoodCount;
     }
 
     [RelayCommand]
-    private async Task ToggleServiceAsync()
+    private void Write(LiveTagRow? row)
     {
-        if (IsServiceRunning)
-        {
-            await _dataCaptureService.StopAsync();
-        }
-        else
-        {
-            await _dataCaptureService.StartAsync();
-        }
-        IsServiceRunning = _dataCaptureService.IsRunning;
+        if (row is null) return;
+        var vm = _writeFactory();
+        vm.Initialize(row.Tag);
+        WriteRequested?.Invoke(this, vm);
     }
+
+    [RelayCommand]
+    private Task RefreshAsync() => RunAsync(LoadTagsAsync);
+}
+
+public partial class LiveTagRow : ObservableObject
+{
+    public LiveTagRow(DeviceTag tag)
+    {
+        Tag = tag;
+        Name = tag.DisplayName;
+        Address = tag.Kind == TagKind.Plc ? tag.PlcAddress : tag.Kind.ToString();
+        Kind = tag.Kind;
+        DataType = tag.DataType.ToString();
+        Unit = tag.EngineeringUnit;
+    }
+
+    public DeviceTag Tag { get; }
+    public string Name { get; }
+    public string Address { get; }
+    public TagKind Kind { get; }
+    public string DataType { get; }
+    public string? Unit { get; }
+    public bool IsWritable => Kind == TagKind.Plc;
+
+    [ObservableProperty] private string? _value;
+    [ObservableProperty] private TagQuality _quality = TagQuality.Uncertain;
+    [ObservableProperty] private DateTime? _timestampUtc;
+    [ObservableProperty] private bool _changed;
+
+    public void Apply(LiveTagValue v)
+    {
+        Changed = Value is not null && v.Value != Value;
+        Value = v.Value;
+        Quality = v.Quality;
+        TimestampUtc = v.TimestampUtc;
+    }
+}
+
+public partial class WriteTagViewModel : ViewModelBase
+{
+    private readonly IPlcOperationsService _plcOps;
+    private readonly ITagService _tags;
+    private DeviceTag _tag = null!;
+
+    public WriteTagViewModel(IPlcOperationsService plcOps, ITagService tags, IDialogService dialogs, ILogger<WriteTagViewModel> logger) : base(dialogs, logger)
+    {
+        _plcOps = plcOps; _tags = tags;
+    }
+
+    public event EventHandler? Closed;
+
+    [ObservableProperty] private string _title = string.Empty;
+    [ObservableProperty] private string _description = string.Empty;
+    [ObservableProperty] private string _value = string.Empty;
+
+    public void Initialize(DeviceTag tag)
+    {
+        _tag = tag;
+        Title = $"Write — {tag.DisplayName}";
+        Description = tag.Kind == TagKind.Plc
+            ? $"Write a new value to {tag.PlcAddress} ({tag.DataType}) on the controller. This changes the live process value — proceed with care."
+            : "Set the constant value of this custom tag.";
+        Value = tag.CurrentValue ?? tag.SetValue ?? string.Empty;
+    }
+
+    [RelayCommand]
+    private async Task WriteAsync()
+    {
+        if (_tag.Kind == TagKind.Plc && !await Dialogs.ConfirmAsync("Confirm write", $"Write '{Value}' to {_tag.Name} ({_tag.PlcAddress})?", "Write", destructive: true)) return;
+        var ok = await RunAsync(async () =>
+        {
+            if (_tag.Kind == TagKind.Plc) await _plcOps.WriteTagAsync(_tag.Id, Value);
+            else await _tags.SetCustomValueAsync(_tag.Id, Value);
+            Dialogs.Toast("Write", $"'{Value}' written to {_tag.Name}.", ToastKind.Success);
+        }, inlineErrors: true);
+        if (ok) Closed?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand] private void Cancel() => Closed?.Invoke(this, EventArgs.Empty);
 }

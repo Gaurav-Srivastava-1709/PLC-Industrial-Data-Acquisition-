@@ -1,0 +1,40 @@
+<ui:FluentWindow x:Class="WTT.UI.Views.Windows.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Title="WTT — Sign in" Height="560" Width="440" ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen" ExtendsContentIntoTitleBar="True" WindowBackdropType="Mica">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <ui:TitleBar Grid.Row="0" Title="WTT" ShowMaximize="False" ShowMinimize="True" />
+
+        <StackPanel Grid.Row="1" Margin="40,16,40,32" VerticalAlignment="Center">
+            <ui:SymbolIcon Symbol="DataArea24" FontSize="44" HorizontalAlignment="Center"
+                           Foreground="{DynamicResource SystemAccentColorPrimaryBrush}" Margin="0,0,0,8" />
+            <TextBlock Text="WTT Data Acquisition" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" />
+            <TextBlock Text="Sign in to continue" Style="{StaticResource PageSubtitle}" HorizontalAlignment="Center" Margin="0,4,0,20" />
+
+            <ui:InfoBar IsOpen="{Binding InfoMessage, Converter={StaticResource NotNullToVis}, Mode=OneWay, ConverterParameter=x}"
+                        Visibility="{Binding InfoMessage, Converter={StaticResource NotNullToVis}}"
+                        Severity="Informational" IsClosable="False" Message="{Binding InfoMessage}" Margin="0,0,0,12" />
+
+            <TextBlock Text="Username" Style="{StaticResource FieldLabel}" />
+            <ui:TextBox x:Name="UsernameBox" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="username" Icon="{ui:SymbolIcon Person24}" />
+
+            <TextBlock Text="Password" Style="{StaticResource FieldLabel}" />
+            <ui:PasswordBox x:Name="PasswordBox" PlaceholderText="password" Icon="{ui:SymbolIcon Password24}" PasswordChanged="PasswordBox_PasswordChanged" />
+
+            <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}"
+                       Visibility="{Binding ErrorMessage, Converter={StaticResource NotNullToVis}}" />
+
+            <ui:Button Content="Sign in" Appearance="Primary" HorizontalAlignment="Stretch" Margin="0,20,0,0" Height="38"
+                       Command="{Binding LoginCommand}" IsDefault="True"
+                       IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}" />
+            <ProgressBar IsIndeterminate="True" Height="3" Margin="0,8,0,0"
+                         Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
+        </StackPanel>
+    </Grid>
+</ui:FluentWindow>

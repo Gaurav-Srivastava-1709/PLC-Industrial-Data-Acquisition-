@@ -2,131 +2,39 @@
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-      Title="Users Management">
-
-    <Grid Margin="24">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-
-        <!-- Header -->
-        <Grid Grid.Row="0" Margin="0,0,0,24">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-
-            <StackPanel Grid.Column="0">
-                <TextBlock Text="👥 User Management" FontSize="28" FontWeight="SemiBold" 
-                           Foreground="{ui:ThemeResource TextFillColorPrimaryBrush}"/>
-                <TextBlock Text="Manage system access, roles, and user accounts" FontSize="14" Margin="0,4,0,0"
-                           Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
+      Title="Users">
+    <Grid Style="{StaticResource PageRoot}">
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+        <Grid Grid.Row="0">
+            <StackPanel>
+                <TextBlock Text="Users" Style="{StaticResource PageTitle}" />
+                <TextBlock Text="Admin: full control · Operator: start/stop capture, view logs · Viewer: read only. New users must change their password at first login." Style="{StaticResource PageSubtitle}" />
             </StackPanel>
-
-            <ui:Button Grid.Column="1" Icon="ArrowClockwise24" Appearance="Secondary" 
-                       Command="{Binding LoadUsersCommand}" Margin="0,0,8,0" ToolTip="Refresh Users"/>
-            <ui:Button Grid.Column="2" Content="Add New User" Icon="PersonAdd24" Appearance="Primary" 
-                       Command="{Binding AddUserCommand}"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RefreshCommand}" Margin="0,0,8,0" />
+                <ui:Button Content="Add user" Icon="{ui:SymbolIcon PersonAdd24}" Appearance="Primary" Command="{Binding AddCommand}" />
+            </StackPanel>
         </Grid>
-
-        <!-- Loading Overlay -->
-        <ui:ProgressRing Grid.Row="1" IsIndeterminate="True" Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"
-                         HorizontalAlignment="Center" VerticalAlignment="Center" Panel.ZIndex="10"/>
-
-        <!-- Users Grid -->
-        <DataGrid Grid.Row="1" ItemsSource="{Binding Users}" AutoGenerateColumns="False" 
-                  CanUserAddRows="False" CanUserDeleteRows="False" IsReadOnly="True"
-                  HeadersVisibility="Column" SelectionMode="Single">
-            
+        <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding Users}" SelectedItem="{Binding Selected}">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="60"/>
-                
-                <DataGridTemplateColumn Header="Username" Width="200">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <StackPanel Orientation="Horizontal" Margin="8,0">
-                                <ui:SymbolIcon Symbol="Person24" Margin="0,0,8,0" Foreground="{ui:ThemeResource TextFillColorTertiaryBrush}"/>
-                                <TextBlock Text="{Binding Username}" VerticalAlignment="Center" FontWeight="Medium"/>
-                            </StackPanel>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
+                <DataGridTemplateColumn Header="" Width="36">
+                    <DataGridTemplateColumn.CellTemplate><DataTemplate><Ellipse Style="{StaticResource Dot}" Margin="0" HorizontalAlignment="Center" Fill="{Binding IsActive, Converter={StaticResource BoolToBrush}}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-
-                <DataGridTextColumn Header="Full Name" Binding="{Binding FullName}" Width="250"/>
-                
-                <DataGridTemplateColumn Header="Role" Width="150">
+                <DataGridTextColumn Header="Username" Binding="{Binding Username}" Width="150" />
+                <DataGridTextColumn Header="Full name" Binding="{Binding FullName}" Width="200" />
+                <DataGridTextColumn Header="Role" Binding="{Binding Role}" Width="100" />
+                <DataGridCheckBoxColumn Header="Active" Binding="{Binding IsActive}" Width="70" />
+                <DataGridCheckBoxColumn Header="Must change pwd" Binding="{Binding MustChangePassword}" Width="130" />
+                <DataGridTextColumn Header="Locked until" Binding="{Binding LockoutEndUtc, Converter={StaticResource UtcToLocal}}" Width="150" />
+                <DataGridTextColumn Header="Last login" Binding="{Binding LastLoginAtUtc, Converter={StaticResource UtcToLocal}}" Width="150" />
+                <DataGridTemplateColumn Header="" Width="*">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <Border Padding="8,4" CornerRadius="4" HorizontalAlignment="Left" VerticalAlignment="Center">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Setter Property="Background" Value="#33555555"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding Role}" Value="Admin">
-                                                <Setter Property="Background" Value="#33FFC107"/>
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding Role}" Value="Operator">
-                                                <Setter Property="Background" Value="#3303A9F4"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                                <TextBlock Text="{Binding Role}" FontWeight="SemiBold">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="#AAAAAA"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Role}" Value="Admin">
-                                                    <Setter Property="Foreground" Value="#FFC107"/>
-                                                </DataTrigger>
-                                                <DataTrigger Binding="{Binding Role}" Value="Operator">
-                                                    <Setter Property="Foreground" Value="#03A9F4"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </Border>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-
-                <DataGridTemplateColumn Header="Status" Width="100">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding IsActive, StringFormat='{}{0}'}" VerticalAlignment="Center">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Text" Value="Inactive"/>
-                                        <Setter Property="Foreground" Value="#FF5252"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                <Setter Property="Text" Value="Active"/>
-                                                <Setter Property="Foreground" Value="#4CAF50"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-
-                <DataGridTextColumn Header="Last Login" Binding="{Binding LastLoginAt, StringFormat='{}{0:g}'}" Width="150"/>
-
-                <DataGridTemplateColumn Header="Actions" Width="*">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <StackPanel Orientation="Horizontal">
-                                <ui:Button Icon="Edit24" Appearance="Transparent" Margin="0,0,4,0"
-                                           Command="{Binding DataContext.EditUserCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                           CommandParameter="{Binding}" ToolTip="Edit User"/>
-                                
-                                <ui:Button Icon="Delete24" Appearance="Transparent" Foreground="#FF5252"
-                                           Command="{Binding DataContext.DeleteUserCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                           CommandParameter="{Binding}" ToolTip="Delete User"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <ui:Button Icon="{ui:SymbolIcon Edit24}" ToolTip="Edit" Padding="8,2" Margin="0,0,4,0" Appearance="Secondary" Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                                <ui:Button Icon="{ui:SymbolIcon Key24}" ToolTip="Reset password" Padding="8,2" Margin="0,0,4,0" Appearance="Secondary" Command="{Binding DataContext.ResetPasswordCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                                <ui:Button Icon="{ui:SymbolIcon LockOpen24}" ToolTip="Unlock" Padding="8,2" Margin="0,0,4,0" Appearance="Secondary" Command="{Binding DataContext.UnlockCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                                <ui:Button Icon="{ui:SymbolIcon Delete24}" ToolTip="Delete" Padding="8,2" Appearance="Danger" Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
                             </StackPanel>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>

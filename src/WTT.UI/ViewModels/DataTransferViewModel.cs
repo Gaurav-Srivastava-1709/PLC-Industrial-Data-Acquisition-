@@ -1,116 +1,109 @@
-using System;
 using System.Collections.ObjectModel;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
+using Wpf.Ui;
 using WTT.Application.Interfaces;
+using WTT.Application.Security;
 using WTT.Domain.Entities;
+using WTT.UI.Services;
 
 namespace WTT.UI.ViewModels;
 
-public partial class DataTransferViewModel : ObservableObject
+public partial class DataTransferViewModel : ViewModelBase
 {
-    private readonly IDataTransferService _dataTransferService;
-    private readonly DispatcherTimer _refreshTimer;
+    private readonly IDeviceServerService _servers;
+    private readonly IDataTransferController _transfer;
+    private readonly ICurrentUserService _currentUser;
+    private readonly INavigationService _navigation;
+    private readonly NavigationContext _navContext;
+    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(5) };
 
-    [ObservableProperty]
-    private bool _isRunning;
-
-    [ObservableProperty]
-    private int _pendingRecordsCount;
-
-    [ObservableProperty]
-    private long _totalTransferredCount;
-
-    [ObservableProperty]
-    private int _transferErrorsCount;
-
-    [ObservableProperty]
-    private string _lastSuccessfulTransferAt = "Never";
-
-    [ObservableProperty]
-    private string _lastErrorMessage = string.Empty;
-
-    [ObservableProperty]
-    private bool _hasError;
-
-    // Progress bar bindable properties
-    [ObservableProperty]
-    private int _currentProgressPercent;
-    
-    [ObservableProperty]
-    private string _progressMessage = "Idle";
-
-    public DataTransferViewModel(IDataTransferService dataTransferService)
+    public DataTransferViewModel(IDeviceServerService servers, IDataTransferController transfer, ICurrentUserService currentUser, INavigationService navigation, NavigationContext navContext,
+        IDialogService dialogs, ILogger<DataTransferViewModel> logger) : base(dialogs, logger)
     {
-        _dataTransferService = dataTransferService;
-        
-        IsRunning = _dataTransferService.IsRunning;
-
-        // Hook up to service events
-        _dataTransferService.ServiceStatusChanged += (s, isRunning) => 
-        {
-            App.Current.Dispatcher.Invoke(() => IsRunning = isRunning);
-        };
-
-        _dataTransferService.TransferProgress += (s, e) => 
-        {
-            App.Current.Dispatcher.Invoke(() => 
-            {
-                ProgressMessage = e.Message;
-                // Calculate percentage based on current batch vs total pending
-                if (e.TotalPending + e.CurrentBatchTransferred > 0)
-                {
-                    CurrentProgressPercent = (int)((e.CurrentBatchTransferred / (double)(e.TotalPending + e.CurrentBatchTransferred)) * 100);
-                }
-                UpdateStats();
-            });
-        };
-
-        // UI Refresh Timer for stats (every 5 seconds)
-        _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-        _refreshTimer.Tick += (s, e) => UpdateStats();
-        _refreshTimer.Start();
-
-        UpdateStats();
+        _servers = servers; _transfer = transfer; _currentUser = currentUser; _navigation = navigation; _navContext = navContext;
+        _timer.Tick += async (_, _) => await RefreshAsync();
     }
 
-    private void UpdateStats()
-    {
-        var stats = _dataTransferService.GetStatistics();
-        
-        PendingRecordsCount = stats.PendingRecordsCount;
-        TotalTransferredCount = stats.TotalTransferredCount;
-        TransferErrorsCount = stats.TransferErrorsCount;
-        
-        LastSuccessfulTransferAt = stats.LastSuccessfulTransferAt.HasValue 
-            ? stats.LastSuccessfulTransferAt.Value.ToLocalTime().ToString("g") 
-            : "Never";
+    public ObservableCollection<DeviceServer> Servers { get; } = new();
+    public ObservableCollection<TransferBatch> Batches { get; } = new();
 
-        if (!string.IsNullOrEmpty(stats.LastErrorMessage))
+    [ObservableProperty] private long _pending;
+    [ObservableProperty] private long _transferredToday;
+    [ObservableProperty] private long _failedToday;
+    [ObservableProperty] private DateTime? _lastSuccessUtc;
+    [ObservableProperty] private bool _isPaused;
+
+    public bool CanControl => _currentUser.HasPermission(Permission.ControlCapture);
+    public bool CanManage => _currentUser.HasPermission(Permission.ManageTransfer);
+
+    public override async Task OnNavigatedToAsync()
+    {
+        _transfer.BatchCompleted += OnBatchCompleted;
+        await RefreshAsync();
+        _timer.Start();
+    }
+
+    public override Task OnNavigatedFromAsync()
+    {
+        _timer.Stop();
+        _transfer.BatchCompleted -= OnBatchCompleted;
+        return Task.CompletedTask;
+    }
+
+    private void OnBatchCompleted(object? sender, TransferBatch b) => OnUi(() =>
+    {
+        Batches.Insert(0, b);
+        while (Batches.Count > 100) Batches.RemoveAt(Batches.Count - 1);
+    });
+
+    [RelayCommand]
+    private async Task RefreshAsync()
+    {
+        try
         {
-            LastErrorMessage = stats.LastErrorMessage;
-            HasError = true;
+            var s = await _transfer.GetStatisticsAsync();
+            Pending = s.PendingRecords; TransferredToday = s.TransferredToday; FailedToday = s.FailedBatchesToday; LastSuccessUtc = s.LastSuccessAtUtc; IsPaused = _transfer.IsPaused;
+            var servers = await _servers.GetAllAsync();
+            Servers.Clear(); foreach (var x in servers) Servers.Add(x);
+            var batches = await _transfer.GetRecentBatchesAsync(100);
+            Batches.Clear(); foreach (var b in batches) Batches.Add(b);
         }
-        else
-        {
-            HasError = false;
-        }
+        catch (Exception ex) { Logger.LogWarning(ex, "Transfer page refresh failed."); }
     }
 
     [RelayCommand]
-    private async Task ToggleServiceAsync()
+    private async Task TransferNowAsync(DeviceServer? server)
     {
-        if (IsRunning)
-            await _dataTransferService.StopAsync();
-        else
-            await _dataTransferService.StartAsync();
+        await RunAsync(async () =>
+        {
+            var n = await _transfer.TransferNowAsync(server?.DeviceId);
+            Dialogs.Toast("Data transfer", n == 0 ? "Nothing to transfer." : $"{n:N0} readings transferred.", ToastKind.Success);
+            await RefreshAsync();
+        }, "Transfer failed");
     }
 
     [RelayCommand]
-    private async Task TransferNowAsync()
+    private async Task ToggleEnabledAsync(DeviceServer? server)
     {
-        ProgressMessage = "Manual transfer triggered...";
-        await _dataTransferService.TransferNowAsync();
+        if (server is null) return;
+        if (await RunAsync(() => _servers.SetEnabledAsync(server.DeviceId, !server.IsEnabled))) await RefreshAsync();
+    }
+
+    [RelayCommand]
+    private void TogglePause()
+    {
+        if (_transfer.IsPaused) _transfer.Resume(); else _transfer.Pause();
+        IsPaused = _transfer.IsPaused;
+    }
+
+    [RelayCommand]
+    private void Configure(DeviceServer? server)
+    {
+        if (server is null) return;
+        _navContext.SelectedDeviceId = server.DeviceId;
+        _navigation.Navigate(typeof(Views.Pages.DeviceConfigPage));
     }
 }
