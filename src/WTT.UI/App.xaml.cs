@@ -128,7 +128,7 @@ public partial class App : System.Windows.Application
             using (var scope = _host.Services.CreateScope())
             {
                 var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                dbContext.Database.EnsureCreated();
+                dbContext.Database.Migrate();
 
                 var adminUser = dbContext.Users.FirstOrDefault(u => u.Username == "admin");
                 if (adminUser == null)
