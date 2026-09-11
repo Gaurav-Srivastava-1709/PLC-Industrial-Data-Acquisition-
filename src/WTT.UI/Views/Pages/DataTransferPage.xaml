@@ -27,9 +27,10 @@
             <Border Style="{StaticResource Card}"><StackPanel><TextBlock Text="{Binding LastSuccessUtc, Converter={StaticResource UtcToLocal}, ConverterParameter=HH:mm:ss}" Style="{StaticResource StatValue}" FontSize="22" /><TextBlock Text="Last successful transfer" Style="{StaticResource StatLabel}" /></StackPanel></Border>
         </UniformGrid>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8" Visibility="{Binding CanControl, Converter={StaticResource BoolToVis}}">
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
             <TextBlock Text="Transfer pipeline" VerticalAlignment="Center" Margin="0,0,12,0" FontWeight="SemiBold" />
             <ui:ToggleSwitch IsChecked="{Binding IsPaused, Mode=OneWay}" OnContent="Paused" OffContent="Running" Command="{Binding TogglePauseCommand}" />
+            <ProgressBar IsIndeterminate="True" Width="180" Height="6" Margin="16,0,0,0" Visibility="{Binding HasPending, Converter={StaticResource BoolToVis}}" />
         </StackPanel>
 
         <DataGrid Grid.Row="3" Style="{StaticResource Grid}" ItemsSource="{Binding Servers}">
@@ -44,7 +45,7 @@
                 <DataGridTextColumn Header="Auth" Binding="{Binding UserId}" Width="110" />
                 <DataGridTextColumn Header="Last success" Binding="{Binding LastSuccessAtUtc, Converter={StaticResource UtcToLocal}}" Width="150" />
                 <DataGridTextColumn Header="Last error" Binding="{Binding LastError}" Width="*" />
-                <DataGridTemplateColumn Header="" Width="260">
+                <DataGridTemplateColumn Header="" Width="180">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

@@ -38,6 +38,7 @@ public sealed class AllenBradleyDriver : IPlcDriver
 
     public async Task ConnectAsync(CancellationToken cancellationToken)
     {
+        if (Device.Port != 44818) throw new PlcConfigurationException("Allen-Bradley EtherNet/IP requires standard port 44818; libplctag does not support a custom gateway port.");
         await DisconnectAsync();
 
         // libplctag opens the CIP session lazily on the first tag. Probe TCP reachability first so

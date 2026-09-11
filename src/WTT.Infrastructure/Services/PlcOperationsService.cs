@@ -1,9 +1,11 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using WTT.Application.DTOs;
 using WTT.Application.Interfaces;
 using WTT.Application.Security;
+using WTT.Domain.Common;
 using WTT.Domain.Entities;
 using WTT.Domain.Enums;
 using WTT.Domain.Exceptions;
@@ -16,6 +18,8 @@ namespace WTT.Infrastructure.Services;
 /// <summary>Ad-hoc controller operations from the UI over a short-lived connection.</summary>
 public sealed class PlcOperationsService : IPlcOperationsService
 {
+    private readonly ConcurrentDictionary<int, SemaphoreSlim> _writeLocks = new();
+    private readonly ConcurrentDictionary<int, DateTime> _lastWrites = new();
     private readonly IPlcDriverFactory _factory;
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly ICurrentUserService _currentUser;
@@ -33,6 +37,7 @@ public sealed class PlcOperationsService : IPlcOperationsService
 
     public async Task<ConnectionTestResult> TestConnectionAsync(Device device, CancellationToken ct = default)
     {
+        _currentUser.Demand(Permission.ManageDevices);
         var sw = Stopwatch.StartNew();
         try
         {
@@ -72,35 +77,72 @@ public sealed class PlcOperationsService : IPlcOperationsService
         return await driver.BrowseTagsAsync(ct);
     }
 
-    public async Task WriteTagAsync(int tagId, string value, CancellationToken ct = default)
+    public async Task<PlcWriteResult> WriteTagAsync(int tagId, string value, CancellationToken ct = default)
     {
         _currentUser.Demand(Permission.WriteToPlc);
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
         var tag = await db.DeviceTags.AsNoTracking().Include(t => t.Device).Include(t => t.Address).FirstOrDefaultAsync(t => t.Id == tagId, ct)
                   ?? throw new NotFoundException("Tag", tagId);
         if (tag.Kind != TagKind.Plc) throw new BusinessRuleException("Only PLC tags can be written to the controller.");
+        if (!tag.IsWriteEnabled) throw new AuthorizationException($"Writing is not enabled for tag '{tag.Name}'.");
+        if (tag.ElementCount != 1) throw new BusinessRuleException("Array writes are not supported by the safe write workflow.");
+
+        object parsed;
+        try { parsed = TagValueFormatter.ParseForWrite(tag.DataType, value); }
+        catch (Exception ex) when (ex is FormatException or OverflowException) { throw new BusinessRuleException($"Value is invalid for {tag.DataType}."); }
+        if (parsed is string text && text.Length > Math.Max(1, tag.ElementCount)) throw new BusinessRuleException($"Value exceeds the configured string length of {tag.ElementCount}.");
+        if (TagValueFormatter.TryToDouble(parsed, out var numeric) &&
+            (tag.WriteMinimum.HasValue && numeric < tag.WriteMinimum.Value || tag.WriteMaximum.HasValue && numeric > tag.WriteMaximum.Value))
+            throw new BusinessRuleException($"Value must be between {tag.WriteMinimum?.ToString() ?? "unbounded"} and {tag.WriteMaximum?.ToString() ?? "unbounded"}.");
+
+        var gate = _writeLocks.GetOrAdd(tagId, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(ct);
 
         try
         {
+            if (_lastWrites.TryGetValue(tagId, out var last) && (DateTime.UtcNow - last).TotalMilliseconds < tag.MinimumWriteIntervalMs)
+                throw new BusinessRuleException($"Wait at least {tag.MinimumWriteIntervalMs} ms between writes to this tag.");
+
             await using var driver = _factory.Create(tag.Device!);
             await driver.ConnectAsync(ct);
+            var before = (await driver.ReadAsync([tag], ct))[0];
             await driver.WriteAsync(new TagWriteRequest(tag, value), ct);
-            await _audit.RecordAsync("WriteToPlc", $"{tag.Device!.Name}/{tag.Name}", value, true, ct);
+            var after = (await driver.ReadAsync([tag], ct))[0];
+            if (!after.IsGood) throw new PlcWriteException($"Write completed but readback failed: {after.Error}");
+
+            var requested = TagValueFormatter.Format(tag, parsed);
+            var readback = TagValueFormatter.Format(tag, after.RawValue);
+            if (!ValuesMatch(tag.DataType, requested, readback)) throw new PlcWriteException($"Write verification failed. Requested '{requested}', controller returned '{readback}'.");
+
+            _lastWrites[tagId] = DateTime.UtcNow;
+            var previous = before.IsGood ? TagValueFormatter.Format(tag, before.RawValue) : null;
+            await _audit.RecordAsync("WriteToPlc", $"{tag.Device!.Name}/{tag.Name}", $"Old={previous}; Requested={requested}; Readback={readback}", true, ct);
+            return new PlcWriteResult(requested, previous, readback, _lastWrites[tagId]);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             await _audit.RecordAsync("WriteToPlc", $"{tag.Device!.Name}/{tag.Name}", $"{value} → {ex.Message}", false, ct);
             throw;
         }
+        finally { gate.Release(); }
     }
 
     public async Task<TagReadResult> ReadTagOnceAsync(int tagId, CancellationToken ct = default)
     {
+        _currentUser.Demand(Permission.ViewLiveData);
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
         var tag = await db.DeviceTags.AsNoTracking().Include(t => t.Device).Include(t => t.Address).FirstOrDefaultAsync(t => t.Id == tagId, ct)
                   ?? throw new NotFoundException("Tag", tagId);
         await using var driver = _factory.Create(tag.Device!);
         await driver.ConnectAsync(ct);
         return (await driver.ReadAsync([tag], ct))[0];
+    }
+
+    private static bool ValuesMatch(TagDataType type, string expected, string actual)
+    {
+        if (type is not (TagDataType.Float32 or TagDataType.Float64)) return string.Equals(expected, actual, StringComparison.Ordinal);
+        if (!double.TryParse(expected, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var e) ||
+            !double.TryParse(actual, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var a)) return false;
+        return Math.Abs(e - a) <= Math.Max(1e-6, Math.Abs(e) * 1e-5);
     }
 }

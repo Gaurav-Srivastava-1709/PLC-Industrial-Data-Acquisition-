@@ -24,16 +24,18 @@ public sealed class ExternalQueryService : IExternalQueryService
     private readonly IAuditService _audit;
     private readonly ISecureStorage _secure;
     private readonly SqlConnectionStringFactory _connStrings;
+    private readonly IExternalSqlPolicy _sqlPolicy;
     private readonly ILogger<ExternalQueryService> _logger;
 
     public ExternalQueryService(IDbContextFactory<AppDbContext> factory, ICurrentUserService currentUser, IAuditService audit,
-        ISecureStorage secure, SqlConnectionStringFactory connStrings, ILogger<ExternalQueryService> logger)
+        ISecureStorage secure, SqlConnectionStringFactory connStrings, IExternalSqlPolicy sqlPolicy, ILogger<ExternalQueryService> logger)
     {
         _factory = factory;
         _currentUser = currentUser;
         _audit = audit;
         _secure = secure;
         _connStrings = connStrings;
+        _sqlPolicy = sqlPolicy;
         _logger = logger;
     }
 
@@ -54,6 +56,7 @@ public sealed class ExternalQueryService : IExternalQueryService
 
         var validation = new DeviceQueryValidator().Validate(query);
         if (!validation.IsValid) throw new BusinessRuleException(string.Join(Environment.NewLine, validation.Errors.Select(e => e.ErrorMessage)));
+        _sqlPolicy.DemandSelectOnly(query.QueryText);
 
         await using var db = await _factory.CreateDbContextAsync(ct);
         var device = await db.Devices.AsNoTracking().FirstOrDefaultAsync(d => d.Id == query.DeviceId, ct) ?? throw new NotFoundException("Device", query.DeviceId);
@@ -120,7 +123,11 @@ public sealed class ExternalQueryService : IExternalQueryService
             // Sync column list (keep ids of unchanged columns so tag bindings survive).
             var keep = new HashSet<string>(columns, StringComparer.OrdinalIgnoreCase);
             foreach (var old in entity.Columns.Where(c => !keep.Contains(c.ColumnName)).ToList())
+            {
+                await db.DeviceTags.Where(t => t.QueryColumnId == old.Id)
+                    .ExecuteUpdateAsync(s => s.SetProperty(t => t.QueryColumnId, (int?)null), ct);
                 db.DeviceQueryColumns.Remove(old);
+            }
             for (var i = 0; i < columns.Count; i++)
             {
                 var existing = entity.Columns.FirstOrDefault(c => c.ColumnName.Equals(columns[i], StringComparison.OrdinalIgnoreCase));
@@ -192,6 +199,7 @@ public sealed class ExternalQueryService : IExternalQueryService
 
     private async Task<(List<string> Columns, Dictionary<string, string?> Row)> ExecuteFirstRowAsync(DeviceQuery q, CancellationToken ct)
     {
+        _sqlPolicy.DemandSelectOnly(q.QueryText);
         var cs = _connStrings.ForQuery(q, connectTimeoutSeconds: 10);
         await using var conn = new SqlConnection(cs);
         await conn.OpenAsync(ct);

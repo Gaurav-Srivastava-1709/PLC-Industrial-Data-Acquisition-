@@ -72,6 +72,16 @@
                     </Grid>
                     <TextBlock Style="{StaticResource Hint}" Text="engineering = raw × scale + offset. Leave empty for raw values." />
 
+                    <TextBlock Text="Write safety" Style="{StaticResource SectionTitle}" Margin="0,16,0,4" />
+                    <CheckBox Content="Explicitly allow writes to this PLC tag" IsChecked="{Binding IsWriteEnabled}" />
+                    <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0"><TextBlock Text="Minimum" Style="{StaticResource FieldLabel}"/><ui:TextBox Text="{Binding WriteMinimum, TargetNullValue=''}"/></StackPanel>
+                        <StackPanel Grid.Column="1" Margin="0,0,8,0"><TextBlock Text="Maximum" Style="{StaticResource FieldLabel}"/><ui:TextBox Text="{Binding WriteMaximum, TargetNullValue=''}"/></StackPanel>
+                        <StackPanel Grid.Column="2"><TextBlock Text="Cooldown (ms)" Style="{StaticResource FieldLabel}"/><ui:NumberBox Value="{Binding MinimumWriteIntervalMs}" Minimum="250" Maximum="60000"/></StackPanel>
+                    </Grid>
+                    <TextBlock Style="{StaticResource Hint}" Text="Writes are denied by default. Safe writes enforce type/range, cooldown and controller readback verification." />
+
                     <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                         <ui:Button Content="Test read" Icon="{ui:SymbolIcon Play24}" Command="{Binding TestReadCommand}" />
                         <TextBlock Text="{Binding ReadResult}" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="320" />

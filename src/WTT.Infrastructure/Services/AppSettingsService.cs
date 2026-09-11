@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WTT.Application.Interfaces;
 using WTT.Application.Options;
+using WTT.Application.Security;
 using WTT.Domain.Entities;
 using WTT.Infrastructure.Persistence;
 
@@ -12,8 +13,9 @@ namespace WTT.Infrastructure.Services;
 public sealed class AppSettingsService : IAppSettingsService
 {
     private readonly IDbContextFactory<AppDbContext> _factory;
+    private readonly ICurrentUserService _currentUser;
 
-    public AppSettingsService(IDbContextFactory<AppDbContext> factory) => _factory = factory;
+    public AppSettingsService(IDbContextFactory<AppDbContext> factory, ICurrentUserService currentUser) { _factory = factory; _currentUser = currentUser; }
 
     public async Task<string?> GetAsync(string key, CancellationToken ct = default)
     {
@@ -29,6 +31,7 @@ public sealed class AppSettingsService : IAppSettingsService
 
     public async Task SetAsync(string key, string value, CancellationToken ct = default)
     {
+        _currentUser.Demand(Permission.ManageSettings);
         await using var db = await _factory.CreateDbContextAsync(ct);
         var entity = await db.AppSettings.FirstOrDefaultAsync(s => s.Key == key, ct);
         if (entity is null) db.AppSettings.Add(new AppSetting { Key = key, Value = value });
@@ -38,6 +41,7 @@ public sealed class AppSettingsService : IAppSettingsService
 
     public async Task<IReadOnlyDictionary<string, string>> GetAllAsync(CancellationToken ct = default)
     {
+        _currentUser.Demand(Permission.ManageSettings);
         await using var db = await _factory.CreateDbContextAsync(ct);
         return await db.AppSettings.AsNoTracking().ToDictionaryAsync(s => s.Key, s => s.Value, ct);
     }
@@ -81,12 +85,20 @@ public sealed class RuntimeSettings : IRuntimeSettings
 
     public async Task ReloadAsync(CancellationToken ct = default)
     {
-        UseMockPlc = await _settings.GetAsync(AppSettingKeys.UseMockPlc, _sim.UseMockPlc, ct);
-        SessionTimeoutMinutes = Math.Clamp(await _settings.GetAsync(AppSettingKeys.SessionTimeoutMinutes, _security.SessionTimeoutMinutes, ct), 1, 720);
-        TransferredRetentionDays = Math.Clamp(await _settings.GetAsync(AppSettingKeys.TransferredRetentionDays, _capture.TransferredRetentionDays, ct), 1, 3650);
-        TransferIntervalSeconds = Math.Clamp(await _settings.GetAsync(AppSettingKeys.TransferIntervalSeconds, _transfer.IntervalSeconds, ct), 1, 3600);
-        _logger.LogInformation("Runtime settings loaded: MockPlc={Mock}, SessionTimeout={Session}m, Retention={Ret}d, TransferInterval={Ti}s",
-            UseMockPlc, SessionTimeoutMinutes, TransferredRetentionDays, TransferIntervalSeconds);
-        Changed?.Invoke(this, EventArgs.Empty);
+        var useMock = await _settings.GetAsync(AppSettingKeys.UseMockPlc, _sim.UseMockPlc, ct);
+        var session = Math.Clamp(await _settings.GetAsync(AppSettingKeys.SessionTimeoutMinutes, _security.SessionTimeoutMinutes, ct), 1, 720);
+        var retention = Math.Clamp(await _settings.GetAsync(AppSettingKeys.TransferredRetentionDays, _capture.TransferredRetentionDays, ct), 1, 3650);
+        var interval = Math.Clamp(await _settings.GetAsync(AppSettingKeys.TransferIntervalSeconds, _transfer.IntervalSeconds, ct), 1, 3600);
+        var changed = useMock != UseMockPlc || session != SessionTimeoutMinutes || retention != TransferredRetentionDays || interval != TransferIntervalSeconds;
+        UseMockPlc = useMock;
+        SessionTimeoutMinutes = session;
+        TransferredRetentionDays = retention;
+        TransferIntervalSeconds = interval;
+        if (changed)
+        {
+            _logger.LogInformation("Runtime settings loaded: MockPlc={Mock}, SessionTimeout={Session}m, Retention={Ret}d, TransferInterval={Ti}s",
+                UseMockPlc, SessionTimeoutMinutes, TransferredRetentionDays, TransferIntervalSeconds);
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
     }
 }

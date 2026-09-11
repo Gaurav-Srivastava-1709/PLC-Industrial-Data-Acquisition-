@@ -15,19 +15,19 @@ using Xunit;
 namespace WTT.Tests;
 
 /// <summary>
-/// Boots the real composition root (AddInfrastructure) against a temp SQLite file with the
+/// Boots the real composition root (AddInfrastructure) against a temporary SQL Server database with the
 /// simulator enabled and drives the capture pipeline the way the UI would.
 /// </summary>
 public sealed class CapturePipelineEndToEndTests : IAsyncLifetime
 {
-    private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"wtt-e2e-{Guid.NewGuid():N}.db");
+    private readonly SqlServerTestDatabase _database = new();
     private IHost _host = null!;
 
     public async Task InitializeAsync()
     {
         var config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["Database:Path"] = _dbPath,
+            ["Database:ConnectionString"] = _database.ConnectionString,
             ["Simulation:UseMockPlc"] = "true",
             ["Capture:ReconcileIntervalSeconds"] = "1",
             ["Capture:CurrentValueFlushSeconds"] = "1",
@@ -37,22 +37,23 @@ public sealed class CapturePipelineEndToEndTests : IAsyncLifetime
         _host = Host.CreateDefaultBuilder()
             .ConfigureAppConfiguration(c => { c.Sources.Clear(); c.AddConfiguration(config); })
             .ConfigureLogging(l => { l.ClearProviders(); l.SetMinimumLevel(LogLevel.Warning); })
-            .ConfigureServices(s => s.AddInfrastructure(config))
+            .ConfigureServices(s => { s.AddInfrastructure(config); s.AddWttPipelineWorkers(); })
             .Build();
 
         await _host.Services.GetRequiredService<DatabaseInitializer>().InitializeAsync();
+        await _host.Services.GetRequiredService<IInitialAdminEnrollmentService>()
+            .EnrollAsync(new InitialAdminRequest("admin", "Test Administrator", "Admin#Secure2026"));
         await _host.StartAsync();
 
         var auth = _host.Services.GetRequiredService<IAuthService>();
-        (await auth.LoginAsync(new LoginRequest(DatabaseInitializer.DefaultAdminUsername, DatabaseInitializer.DefaultAdminPassword))).Succeeded.Should().BeTrue();
+        (await auth.LoginAsync(new LoginRequest("admin", "Admin#Secure2026"))).Succeeded.Should().BeTrue();
     }
 
     public async Task DisposeAsync()
     {
         await _host.StopAsync();
         _host.Dispose();
-        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
-        foreach (var f in new[] { _dbPath, _dbPath + "-wal", _dbPath + "-shm" }) if (File.Exists(f)) File.Delete(f);
+        await _database.DeleteAsync();
     }
 
     [Fact]
@@ -108,7 +109,7 @@ public sealed class CapturePipelineEndToEndTests : IAsyncLifetime
 
         var device = await devices.CreateAsync(new Device { Name = "SimTrig", Protocol = ProtocolType.SiemensS7, Manufacturer = Manufacturer.Siemens, Model = DeviceModel.S7_1200, Host = "127.0.0.1", Port = 102, PollIntervalMs = 200 });
         var speed = await tags.SaveAsync(new DeviceTag { DeviceId = device.Id, Name = "Speed", PlcAddress = "DB1.DBD0", DataType = TagDataType.Float32 });
-        var trig = await tags.SaveAsync(new DeviceTag { DeviceId = device.Id, Name = "CaptureOn", PlcAddress = "DB1.DBX4.0", DataType = TagDataType.Bool, IsSelected = false });
+        var trig = await tags.SaveAsync(new DeviceTag { DeviceId = device.Id, Name = "CaptureOn", PlcAddress = "DB1.DBX4.0", DataType = TagDataType.Bool, IsSelected = false, IsWriteEnabled = true, WriteMinimum = 0, WriteMaximum = 1, MinimumWriteIntervalMs = 250 });
 
         // Force the simulated trigger to FALSE via a write, then arm PLC-trigger mode.
         await plcOps.WriteTagAsync(trig.Id, "0");
@@ -142,7 +143,7 @@ public sealed class CapturePipelineEndToEndTests : IAsyncLifetime
         var capture = _host.Services.GetRequiredService<IDataCaptureController>();
 
         var device = await devices.CreateAsync(new Device { Name = "SimLogic", Protocol = ProtocolType.ModbusTcp, Manufacturer = Manufacturer.Generic, Model = DeviceModel.GenericModbusTcp, Host = "127.0.0.1", Port = 502, PollIntervalMs = 200 });
-        var level = await tags.SaveAsync(new DeviceTag { DeviceId = device.Id, Name = "Level", PlcAddress = "HR:100", DataType = TagDataType.Int16 });
+        var level = await tags.SaveAsync(new DeviceTag { DeviceId = device.Id, Name = "Level", PlcAddress = "HR:100", DataType = TagDataType.Int16, IsWriteEnabled = true, WriteMinimum = 0, WriteMaximum = 2000, MinimumWriteIntervalMs = 250 });
 
         // Logical mode cannot be chosen without conditions.
         var noCond = () => devices.SetCaptureModeAsync(device.Id, CaptureMode.Logical, null);

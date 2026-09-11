@@ -23,7 +23,7 @@ public class DeviceQuery : AuditableEntity
     public string? ProtectedPassword { get; set; }
 
     public bool Encrypt { get; set; } = true;
-    public bool TrustServerCertificate { get; set; } = true;
+    public bool TrustServerCertificate { get; set; }
 
     public string QueryText { get; set; } = string.Empty;
     public ExternalQueryType QueryType { get; set; } = ExternalQueryType.Contextual;

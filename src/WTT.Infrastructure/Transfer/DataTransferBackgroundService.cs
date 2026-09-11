@@ -12,6 +12,7 @@ using Polly.Retry;
 using WTT.Application.DTOs;
 using WTT.Application.Interfaces;
 using WTT.Application.Options;
+using WTT.Application.Security;
 using WTT.Domain.Entities;
 using WTT.Domain.Enums;
 using WTT.Infrastructure.Persistence;
@@ -21,19 +22,19 @@ namespace WTT.Infrastructure.Transfer;
 
 /// <summary>
 /// Ships buffered readings to each device's central SQL Server using SqlBulkCopy.
-/// Idempotent: the destination table carries (SourceNode, SourceReadingId) with a unique index that
+/// Idempotent: the destination table carries (SourceId, SourceReadingId) with a unique index that
 /// ignores duplicates, so a retry after an ambiguous failure can never double-insert.
 /// Per-server retry + circuit breaker (Polly v8) isolate a failing server from the others.
 /// </summary>
 public sealed class DataTransferBackgroundService : BackgroundService, IDataTransferController
 {
-    private static readonly string SourceNode = Environment.MachineName;
-
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly SqlConnectionStringFactory _connStrings;
     private readonly IRuntimeSettings _runtime;
     private readonly TransferOptions _options;
+    private readonly IInstallationIdentity _installation;
     private readonly ILogger<DataTransferBackgroundService> _logger;
+    private readonly ICurrentUserService _currentUser;
 
     private readonly SemaphoreSlim _cycleLock = new(1, 1);
     private readonly ConcurrentDictionary<string, ResiliencePipeline> _pipelines = new();
@@ -44,12 +45,16 @@ public sealed class DataTransferBackgroundService : BackgroundService, IDataTran
         IDbContextFactory<AppDbContext> dbFactory,
         SqlConnectionStringFactory connStrings,
         IRuntimeSettings runtime,
+        IInstallationIdentity installation,
+        ICurrentUserService currentUser,
         IOptions<TransferOptions> options,
         ILogger<DataTransferBackgroundService> logger)
     {
         _dbFactory = dbFactory;
         _connStrings = connStrings;
         _runtime = runtime;
+        _installation = installation;
+        _currentUser = currentUser;
         _options = options.Value;
         _logger = logger;
     }
@@ -57,16 +62,20 @@ public sealed class DataTransferBackgroundService : BackgroundService, IDataTran
     // ---------------------------------------------------------------- IDataTransferController
 
     public bool IsPaused => _paused;
-    public void Pause() { _paused = true; _logger.LogWarning("Data transfer paused by user."); }
-    public void Resume() { _paused = false; _logger.LogInformation("Data transfer resumed."); }
+    public void Pause() { _currentUser.Demand(Permission.ControlCapture); _paused = true; _logger.LogWarning("Data transfer paused by user."); }
+    public void Resume() { _currentUser.Demand(Permission.ControlCapture); _paused = false; _logger.LogInformation("Data transfer resumed."); }
 
     public event EventHandler<TransferBatch>? BatchCompleted;
 
-    public async Task<int> TransferNowAsync(int? deviceId = null, CancellationToken ct = default) =>
-        await RunCycleAsync(deviceId, manual: true, ct);
+    public async Task<int> TransferNowAsync(int? deviceId = null, CancellationToken ct = default)
+    {
+        _currentUser.Demand(Permission.ControlCapture);
+        return await RunCycleAsync(deviceId, manual: true, ct);
+    }
 
     public async Task<TransferStatistics> GetStatisticsAsync(CancellationToken ct = default)
     {
+        _currentUser.Demand(Permission.ViewTransfer);
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
         var todayUtc = DateTime.Today.ToUniversalTime();
         var pending = await db.TagReadings.LongCountAsync(r => !r.IsTransferred, ct);
@@ -78,6 +87,7 @@ public sealed class DataTransferBackgroundService : BackgroundService, IDataTran
 
     public async Task<IReadOnlyList<TransferBatch>> GetRecentBatchesAsync(int take = 100, CancellationToken ct = default)
     {
+        _currentUser.Demand(Permission.ViewTransfer);
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
         return await db.TransferBatches.AsNoTracking().OrderByDescending(b => b.Id).Take(take).ToListAsync(ct);
     }
@@ -127,18 +137,17 @@ public sealed class DataTransferBackgroundService : BackgroundService, IDataTran
             }
 
             var total = 0;
-            foreach (var server in servers)
+            var queue = new Queue<(DeviceServer Server, int Batches)>(servers.Select(s => (s, 0)));
+            while (queue.Count > 0)
             {
+                var (server, batches) = queue.Dequeue();
                 ct.ThrowIfCancellationRequested();
                 try
                 {
-                    // Keep draining this device while full batches come back (catch-up after an outage).
-                    int moved;
-                    do
-                    {
-                        moved = await TransferDeviceAsync(server, ct);
-                        total += moved;
-                    } while (moved >= _options.BatchSize && !ct.IsCancellationRequested);
+                    var moved = await TransferDeviceAsync(server, ct);
+                    total += moved;
+                    if (moved >= _options.BatchSize && batches + 1 < _options.MaxBatchesPerDevicePerCycle)
+                        queue.Enqueue((server, batches + 1));
                 }
                 catch (BrokenCircuitException)
                 {
@@ -148,7 +157,6 @@ public sealed class DataTransferBackgroundService : BackgroundService, IDataTran
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "{Device}: transfer to {Server}/{Db} failed.", server.Device!.Name, server.ServerName, server.DatabaseName);
-                    await RecordFailureAsync(server, 0, ex.Message, DateTime.UtcNow, 0, ct);
                     if (manual) throw;
                 }
             }
@@ -188,9 +196,19 @@ public sealed class DataTransferBackgroundService : BackgroundService, IDataTran
                 await EnsureDestinationSchemaAsync(conn, server.TableName, token);
 
                 await using var tx = conn.BeginTransaction();
+                await using (var createStage = new SqlCommand("""
+                    CREATE TABLE #WTTBatch (
+                        TagName NVARCHAR(200) NOT NULL, PLCName NVARCHAR(100) NULL, TagValue NVARCHAR(500) NULL,
+                        TimeStamp DATETIME2(3) NOT NULL, TimeStampUTC DATETIME2(3) NULL, Quality NVARCHAR(20) NULL,
+                        ScanId UNIQUEIDENTIFIER NULL, SourceId UNIQUEIDENTIFIER NOT NULL, SourceNode NVARCHAR(128) NULL,
+                        SourceReadingId BIGINT NOT NULL
+                    );
+                    """, conn, tx))
+                    await createStage.ExecuteNonQueryAsync(token);
+
                 using var bulk = new SqlBulkCopy(conn, SqlBulkCopyOptions.CheckConstraints, tx)
                 {
-                    DestinationTableName = $"[dbo].[{server.TableName}]",
+                    DestinationTableName = "#WTTBatch",
                     BatchSize = _options.BulkCopyBatchSize,
                     BulkCopyTimeout = _options.BulkCopyTimeoutSeconds,
                 };
@@ -201,10 +219,22 @@ public sealed class DataTransferBackgroundService : BackgroundService, IDataTran
                 bulk.ColumnMappings.Add("TimeStampUTC", "TimeStampUTC");
                 bulk.ColumnMappings.Add("Quality", "Quality");
                 bulk.ColumnMappings.Add("ScanId", "ScanId");
+                bulk.ColumnMappings.Add("SourceId", "SourceId");
                 bulk.ColumnMappings.Add("SourceNode", "SourceNode");
                 bulk.ColumnMappings.Add("SourceReadingId", "SourceReadingId");
 
                 await bulk.WriteToServerAsync(ToDataTable(batch), token);
+                await using (var merge = new SqlCommand($"""
+                    INSERT INTO [dbo].[{server.TableName}]
+                        (TagName, PLCName, TagValue, TimeStamp, TimeStampUTC, Quality, ScanId, SourceId, SourceNode, SourceReadingId)
+                    SELECT s.TagName, s.PLCName, s.TagValue, s.TimeStamp, s.TimeStampUTC, s.Quality, s.ScanId, s.SourceId, s.SourceNode, s.SourceReadingId
+                    FROM #WTTBatch s
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM [dbo].[{server.TableName}] d WITH (UPDLOCK, HOLDLOCK)
+                        WHERE d.SourceId = s.SourceId AND d.SourceReadingId = s.SourceReadingId
+                    );
+                    """, conn, tx))
+                    await merge.ExecuteNonQueryAsync(token);
                 await tx.CommitAsync(token);
             }, ct);
         }
@@ -241,21 +271,26 @@ public sealed class DataTransferBackgroundService : BackgroundService, IDataTran
         return batch.Count;
     }
 
-    private ResiliencePipeline BuildPipeline(DeviceServer server) => new ResiliencePipelineBuilder()
-        .AddRetry(new RetryStrategyOptions
+    private ResiliencePipeline BuildPipeline(DeviceServer server)
+    {
+        var builder = new ResiliencePipelineBuilder();
+        if (_options.RetryCount > 0)
         {
-            MaxRetryAttempts = Math.Max(0, _options.RetryCount),
-            BackoffType = DelayBackoffType.Exponential,
-            Delay = TimeSpan.FromSeconds(2),
-            UseJitter = true,
-            ShouldHandle = new PredicateBuilder().Handle<SqlException>(IsTransient).Handle<TimeoutException>().Handle<InvalidOperationException>(e => e.Message.Contains("Timeout", StringComparison.OrdinalIgnoreCase)),
-            OnRetry = args =>
+            builder.AddRetry(new RetryStrategyOptions
             {
-                _logger.LogWarning("{Server}: transfer attempt {Attempt} failed ({Message}); retrying in {Delay}s.", server.ServerName, args.AttemptNumber + 1, args.Outcome.Exception?.Message, args.RetryDelay.TotalSeconds);
-                return ValueTask.CompletedTask;
-            },
-        })
-        .AddCircuitBreaker(new CircuitBreakerStrategyOptions
+                MaxRetryAttempts = _options.RetryCount,
+                BackoffType = DelayBackoffType.Exponential,
+                Delay = TimeSpan.FromSeconds(2),
+                UseJitter = true,
+                ShouldHandle = new PredicateBuilder().Handle<SqlException>(IsTransient).Handle<TimeoutException>().Handle<InvalidOperationException>(e => e.Message.Contains("Timeout", StringComparison.OrdinalIgnoreCase)),
+                OnRetry = args =>
+                {
+                    _logger.LogWarning("{Server}: transfer attempt {Attempt} failed ({Message}); retrying in {Delay}s.", server.ServerName, args.AttemptNumber + 1, args.Outcome.Exception?.Message, args.RetryDelay.TotalSeconds);
+                    return ValueTask.CompletedTask;
+                },
+            });
+        }
+        builder.AddCircuitBreaker(new CircuitBreakerStrategyOptions
         {
             FailureRatio = 1.0,
             MinimumThroughput = Math.Max(2, _options.CircuitBreakerFailures),
@@ -264,8 +299,9 @@ public sealed class DataTransferBackgroundService : BackgroundService, IDataTran
             ShouldHandle = new PredicateBuilder().Handle<SqlException>().Handle<TimeoutException>(),
             OnOpened = args => { _logger.LogError("{Server}: circuit OPEN for {Duration}s after repeated failures: {Message}", server.ServerName, args.BreakDuration.TotalSeconds, args.Outcome.Exception?.Message); return ValueTask.CompletedTask; },
             OnClosed = _ => { _logger.LogInformation("{Server}: circuit closed; transfers resumed.", server.ServerName); return ValueTask.CompletedTask; },
-        })
-        .Build();
+        });
+        return builder.Build();
+    }
 
     private static bool IsTransient(SqlException ex) => ex.Number is -2 or 53 or 121 or 233 or 1205 or 4060 or 10053 or 10054 or 10060 or 40197 or 40501 or 40613 or 49918 or 49919 or 49920 or 11001 || ex.Class >= 20;
 
@@ -283,21 +319,23 @@ public sealed class DataTransferBackgroundService : BackgroundService, IDataTran
             BEGIN
                 CREATE TABLE [dbo].[{table}] (
                     [Pk_TagDetail]    BIGINT IDENTITY(1,1) NOT NULL CONSTRAINT [PK_{table}] PRIMARY KEY CLUSTERED,
-                    [TagName]         VARCHAR(200)  NOT NULL,
-                    [PLCName]         VARCHAR(100)  NULL,
-                    [TagValue]        VARCHAR(500)  NULL,
+                    [TagName]         NVARCHAR(200)  NOT NULL,
+                    [PLCName]         NVARCHAR(100)  NULL,
+                    [TagValue]        NVARCHAR(500)  NULL,
                     [TimeStamp]       DATETIME      NOT NULL,
                     [TimeStampUTC]    DATETIME      NULL,
-                    [Quality]         VARCHAR(20)   NULL,
+                    [Quality]         NVARCHAR(20)   NULL,
                     [ScanId]          UNIQUEIDENTIFIER NULL,
-                    [SourceNode]      VARCHAR(100)  NULL,
+                    [SourceId]        UNIQUEIDENTIFIER NULL,
+                    [SourceNode]      NVARCHAR(128) NULL,
                     [SourceReadingId] BIGINT        NULL
                 );
             END;
 
-            IF COL_LENGTH(N'dbo.{table}', 'Quality') IS NULL         ALTER TABLE [dbo].[{table}] ADD [Quality] VARCHAR(20) NULL;
+            IF COL_LENGTH(N'dbo.{table}', 'Quality') IS NULL         ALTER TABLE [dbo].[{table}] ADD [Quality] NVARCHAR(20) NULL;
             IF COL_LENGTH(N'dbo.{table}', 'ScanId') IS NULL          ALTER TABLE [dbo].[{table}] ADD [ScanId] UNIQUEIDENTIFIER NULL;
-            IF COL_LENGTH(N'dbo.{table}', 'SourceNode') IS NULL      ALTER TABLE [dbo].[{table}] ADD [SourceNode] VARCHAR(100) NULL;
+            IF COL_LENGTH(N'dbo.{table}', 'SourceId') IS NULL        ALTER TABLE [dbo].[{table}] ADD [SourceId] UNIQUEIDENTIFIER NULL;
+            IF COL_LENGTH(N'dbo.{table}', 'SourceNode') IS NULL      ALTER TABLE [dbo].[{table}] ADD [SourceNode] NVARCHAR(128) NULL;
             IF COL_LENGTH(N'dbo.{table}', 'SourceReadingId') IS NULL ALTER TABLE [dbo].[{table}] ADD [SourceReadingId] BIGINT NULL;
             IF COL_LENGTH(N'dbo.{table}', 'TimeStampUTC') IS NULL    ALTER TABLE [dbo].[{table}] ADD [TimeStampUTC] DATETIME NULL;
 
@@ -308,10 +346,9 @@ public sealed class DataTransferBackgroundService : BackgroundService, IDataTran
             IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.{table}') AND name = 'TagValue' AND max_length < 500)
                 ALTER TABLE [dbo].[{table}] ALTER COLUMN [TagValue] VARCHAR(500) NULL;
 
-            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.{table}') AND name = 'UX_{table}_Source')
-                CREATE UNIQUE NONCLUSTERED INDEX [UX_{table}_Source] ON [dbo].[{table}] ([SourceNode], [SourceReadingId])
-                    WHERE [SourceNode] IS NOT NULL AND [SourceReadingId] IS NOT NULL
-                    WITH (IGNORE_DUP_KEY = ON);
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.{table}') AND name = 'UX_{table}_SourceId')
+                CREATE UNIQUE NONCLUSTERED INDEX [UX_{table}_SourceId] ON [dbo].[{table}] ([SourceId], [SourceReadingId])
+                    WHERE [SourceId] IS NOT NULL AND [SourceReadingId] IS NOT NULL;
 
             IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.{table}') AND name = 'IX_{table}_PLC_Time')
                 CREATE NONCLUSTERED INDEX [IX_{table}_PLC_Time] ON [dbo].[{table}] ([PLCName], [TimeStamp]) INCLUDE ([TagName], [TagValue]);
@@ -323,7 +360,7 @@ public sealed class DataTransferBackgroundService : BackgroundService, IDataTran
         _logger.LogDebug("Destination schema verified for {Key}.", key);
     }
 
-    private static DataTable ToDataTable(List<TagReading> rows)
+    private DataTable ToDataTable(List<TagReading> rows)
     {
         var t = new DataTable();
         t.Columns.Add("TagName", typeof(string));
@@ -333,10 +370,11 @@ public sealed class DataTransferBackgroundService : BackgroundService, IDataTran
         t.Columns.Add("TimeStampUTC", typeof(DateTime));
         t.Columns.Add("Quality", typeof(string));
         t.Columns.Add("ScanId", typeof(Guid));
+        t.Columns.Add("SourceId", typeof(Guid));
         t.Columns.Add("SourceNode", typeof(string));
         t.Columns.Add("SourceReadingId", typeof(long));
         foreach (var r in rows)
-            t.Rows.Add(r.TagName, r.DeviceName, r.Value, r.Timestamp, r.TimestampUtc, r.Quality.ToString(), r.ScanId, SourceNode, r.Id);
+            t.Rows.Add(r.TagName, r.DeviceName, r.Value, r.Timestamp, r.TimestampUtc, r.Quality.ToString(), r.ScanId, _installation.SourceId, Environment.MachineName, r.Id);
         return t;
     }
 

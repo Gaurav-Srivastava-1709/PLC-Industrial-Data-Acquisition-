@@ -24,6 +24,7 @@ public partial class LoginViewModel : ViewModelBase
     [ObservableProperty] private string _username = string.Empty;
     [ObservableProperty] private string _password = string.Empty;
     [ObservableProperty] private string? _infoMessage;
+    [ObservableProperty] private bool _canSignIn;
 
     /// <summary>Set by the view when a forced password change must be shown.</summary>
     public event EventHandler<ChangePasswordViewModel>? PasswordChangeRequired;

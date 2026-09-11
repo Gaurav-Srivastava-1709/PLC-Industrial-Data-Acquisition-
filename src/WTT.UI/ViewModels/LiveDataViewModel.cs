@@ -20,14 +20,15 @@ public partial class LiveDataViewModel : ViewModelBase
     private readonly ICurrentUserService _currentUser;
     private readonly NavigationContext _navContext;
     private readonly Func<WriteTagViewModel> _writeFactory;
+    private readonly CsvExportService _csv;
     private readonly DispatcherTimer _statusTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private readonly Dictionary<int, LiveTagRow> _rowsByTagId = new();
 
     public LiveDataViewModel(IDeviceService devices, ITagService tags, IDataCaptureController capture, ICurrentUserService currentUser, NavigationContext navContext,
-        Func<WriteTagViewModel> writeFactory, IDialogService dialogs, ILogger<LiveDataViewModel> logger) : base(dialogs, logger)
+        Func<WriteTagViewModel> writeFactory, CsvExportService csv, IDialogService dialogs, ILogger<LiveDataViewModel> logger) : base(dialogs, logger)
     {
-        _devices = devices; _tags = tags; _capture = capture; _currentUser = currentUser; _navContext = navContext; _writeFactory = writeFactory;
-        _statusTimer.Tick += (_, _) => RefreshStatus();
+        _devices = devices; _tags = tags; _capture = capture; _currentUser = currentUser; _navContext = navContext; _writeFactory = writeFactory; _csv = csv;
+        _statusTimer.Tick += async (_, _) => await RunAsync(LoadTagsAsync);
     }
 
     public ObservableCollection<Device> Devices { get; } = new();
@@ -85,7 +86,7 @@ public partial class LiveDataViewModel : ViewModelBase
         {
             var row = new LiveTagRow(t);
             if (live.TryGetValue(t.Id, out var v)) row.Apply(v);
-            else if (t.Kind != TagKind.Plc) row.Apply(new LiveTagValue(t.DeviceId, t.Id, t.Name, t.SetValue, TagQuality.Good, t.CurrentValueAtUtc ?? DateTime.UtcNow));
+            else if (t.CurrentValueAtUtc.HasValue) row.Apply(new LiveTagValue(t.DeviceId, t.Id, t.Name, t.CurrentValue ?? t.SetValue, t.CurrentQuality, t.CurrentValueAtUtc.Value));
             _allRows.Add(row);
             _rowsByTagId[t.Id] = row;
         }
@@ -112,7 +113,7 @@ public partial class LiveDataViewModel : ViewModelBase
         var s = _capture.GetStatus(SelectedDevice.Id);
         IsConnected = s?.IsConnected ?? false;
         LastScanUtc = s?.LastScanUtc;
-        StatusText = s is null ? "Worker not running — enable Capture or Monitor on the dashboard."
+        StatusText = s is null ? "Service data (updates from SQL Server every few seconds)."
             : !s.IsConnected ? $"Not connected{(s.LastError is null ? string.Empty : " — " + s.LastError)}"
             : $"{(s.IsCapturing ? "Capturing" : "Monitoring")} · {s.ScanCount:N0} scans · {s.ReadingsWritten:N0} readings written · trigger {(s.LastTriggerState is true ? "ON" : "OFF")}";
         GoodCount = _allRows.Count(r => r.Quality == TagQuality.Good);
@@ -130,6 +131,14 @@ public partial class LiveDataViewModel : ViewModelBase
 
     [RelayCommand]
     private Task RefreshAsync() => RunAsync(LoadTagsAsync);
+
+    [RelayCommand]
+    private async Task ExportCsvAsync()
+    {
+        if (SelectedDevice is null || Rows.Count == 0) { Dialogs.Toast("Export", "There is no visible data to export.", ToastKind.Warning); return; }
+        var path = await _csv.ExportLiveDataAsync(Rows.ToList(), SelectedDevice.Name);
+        if (path is not null) Dialogs.Toast("Export complete", path, ToastKind.Success);
+    }
 }
 
 public partial class LiveTagRow : ObservableObject
@@ -150,7 +159,7 @@ public partial class LiveTagRow : ObservableObject
     public TagKind Kind { get; }
     public string DataType { get; }
     public string? Unit { get; }
-    public bool IsWritable => Kind == TagKind.Plc;
+    public bool IsWritable => Kind != TagKind.Plc || Tag.IsWriteEnabled;
 
     [ObservableProperty] private string? _value;
     [ObservableProperty] private TagQuality _quality = TagQuality.Uncertain;

@@ -22,6 +22,7 @@ public sealed record TagReadResult(
 
 /// <summary>Request to write a value to one tag.</summary>
 public sealed record TagWriteRequest(DeviceTag Tag, string Value);
+public sealed record PlcWriteResult(string RequestedValue, string? PreviousValue, string ReadbackValue, DateTime CompletedAtUtc);
 
 /// <summary>Tag discovered by browsing a controller's symbol table.</summary>
 public sealed record DiscoveredTag(

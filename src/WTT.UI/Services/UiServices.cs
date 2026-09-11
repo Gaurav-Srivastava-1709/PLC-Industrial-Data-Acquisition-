@@ -192,12 +192,13 @@ public sealed class ShellNavigator
         _session.TimedOut += async (_, _) => await LogoutAsync("Session timed out due to inactivity.");
     }
 
-    public void ShowLogin(string? message = null)
+    public Views.Windows.LoginWindow ShowLogin(string? message = null)
     {
         var login = _services.GetRequiredService<Views.Windows.LoginWindow>();
         if (message is not null) login.ViewModel.InfoMessage = message;
         login.Show();
         CloseAllExcept(login);
+        return login;
     }
 
     public void ShowMain()

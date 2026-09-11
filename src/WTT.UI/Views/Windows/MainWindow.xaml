@@ -3,9 +3,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:pages="clr-namespace:WTT.UI.Views.Pages"
-        Title="WTT — Industrial Data Acquisition" Height="800" Width="1280" MinHeight="600" MinWidth="960"
+        Title="WTT — Industrial Data Acquisition" Height="800" Width="1280" MinHeight="560" MinWidth="720"
         WindowStartupLocation="CenterScreen" WindowState="Maximized"
         ExtendsContentIntoTitleBar="True" WindowBackdropType="Mica">
+    <ui:FluentWindow.InputBindings>
+        <KeyBinding Key="D" Modifiers="Control" Command="{Binding OpenDashboardCommand}" />
+        <KeyBinding Key="L" Modifiers="Control" Command="{Binding LogoutCommand}" />
+    </ui:FluentWindow.InputBindings>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />

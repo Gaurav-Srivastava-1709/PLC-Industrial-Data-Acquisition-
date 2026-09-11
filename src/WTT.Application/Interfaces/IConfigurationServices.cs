@@ -78,12 +78,18 @@ public interface IExternalQueryService
     Task<bool> RefreshExternalTagValuesAsync(int deviceId, CancellationToken ct = default);
 }
 
+/// <summary>Validates that external SQL is one read-only SELECT statement.</summary>
+public interface IExternalSqlPolicy
+{
+    void DemandSelectOnly(string sql);
+}
+
 /// <summary>Ad-hoc PLC operations from the UI (test / browse / write) using a temporary connection.</summary>
 public interface IPlcOperationsService
 {
     Task<ConnectionTestResult> TestConnectionAsync(Device device, CancellationToken ct = default);
     Task<IReadOnlyList<DiscoveredTag>> BrowseTagsAsync(Device device, CancellationToken ct = default);
-    Task WriteTagAsync(int tagId, string value, CancellationToken ct = default);
+    Task<PlcWriteResult> WriteTagAsync(int tagId, string value, CancellationToken ct = default);
     Task<TagReadResult> ReadTagOnceAsync(int tagId, CancellationToken ct = default);
 }
 

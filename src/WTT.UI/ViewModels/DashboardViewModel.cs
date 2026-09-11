@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows.Threading;
+using System.Windows;
+using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -21,6 +23,7 @@ public partial class DashboardViewModel : ViewModelBase
     private readonly INavigationService _navigation;
     private readonly NavigationContext _navContext;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(3) };
+    private readonly Queue<(long Readings, long Buffer)> _trend = new();
 
     public DashboardViewModel(IDeviceService devices, IDataCaptureController capture, IDataTransferController transfer, ICurrentUserService currentUser,
         INavigationService navigation, NavigationContext navContext, IDialogService dialogs, ILogger<DashboardViewModel> logger) : base(dialogs, logger)
@@ -47,6 +50,9 @@ public partial class DashboardViewModel : ViewModelBase
     [ObservableProperty] private DateTime? _lastTransferUtc;
     [ObservableProperty] private bool _capturePaused;
     [ObservableProperty] private bool _transferPaused;
+    [ObservableProperty] private PointCollection _readingTrend = new();
+    [ObservableProperty] private PointCollection _bufferTrend = new();
+    [ObservableProperty] private string _trendSummary = "Collecting trend data...";
 
     public bool CanControl => _currentUser.HasPermission(Permission.ControlCapture);
     public bool CanManageDevices => _currentUser.HasPermission(Permission.ManageDevices);
@@ -87,12 +93,32 @@ public partial class DashboardViewModel : ViewModelBase
             ReadingsToday = c.ReadingsToday; ErrorsToday = c.ErrorsToday; BufferedReadings = c.BufferedReadings;
             TransferredToday = t.TransferredToday; FailedBatchesToday = t.FailedBatchesToday; LastTransferUtc = t.LastSuccessAtUtc;
             CapturePaused = _capture.IsPaused; TransferPaused = _transfer.IsPaused;
+            AddTrendPoint(ReadingsToday, BufferedReadings);
             foreach (var card in Devices) card.Update(_capture.GetStatus(card.Id));
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Dashboard refresh failed.");
         }
+    }
+
+    private void AddTrendPoint(long readings, long buffer)
+    {
+        _trend.Enqueue((readings, buffer));
+        while (_trend.Count > 60) _trend.Dequeue();
+        ReadingTrend = Normalize(_trend.Select(x => x.Readings).ToList());
+        BufferTrend = Normalize(_trend.Select(x => x.Buffer).ToList());
+        TrendSummary = $"Last {_trend.Count * 3} seconds · readings {readings:N0} · buffered {buffer:N0}";
+    }
+
+    private static PointCollection Normalize(IReadOnlyList<long> values)
+    {
+        var points = new PointCollection();
+        if (values.Count == 0) return points;
+        var min = values.Min(); var max = values.Max(); var range = Math.Max(1, max - min);
+        for (var i = 0; i < values.Count; i++)
+            points.Add(new Point(values.Count == 1 ? 0 : i * 300.0 / (values.Count - 1), 80 - (values[i] - min) * 76.0 / range));
+        return points;
     }
 
     private void OnStatusChanged(object? sender, DeviceCaptureStatus status) =>

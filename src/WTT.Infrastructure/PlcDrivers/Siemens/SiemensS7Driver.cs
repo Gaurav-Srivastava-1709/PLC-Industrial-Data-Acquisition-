@@ -185,7 +185,7 @@ public sealed class SiemensS7Driver : IPlcDriver
             TagDataType.Float32 => VarType.Real,
             TagDataType.Float64 => VarType.LReal,
             TagDataType.String => VarType.S7String,
-            TagDataType.Int64 or TagDataType.UInt64 => VarType.LReal, // S7 has no 64-bit int in S7.Net; treat as LReal bits
+            TagDataType.Int64 or TagDataType.UInt64 => throw new PlcConfigurationException("S7 64-bit integer tags are not supported. Use Float64/LREAL or split the value into two 32-bit words."),
             _ => item.VarType,
         };
         item.Count = tag.DataType == TagDataType.String ? Math.Max(1, tag.ElementCount) : Math.Max(1, tag.ElementCount);

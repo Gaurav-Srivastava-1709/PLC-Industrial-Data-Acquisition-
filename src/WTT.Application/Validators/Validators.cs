@@ -60,6 +60,9 @@ public sealed class DeviceTagValidator : AbstractValidator<DeviceTag>
         RuleFor(t => t.Alias).MaximumLength(200);
         RuleFor(t => t.ElementCount).InclusiveBetween(1, 4096);
         RuleFor(t => t.DecimalPlaces).InclusiveBetween(0, 10).When(t => t.DecimalPlaces.HasValue);
+        RuleFor(t => t.MinimumWriteIntervalMs).InclusiveBetween(250, 60000);
+        RuleFor(t => t).Must(t => !t.WriteMinimum.HasValue || !t.WriteMaximum.HasValue || t.WriteMinimum <= t.WriteMaximum)
+            .WithMessage("Write minimum cannot exceed write maximum.");
 
         When(t => t.Kind == TagKind.Plc, () =>
             RuleFor(t => t.PlcAddress).NotEmpty().WithMessage("PLC address is required for PLC tags."));
@@ -116,8 +119,7 @@ public sealed class DeviceQueryValidator : AbstractValidator<DeviceQuery>
         RuleFor(q => q.UserId).NotEmpty().When(q => !q.UseIntegratedSecurity);
         RuleFor(q => q.QueryText)
             .NotEmpty()
-            .Must(q => q.TrimStart().StartsWith("SELECT", StringComparison.OrdinalIgnoreCase) || q.TrimStart().StartsWith("WITH", StringComparison.OrdinalIgnoreCase))
-            .WithMessage("Only SELECT queries are allowed.");
+            .MaximumLength(8000);
     }
 }
 

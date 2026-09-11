@@ -32,7 +32,7 @@
 
             <ui:Button Content="Sign in" Appearance="Primary" HorizontalAlignment="Stretch" Margin="0,20,0,0" Height="38"
                        Command="{Binding LoginCommand}" IsDefault="True"
-                       IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}" />
+                       IsEnabled="{Binding CanSignIn}" />
             <ProgressBar IsIndeterminate="True" Height="3" Margin="0,8,0,0"
                          Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
         </StackPanel>

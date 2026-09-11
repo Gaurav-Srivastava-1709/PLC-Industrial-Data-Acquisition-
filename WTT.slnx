@@ -3,6 +3,7 @@
     <Project Path="src/WTT.Domain/WTT.Domain.csproj" />
     <Project Path="src/WTT.Application/WTT.Application.csproj" />
     <Project Path="src/WTT.Infrastructure/WTT.Infrastructure.csproj" />
+    <Project Path="src/WTT.Service/WTT.Service.csproj" />
     <Project Path="src/WTT.UI/WTT.UI.csproj" />
   </Folder>
   <Folder Name="/tests/">

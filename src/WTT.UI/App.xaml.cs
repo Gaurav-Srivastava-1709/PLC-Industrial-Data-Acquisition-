@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
+using System.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -8,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using Wpf.Ui;
 using Wpf.Ui.DependencyInjection;
+using WTT.Application.Interfaces;
 using WTT.Infrastructure;
 using WTT.Infrastructure.Persistence;
 using WTT.UI.Services;
@@ -40,6 +42,9 @@ public partial class App : System.Windows.Application
             .ConfigureServices((ctx, services) =>
             {
                 services.AddInfrastructure(ctx.Configuration);
+                // Phase 6 will move these workers to the dedicated Windows Service.
+                // Keep them in-process until that service is installed so Phase 1-5 can be tested end-to-end.
+                services.AddWttPipelineWorkers();
 
                 // WPF-UI plumbing
                 services.AddNavigationViewPageProvider();
@@ -53,10 +58,13 @@ public partial class App : System.Windows.Application
                 services.AddSingleton<ThemeManager>();
                 services.AddSingleton<SessionManager>();
                 services.AddSingleton<ShellNavigator>();
+                services.AddSingleton<CsvExportService>();
 
                 // Windows (transient: a fresh window per show)
                 services.AddTransient<LoginWindow>();
                 services.AddTransient<LoginViewModel>();
+                services.AddTransient<AdminEnrollmentWindow>();
+                services.AddTransient<AdminEnrollmentViewModel>();
                 services.AddTransient<MainWindow>();
                 services.AddTransient<MainViewModel>();
 
@@ -99,31 +107,44 @@ public partial class App : System.Windows.Application
 
     protected override async void OnStartup(StartupEventArgs e)
     {
+        var startup = Stopwatch.StartNew();
         base.OnStartup(e);
         RegisterGlobalExceptionHandlers();
+        var startupWindow = new StartupWindow();
+        startupWindow.Show();
+        await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
 
         var logger = _host.Services.GetRequiredService<ILogger<App>>();
         try
         {
             logger.LogInformation("==== WTT starting (v{Version}, {OS}, user {User}) ====",
                 typeof(App).Assembly.GetName().Version, Environment.OSVersion, Environment.UserName);
+            logger.LogInformation("Startup milestone SurfaceVisible at {ElapsedMs} ms", startup.ElapsedMilliseconds);
 
-            // 1. Database first: migrations + seed, before any background service touches it.
-            var seededAdmin = await _host.Services.GetRequiredService<DatabaseInitializer>().InitializeAsync();
-
-            // 2. Theme from saved settings.
-            await _host.Services.GetRequiredService<ThemeManager>().LoadAsync();
-
-            // 3. Background services (capture / transfer supervisors).
-            await _host.StartAsync();
-
-            // 4. UI.
+            // Render immediately; database/theme initialization continues while sign-in is disabled.
             var shell = _host.Services.GetRequiredService<ShellNavigator>();
-            shell.ShowLogin(seededAdmin
-                ? $"First run: sign in with '{DatabaseInitializer.DefaultAdminUsername}' / '{DatabaseInitializer.DefaultAdminPassword}'. You will be asked to set a new password."
-                : null);
+            var login = shell.ShowLogin("Initializing secure database and runtime services...");
+            startupWindow.Close();
+            logger.LogInformation("Startup milestone LoginVisible at {ElapsedMs} ms", startup.ElapsedMilliseconds);
 
-            logger.LogInformation("WTT started successfully.");
+            var databaseTask = _host.Services.GetRequiredService<DatabaseInitializer>().VerifySchemaCurrentAsync();
+            var themeTask = _host.Services.GetRequiredService<ThemeManager>().LoadAsync();
+            await Task.WhenAll(databaseTask, themeTask);
+            logger.LogInformation("Startup milestone DatabaseAndThemeReady at {ElapsedMs} ms", startup.ElapsedMilliseconds);
+
+            var enrollment = _host.Services.GetRequiredService<IInitialAdminEnrollmentService>();
+            if (await enrollment.IsRequiredAsync())
+            {
+                var setup = _host.Services.GetRequiredService<AdminEnrollmentWindow>();
+                if (setup.ShowDialog() != true) { Shutdown(); return; }
+            }
+
+            // Background services (capture / transfer supervisors).
+            await _host.StartAsync();
+            login.ViewModel.InfoMessage = null;
+            login.ViewModel.CanSignIn = true;
+
+            logger.LogInformation("WTT started successfully in {ElapsedMs} ms.", startup.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {

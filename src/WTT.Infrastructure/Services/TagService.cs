@@ -51,6 +51,7 @@ public sealed class TagService : ITagService
         tag.PlcAddress = tag.PlcAddress?.Trim() ?? string.Empty;
         tag.Alias = string.IsNullOrWhiteSpace(tag.Alias) ? null : tag.Alias.Trim();
         if (tag.Kind != TagKind.Plc) tag.PlcAddress = string.Empty;
+        if (tag.Kind != TagKind.Plc) { tag.IsWriteEnabled = false; tag.WriteMinimum = null; tag.WriteMaximum = null; }
         if (tag.Kind != TagKind.External) { tag.QueryId = null; tag.QueryColumnId = null; }
         if (tag.ByteCount <= 0) tag.ByteCount = TagValueFormatter.DefaultByteSize(tag.DataType, tag.ElementCount);
 
@@ -96,6 +97,10 @@ public sealed class TagService : ITagService
         entity.ScaleOffset = tag.ScaleOffset;
         entity.DecimalPlaces = tag.DecimalPlaces;
         entity.EngineeringUnit = tag.EngineeringUnit;
+        entity.IsWriteEnabled = tag.IsWriteEnabled;
+        entity.WriteMinimum = tag.WriteMinimum;
+        entity.WriteMaximum = tag.WriteMaximum;
+        entity.MinimumWriteIntervalMs = Math.Clamp(tag.MinimumWriteIntervalMs, 250, 60000);
         entity.QueryId = tag.QueryId;
         entity.QueryColumnId = tag.QueryColumnId;
         await db.SaveChangesAsync(ct);

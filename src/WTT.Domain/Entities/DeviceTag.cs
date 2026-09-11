@@ -58,6 +58,12 @@ public class DeviceTag : AuditableEntity
 
     public string? EngineeringUnit { get; set; }
 
+    // ---- Write safety (deny by default) ----
+    public bool IsWriteEnabled { get; set; }
+    public double? WriteMinimum { get; set; }
+    public double? WriteMaximum { get; set; }
+    public int MinimumWriteIntervalMs { get; set; } = 1000;
+
     // ---- Live state (refreshed by capture worker) ----
     public string? CurrentValue { get; set; }
     public TagQuality CurrentQuality { get; set; } = TagQuality.Uncertain;

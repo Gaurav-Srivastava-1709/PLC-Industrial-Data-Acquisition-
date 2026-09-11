@@ -42,7 +42,9 @@ public sealed class DeviceAddressConfiguration : IEntityTypeConfiguration<Device
         b.Property(x => x.RegisterType).HasConversion<string>().HasMaxLength(20);
         b.Property(x => x.DataType).HasConversion<string>().HasMaxLength(20);
         b.HasIndex(x => x.DeviceId);
-        b.HasMany(x => x.Tags).WithOne(x => x.Address).HasForeignKey(x => x.AddressId).OnDelete(DeleteBehavior.Cascade);
+        // SQL Server rejects Device -> Tags and Device -> Addresses -> Tags cascade paths.
+        // Address deletion explicitly removes generated tags in DeviceAddressService.
+        b.HasMany(x => x.Tags).WithOne(x => x.Address).HasForeignKey(x => x.AddressId).OnDelete(DeleteBehavior.NoAction);
     }
 }
 
@@ -62,9 +64,10 @@ public sealed class DeviceTagConfiguration : IEntityTypeConfiguration<DeviceTag>
         b.Property(x => x.DataType).HasConversion<string>().HasMaxLength(10);
         b.Property(x => x.RegisterType).HasConversion<string>().HasMaxLength(20);
         b.Property(x => x.CurrentQuality).HasConversion<string>().HasMaxLength(15);
+        b.Property(x => x.MinimumWriteIntervalMs).HasDefaultValue(1000);
         b.HasIndex(x => new { x.DeviceId, x.Name }).IsUnique();
-        b.HasOne(x => x.Query).WithMany().HasForeignKey(x => x.QueryId).OnDelete(DeleteBehavior.SetNull);
-        b.HasOne(x => x.QueryColumn).WithMany().HasForeignKey(x => x.QueryColumnId).OnDelete(DeleteBehavior.SetNull);
+        b.HasOne(x => x.Query).WithMany().HasForeignKey(x => x.QueryId).OnDelete(DeleteBehavior.NoAction);
+        b.HasOne(x => x.QueryColumn).WithMany().HasForeignKey(x => x.QueryColumnId).OnDelete(DeleteBehavior.NoAction);
         b.Ignore(x => x.DisplayName);
     }
 }
@@ -78,6 +81,9 @@ public sealed class TagReadingConfiguration : IEntityTypeConfiguration<TagReadin
         b.Property(x => x.DeviceName).HasMaxLength(100).IsRequired();
         b.Property(x => x.TagName).HasMaxLength(200).IsRequired();
         b.Property(x => x.Value).HasMaxLength(500).IsRequired();
+        b.Property(x => x.Timestamp).HasColumnType("datetime2(3)");
+        b.Property(x => x.TimestampUtc).HasColumnType("datetime2(3)");
+        b.Property(x => x.TransferredAtUtc).HasColumnType("datetime2(3)");
         b.Property(x => x.Quality).HasConversion<string>().HasMaxLength(15);
         // Transfer service query: WHERE DeviceId = ? AND IsTransferred = 0 ORDER BY Id
         b.HasIndex(x => new { x.DeviceId, x.IsTransferred, x.Id });

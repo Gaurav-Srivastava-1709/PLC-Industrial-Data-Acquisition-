@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using Wpf.Ui;
 using WTT.Application.Interfaces;
 using WTT.Application.Security;
 using WTT.UI.Services;
@@ -12,13 +13,15 @@ public partial class MainViewModel : ViewModelBase
     private readonly ICurrentUserService _currentUser;
     private readonly ShellNavigator _shell;
     private readonly Func<ChangePasswordViewModel> _changePasswordFactory;
+    private readonly INavigationService _navigation;
 
-    public MainViewModel(ICurrentUserService currentUser, ShellNavigator shell, Func<ChangePasswordViewModel> changePasswordFactory,
+    public MainViewModel(ICurrentUserService currentUser, ShellNavigator shell, Func<ChangePasswordViewModel> changePasswordFactory, INavigationService navigation,
         IDialogService dialogs, ILogger<MainViewModel> logger) : base(dialogs, logger)
     {
         _currentUser = currentUser;
         _shell = shell;
         _changePasswordFactory = changePasswordFactory;
+        _navigation = navigation;
         _currentUser.Changed += (_, _) => OnUi(RefreshUser);
         RefreshUser();
     }
@@ -54,6 +57,9 @@ public partial class MainViewModel : ViewModelBase
         if (await Dialogs.ConfirmAsync("Sign out", "Do you want to sign out?", "Sign out"))
             await _shell.LogoutAsync();
     }
+
+    [RelayCommand]
+    private void OpenDashboard() => _navigation.Navigate(typeof(Views.Pages.DashboardPage));
 
     [RelayCommand]
     private void ChangePassword()

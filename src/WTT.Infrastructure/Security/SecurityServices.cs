@@ -56,7 +56,7 @@ public sealed class DpapiSecureStorage : ISecureStorage
     {
         if (string.IsNullOrEmpty(protectedText)) return null;
         if (!protectedText.StartsWith(Prefix, StringComparison.Ordinal))
-            return protectedText; // legacy / unprotected value
+            throw new BusinessRuleException("A stored password is not protected. Re-enter it before using this connection.");
         try
         {
             var bytes = Convert.FromBase64String(protectedText[Prefix.Length..]);

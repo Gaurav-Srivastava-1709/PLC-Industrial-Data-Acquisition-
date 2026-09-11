@@ -4,6 +4,11 @@ using WTT.Domain.ValueObjects;
 
 namespace WTT.Application.Interfaces;
 
+public interface IInstallationIdentity
+{
+    Guid SourceId { get; }
+}
+
 /// <summary>Control surface and telemetry for the data capture pipeline.</summary>
 public interface IDataCaptureController
 {

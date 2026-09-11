@@ -94,6 +94,9 @@ public sealed class ModbusTcpDriver : IPlcDriver
                 var parsed = ModbusAddressParser.Parse(tag.PlcAddress, fallback, Device.OneBasedAddressing);
                 var isBit = parsed.RegisterType is ModbusRegisterType.Coils or ModbusRegisterType.DiscreteInputs;
                 var count = isBit ? 1 : ModbusCodec.RegisterCount(tag.DataType, tag.ElementCount);
+                var limit = isBit ? MaxCoilsPerRequest : MaxRegistersPerRequest;
+                if (count > limit || parsed.Address < 0 || parsed.Address + count > 65536)
+                    throw new FormatException($"Tag requires {count} point(s) at {parsed.Address}; Modbus limit is {limit} and addresses must remain within 0..65535.");
                 items.Add(new Item(tag, parsed.RegisterType, parsed.Address, count));
             }
             catch (FormatException ex)
@@ -173,6 +176,7 @@ public sealed class ModbusTcpDriver : IPlcDriver
                     {
                         var typed = TagValueFormatter.ParseForWrite(tag.DataType, request.Value);
                         var regs = ModbusCodec.Encode(typed, tag.DataType, Device.WordOrder, tag.ElementCount);
+                        if (regs.Length > 123) throw new PlcWriteException("A Modbus write may contain at most 123 registers.");
                         if (regs.Length == 1) await _master!.WriteSingleRegisterAsync(Device.UnitId, (ushort)parsed.Address, regs[0]);
                         else await _master!.WriteMultipleRegistersAsync(Device.UnitId, (ushort)parsed.Address, regs);
                         break;

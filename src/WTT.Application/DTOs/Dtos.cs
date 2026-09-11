@@ -15,6 +15,7 @@ public sealed record UserDto(
     DateTime CreatedAtUtc);
 
 public sealed record LoginRequest(string Username, string Password);
+public sealed record InitialAdminRequest(string Username, string FullName, string Password);
 
 public sealed record LoginResult(bool Succeeded, UserDto? User, string? Error, bool MustChangePassword)
 {

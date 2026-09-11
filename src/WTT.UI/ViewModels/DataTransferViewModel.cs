@@ -35,6 +35,7 @@ public partial class DataTransferViewModel : ViewModelBase
     [ObservableProperty] private long _failedToday;
     [ObservableProperty] private DateTime? _lastSuccessUtc;
     [ObservableProperty] private bool _isPaused;
+    [ObservableProperty] private bool _hasPending;
 
     public bool CanControl => _currentUser.HasPermission(Permission.ControlCapture);
     public bool CanManage => _currentUser.HasPermission(Permission.ManageTransfer);
@@ -66,6 +67,7 @@ public partial class DataTransferViewModel : ViewModelBase
         {
             var s = await _transfer.GetStatisticsAsync();
             Pending = s.PendingRecords; TransferredToday = s.TransferredToday; FailedToday = s.FailedBatchesToday; LastSuccessUtc = s.LastSuccessAtUtc; IsPaused = _transfer.IsPaused;
+            HasPending = Pending > 0;
             var servers = await _servers.GetAllAsync();
             Servers.Clear(); foreach (var x in servers) Servers.Add(x);
             var batches = await _transfer.GetRecentBatchesAsync(100);

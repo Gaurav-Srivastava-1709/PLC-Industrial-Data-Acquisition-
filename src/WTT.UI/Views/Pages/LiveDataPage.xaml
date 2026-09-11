@@ -9,15 +9,17 @@
         </Grid.RowDefinitions>
 
         <Grid Grid.Row="0">
-            <StackPanel>
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <StackPanel Grid.Row="0">
                 <TextBlock Text="Live data" Style="{StaticResource PageTitle}" />
                 <TextBlock Text="Current values straight from the capture workers. Rows flash when a value changes." Style="{StaticResource PageSubtitle}" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+            <WrapPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,10,0,10">
                 <ComboBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" DisplayMemberPath="Name" Width="240" Margin="0,0,8,0" />
                 <ui:TextBox PlaceholderText="Filter…" Icon="{ui:SymbolIcon Search24}" Width="200" Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0" />
+                <ui:Button Content="Export CSV" Icon="{ui:SymbolIcon ArrowDownload24}" Command="{Binding ExportCsvCommand}" Margin="0,0,8,0" />
                 <ui:Button Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RefreshCommand}" />
-            </StackPanel>
+            </WrapPanel>
         </Grid>
 
         <Border Grid.Row="1" Style="{StaticResource Card}" Padding="12,8" Margin="0,0,0,12">
@@ -68,7 +70,8 @@
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <ui:Button Content="Write" Icon="{ui:SymbolIcon Edit24}" Padding="8,2" HorizontalAlignment="Right" Appearance="Secondary"
-                                       Command="{Binding DataContext.WriteCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
+                                        Command="{Binding DataContext.WriteCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
+                                        IsEnabled="{Binding IsWritable}"
                                        Visibility="{Binding DataContext.CanWrite, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>

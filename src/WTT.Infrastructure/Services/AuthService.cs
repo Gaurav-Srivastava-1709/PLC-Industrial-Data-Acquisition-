@@ -109,6 +109,8 @@ public sealed class AuthService : IAuthService
 
     public async Task ChangePasswordAsync(ChangePasswordRequest request, CancellationToken ct = default)
     {
+        if (!_currentUser.IsAuthenticated || _currentUser.User!.Id != request.UserId)
+            throw new AuthorizationException("You can only change your own password.");
         var policy = new PasswordPolicyValidator(_options).Validate(request.NewPassword);
         if (!policy.IsValid)
             throw new BusinessRuleException(policy.Errors[0].ErrorMessage);

@@ -41,6 +41,7 @@ public sealed class TransferOptions
     public int CircuitBreakerFailures { get; set; } = 5;
     public int CircuitBreakerDurationSeconds { get; set; } = 60;
     public int BatchHistoryRetentionDays { get; set; } = 30;
+    public int MaxBatchesPerDevicePerCycle { get; set; } = 4;
 }
 
 /// <summary>Bound from the "Security" configuration section.</summary>
@@ -57,16 +58,14 @@ public sealed class SecurityOptions
     public int BcryptWorkFactor { get; set; } = 12;
 }
 
-/// <summary>Bound from the "Database" configuration section.</summary>
+/// <summary>Local SQL Server Express persistence settings.</summary>
 public sealed class DatabaseOptions
 {
     public const string SectionName = "Database";
 
-    /// <summary>
-    /// Path to the SQLite file. Supports %LocalAppData% style environment variables.
-    /// Default: %LocalAppData%\WTT\wtt.db
-    /// </summary>
-    public string Path { get; set; } = "%LocalAppData%\\WTT\\wtt.db";
+    /// <summary>Uses Windows authentication; no database password is stored by WTT.</summary>
+    public string ConnectionString { get; set; } =
+        "Server=.;Database=WTT;Integrated Security=True;Encrypt=True;TrustServerCertificate=True;Application Name=WTT;Connect Timeout=10;Pooling=True";
 }
 
 /// <summary>Bound from the "Simulation" configuration section.</summary>

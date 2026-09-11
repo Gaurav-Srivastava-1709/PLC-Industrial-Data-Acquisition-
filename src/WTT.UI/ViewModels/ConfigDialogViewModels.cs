@@ -50,6 +50,10 @@ public partial class TagEditViewModel : ViewModelBase
     [ObservableProperty] private double? _scaleOffset;
     [ObservableProperty] private int? _decimalPlaces;
     [ObservableProperty] private string? _engineeringUnit;
+    [ObservableProperty] private bool _isWriteEnabled;
+    [ObservableProperty] private double? _writeMinimum;
+    [ObservableProperty] private double? _writeMaximum;
+    [ObservableProperty] private int _minimumWriteIntervalMs = 1000;
     [ObservableProperty] private DeviceQuery? _query;
     [ObservableProperty] private DeviceQueryColumn? _column;
     [ObservableProperty] private string? _readResult;
@@ -95,6 +99,7 @@ public partial class TagEditViewModel : ViewModelBase
             Name = tag.Name; Alias = tag.Alias; PlcAddress = tag.PlcAddress; DataType = tag.DataType; RegisterType = tag.RegisterType;
             Block = Blocks.FirstOrDefault(b => b.Id == tag.AddressId); ElementCount = tag.ElementCount; IsSelected = tag.IsSelected; SetValue = tag.SetValue;
             ScaleFactor = tag.ScaleFactor; ScaleOffset = tag.ScaleOffset; DecimalPlaces = tag.DecimalPlaces; EngineeringUnit = tag.EngineeringUnit;
+            IsWriteEnabled = tag.IsWriteEnabled; WriteMinimum = tag.WriteMinimum; WriteMaximum = tag.WriteMaximum; MinimumWriteIntervalMs = tag.MinimumWriteIntervalMs;
             Query = Queries.FirstOrDefault(q => q.Id == tag.QueryId);
             Column = Columns.FirstOrDefault(c => c.Id == tag.QueryColumnId);
         }
@@ -113,6 +118,7 @@ public partial class TagEditViewModel : ViewModelBase
         RegisterType = IsModbus ? RegisterType : null, AddressId = IsModbus ? Block?.Id : null, ElementCount = Math.Max(1, ElementCount),
         ByteCount = TagValueFormatter.DefaultByteSize(DataType, ElementCount), IsSelected = IsSelected, SetValue = Kind == TagKind.Custom ? SetValue : _original?.SetValue,
         ScaleFactor = ScaleFactor, ScaleOffset = ScaleOffset, DecimalPlaces = DecimalPlaces, EngineeringUnit = EngineeringUnit,
+        IsWriteEnabled = IsPlc && IsWriteEnabled, WriteMinimum = WriteMinimum, WriteMaximum = WriteMaximum, MinimumWriteIntervalMs = Math.Clamp(MinimumWriteIntervalMs, 250, 60000),
         QueryId = IsExternal ? Query?.Id : null, QueryColumnId = IsExternal ? Column?.Id : null,
     };
 

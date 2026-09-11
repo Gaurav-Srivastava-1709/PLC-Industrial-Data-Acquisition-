@@ -11,6 +11,12 @@ public interface IAuthService
     Task ChangePasswordAsync(ChangePasswordRequest request, CancellationToken ct = default);
 }
 
+public interface IInitialAdminEnrollmentService
+{
+    Task<bool> IsRequiredAsync(CancellationToken ct = default);
+    Task<UserDto> EnrollAsync(InitialAdminRequest request, CancellationToken ct = default);
+}
+
 /// <summary>Holds the currently signed-in user for the process. Singleton.</summary>
 public interface ICurrentUserService
 {

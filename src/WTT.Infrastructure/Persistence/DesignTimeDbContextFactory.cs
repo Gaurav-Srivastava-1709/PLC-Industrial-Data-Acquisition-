@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
-using WTT.Application.Options;
 
 namespace WTT.Infrastructure.Persistence;
 
@@ -9,9 +8,10 @@ public sealed class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<App
 {
     public AppDbContext CreateDbContext(string[] args)
     {
-        var options = new DatabaseOptions { Path = Path.Combine(Path.GetTempPath(), "wtt-design.db") };
+        var connectionString = Environment.GetEnvironmentVariable("WTT_DESIGN_CONNECTION")
+            ?? "Server=.;Database=WTT;Integrated Security=True;Encrypt=True;TrustServerCertificate=True;Application Name=WTT EF Design";
         var builder = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite(DatabasePathResolver.BuildConnectionString(options));
+            .UseSqlServer(connectionString);
         return new AppDbContext(builder.Options);
     }
 }

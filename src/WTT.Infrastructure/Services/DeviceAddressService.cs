@@ -85,7 +85,9 @@ public sealed class DeviceAddressService : IDeviceAddressService
         _currentUser.Demand(Permission.ManageTags);
         await using var db = await _factory.CreateDbContextAsync(ct);
         var entity = await db.DeviceAddresses.Include(a => a.Device).FirstOrDefaultAsync(a => a.Id == addressId, ct) ?? throw new NotFoundException("Address block", addressId);
-        db.DeviceAddresses.Remove(entity); // cascades to tags
+        var generatedTags = await db.DeviceTags.Where(t => t.AddressId == addressId).ToListAsync(ct);
+        db.DeviceTags.RemoveRange(generatedTags);
+        db.DeviceAddresses.Remove(entity);
         await db.SaveChangesAsync(ct);
         await _audit.RecordAsync("DeleteAddressBlock", entity.Device?.Name, $"Id={addressId}", true, ct);
         _capture.RequestReconcile();

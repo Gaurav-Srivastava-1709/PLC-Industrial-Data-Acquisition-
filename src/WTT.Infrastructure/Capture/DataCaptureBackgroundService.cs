@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using WTT.Application.DTOs;
 using WTT.Application.Interfaces;
 using WTT.Application.Options;
+using WTT.Application.Security;
 using WTT.Domain.Entities;
 using WTT.Domain.Interfaces;
 using WTT.Domain.ValueObjects;
@@ -29,6 +30,7 @@ public sealed class DataCaptureBackgroundService : BackgroundService, IDataCaptu
     private readonly CaptureOptions _options;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<DataCaptureBackgroundService> _logger;
+    private readonly ICurrentUserService _currentUser;
 
     private readonly Dictionary<int, (DeviceCaptureWorker Worker, string Fingerprint)> _workers = new();
     private readonly Dictionary<int, DeviceCaptureStatus> _lastStatus = new();
@@ -44,6 +46,7 @@ public sealed class DataCaptureBackgroundService : BackgroundService, IDataCaptu
         IRuntimeSettings runtime,
         LiveValueCache cache,
         IOptions<CaptureOptions> options,
+        ICurrentUserService currentUser,
         ILoggerFactory loggerFactory,
         ILogger<DataCaptureBackgroundService> logger)
     {
@@ -53,6 +56,7 @@ public sealed class DataCaptureBackgroundService : BackgroundService, IDataCaptu
         _runtime = runtime;
         _cache = cache;
         _options = options.Value;
+        _currentUser = currentUser;
         _loggerFactory = loggerFactory;
         _logger = logger;
         _runtime.Changed += (_, _) => RequestReconcile();
@@ -61,8 +65,8 @@ public sealed class DataCaptureBackgroundService : BackgroundService, IDataCaptu
     // ---------------------------------------------------------------- IDataCaptureController
 
     public bool IsPaused => _paused;
-    public void Pause() { _paused = true; _logger.LogWarning("Data capture paused by user."); }
-    public void Resume() { _paused = false; _logger.LogInformation("Data capture resumed."); }
+    public void Pause() { _currentUser.Demand(Permission.ControlCapture); _paused = true; _logger.LogWarning("Data capture paused by user."); }
+    public void Resume() { _currentUser.Demand(Permission.ControlCapture); _paused = false; _logger.LogInformation("Data capture resumed."); }
     public void RequestReconcile() => _wakeup.Writer.TryWrite(true);
 
     public event EventHandler<LiveTagValue>? TagValueChanged;
@@ -70,18 +74,21 @@ public sealed class DataCaptureBackgroundService : BackgroundService, IDataCaptu
 
     public IReadOnlyList<DeviceCaptureStatus> GetStatuses()
     {
+        _currentUser.Demand(Permission.ViewDashboard);
         lock (_workers) return _workers.Values.Select(w => w.Worker.Status).OrderBy(s => s.DeviceName).ToList();
     }
 
     public DeviceCaptureStatus? GetStatus(int deviceId)
     {
+        _currentUser.Demand(Permission.ViewDashboard);
         lock (_workers) return _workers.TryGetValue(deviceId, out var w) ? w.Worker.Status : null;
     }
 
-    public IReadOnlyList<LiveTagValue> GetLiveValues(int deviceId) => _cache.GetAll(deviceId);
+    public IReadOnlyList<LiveTagValue> GetLiveValues(int deviceId) { _currentUser.Demand(Permission.ViewLiveData); return _cache.GetAll(deviceId); }
 
     public async Task<CaptureStatistics> GetStatisticsAsync(CancellationToken ct = default)
     {
+        _currentUser.Demand(Permission.ViewDashboard);
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
         var todayLocalStartUtc = DateTime.Today.ToUniversalTime();
         var total = await db.Devices.CountAsync(d => d.IsEnabled, ct);
@@ -103,6 +110,7 @@ public sealed class DataCaptureBackgroundService : BackgroundService, IDataCaptu
         {
             try
             {
+                await _runtime.ReloadAsync(stoppingToken);
                 await ReconcileAsync(stoppingToken);
                 await CleanupIfDueAsync(stoppingToken);
             }

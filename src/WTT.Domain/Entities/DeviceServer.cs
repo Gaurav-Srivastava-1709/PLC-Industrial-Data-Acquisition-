@@ -24,7 +24,7 @@ public class DeviceServer : AuditableEntity
     public string? ProtectedPassword { get; set; }
 
     public bool Encrypt { get; set; } = true;
-    public bool TrustServerCertificate { get; set; } = true;
+    public bool TrustServerCertificate { get; set; }
 
     /// <summary>Whether transfer is active for this device.</summary>
     public bool IsEnabled { get; set; }
