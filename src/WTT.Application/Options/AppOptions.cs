@@ -24,7 +24,7 @@ public sealed class CaptureOptions
     public int TransferredRetentionDays { get; set; } = 7;
 
     /// <summary>Safety valve: readings never transferred but older than this are purged (0 = never).</summary>
-    public int UntransferredMaxAgeDays { get; set; } = 0;
+    public int UntransferredMaxAgeDays { get; set; }
 }
 
 /// <summary>Bound from the "Transfer" configuration section.</summary>

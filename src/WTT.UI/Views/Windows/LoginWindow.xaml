@@ -1,15 +1,14 @@
-<ui:FluentWindow x:Class="WTT.UI.Views.Windows.LoginWindow"
+<Window x:Class="WTT.UI.Views.Windows.LoginWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         Title="WTT — Sign in" Height="560" Width="440" ResizeMode="NoResize"
-        WindowStartupLocation="CenterScreen" ExtendsContentIntoTitleBar="True" WindowBackdropType="Mica">
+        WindowStartupLocation="CenterScreen" Background="{DynamicResource ApplicationBackgroundBrush}">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <ui:TitleBar Grid.Row="0" Title="WTT" ShowMaximize="False" ShowMinimize="True" />
 
         <StackPanel Grid.Row="1" Margin="40,16,40,32" VerticalAlignment="Center">
             <ui:SymbolIcon Symbol="DataArea24" FontSize="44" HorizontalAlignment="Center"
@@ -37,4 +36,4 @@
                          Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
         </StackPanel>
     </Grid>
-</ui:FluentWindow>
+</Window>

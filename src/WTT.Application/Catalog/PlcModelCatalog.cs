@@ -74,7 +74,7 @@ public static class PlcModelCatalog
     /// </summary>
     public static int Gm10ChannelRegisterOffset(int channel)
     {
-        if (channel < 1) throw new ArgumentOutOfRangeException(nameof(channel));
+        ArgumentOutOfRangeException.ThrowIfLessThan(channel, 1);
         var bank = (channel - 1) / 10;
         var inBank = (channel - 1) % 10;
         return bank * 100 + inBank * 2;

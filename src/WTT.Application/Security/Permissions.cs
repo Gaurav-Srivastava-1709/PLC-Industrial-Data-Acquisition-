@@ -21,7 +21,7 @@ public enum Permission
 
 public static class RolePermissions
 {
-    private static readonly IReadOnlyDictionary<UserRole, IReadOnlySet<Permission>> Map =
+    private static readonly Dictionary<UserRole, IReadOnlySet<Permission>> Map =
         new Dictionary<UserRole, IReadOnlySet<Permission>>
         {
             [UserRole.Viewer] = new HashSet<Permission>

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Worker">
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
-    <OutputType>Exe</OutputType>
+    <OutputType>WinExe</OutputType>
     <AssemblyName>WTT.Service</AssemblyName>
     <RootNamespace>WTT.Service</RootNamespace>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>

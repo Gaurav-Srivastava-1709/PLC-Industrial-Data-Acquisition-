@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "WTT Full System - Mock PLC",
+    "Projects": [
+      {
+        "Path": "src\\WTT.Service\\WTT.Service.csproj",
+        "Action": "StartWithoutDebugging"
+      },
+      {
+        "Path": "src\\WTT.UI\\WTT.UI.csproj",
+        "Action": "StartWithoutDebugging"
+      }
+    ]
+  }
+]

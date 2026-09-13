@@ -109,8 +109,11 @@ public sealed class ThemeManager
         await _settings.SetAsync(AppSettingKeys.Theme, theme.ToString());
     }
 
+    // WindowBackdropType.None kyunki saari windows explicitly None use karti hain.
+    // Startup sequence ensure karta hai ki pehli baar ye call hone par koi FluentWindow
+    // open nahi hoti — sirf plain StartupWindow hota hai jo theme change se affect nahi hota.
     private static void Apply(AppTheme theme) =>
-        ApplicationThemeManager.Apply(theme == AppTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light, WindowBackdropType.Mica, true);
+        ApplicationThemeManager.Apply(theme == AppTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light, WindowBackdropType.None, true);
 }
 
 /// <summary>Auto-logout after inactivity. Timeout comes from runtime settings (Admin configurable).</summary>

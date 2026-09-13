@@ -122,7 +122,7 @@ public partial class LiveDataViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private Task RefreshAsync() => RunAsync(LoadTagsAsync);
+    private Task<bool> RefreshAsync() => RunAsync(LoadTagsAsync);
 
     [RelayCommand]
     private async Task ExportCsvAsync()

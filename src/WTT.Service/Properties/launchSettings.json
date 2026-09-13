@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "WTT Service - Mock PLC": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development",
+        "WTT_Database__ConnectionString": "Server=.;Database=WTT;Integrated Security=True;Encrypt=True;TrustServerCertificate=True;Application Name=WTT Visual Studio Service;Connect Timeout=10;Pooling=True",
+        "WTT_Simulation__UseMockPlc": "true"
+      }
+    }
+  }
+}

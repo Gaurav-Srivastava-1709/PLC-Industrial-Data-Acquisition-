@@ -6,7 +6,7 @@ using WTT.UI.ViewModels;
 
 namespace WTT.UI.Views.Windows;
 
-public partial class MainWindow : FluentWindow
+public partial class MainWindow : Window
 {
     private readonly INavigationService _navigation;
     private readonly MainViewModel _vm;

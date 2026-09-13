@@ -1,10 +1,9 @@
 using System.Windows;
-using Wpf.Ui.Controls;
 using WTT.UI.ViewModels;
 
 namespace WTT.UI.Views.Windows;
 
-public partial class LoginWindow : FluentWindow
+public partial class LoginWindow : Window
 {
     public LoginViewModel ViewModel { get; }
 

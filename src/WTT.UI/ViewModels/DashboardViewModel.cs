@@ -121,7 +121,7 @@ public partial class DashboardViewModel : ViewModelBase
         TrendSummary = $"Last {_trend.Count * 3} seconds · readings {readings:N0} · buffered {buffer:N0}";
     }
 
-    private static PointCollection Normalize(IReadOnlyList<long> values)
+    private static PointCollection Normalize(List<long> values)
     {
         var points = new PointCollection();
         if (values.Count == 0) return points;

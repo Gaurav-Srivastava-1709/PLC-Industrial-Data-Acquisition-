@@ -451,23 +451,36 @@ public sealed class DeviceCaptureWorker : IAsyncDisposable
 
         try
         {
-            await using var db = await _dbFactory.CreateDbContextAsync(ct);
-            await using var tx = await db.Database.BeginTransactionAsync(ct);
-            foreach (var kv in snapshot)
+            await using var strategyContext = await _dbFactory.CreateDbContextAsync(ct);
+            var strategy = strategyContext.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
             {
-                var id = kv.Key; var (value, quality, at) = kv.Value;
-                await db.DeviceTags.Where(t => t.Id == id).ExecuteUpdateAsync(s => s
-                    .SetProperty(t => t.CurrentValue, value)
-                    .SetProperty(t => t.CurrentQuality, quality)
-                    .SetProperty(t => t.CurrentValueAtUtc, at), ct);
-            }
-            await tx.CommitAsync(ct);
+                await using var db = await _dbFactory.CreateDbContextAsync(ct);
+                await using var tx = await db.Database.BeginTransactionAsync(ct);
+                foreach (var kv in snapshot)
+                {
+                    var id = kv.Key; var (value, quality, at) = kv.Value;
+                    await db.DeviceTags.Where(t => t.Id == id).ExecuteUpdateAsync(s => s
+                        .SetProperty(t => t.CurrentValue, value)
+                        .SetProperty(t => t.CurrentQuality, quality)
+                        .SetProperty(t => t.CurrentValueAtUtc, at), ct);
+                }
+                await tx.CommitAsync(ct);
+            });
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { Requeue(snapshot); }
         catch (Exception ex)
         {
+            Requeue(snapshot);
             _logger.LogWarning(ex, "{Device}: failed to persist current values ({Count} tags).", _device.Name, snapshot.Count);
         }
         _lastCurrentValueFlush = DateTime.UtcNow;
+    }
+
+    private void Requeue(IEnumerable<KeyValuePair<int, (string? Value, TagQuality Quality, DateTime AtUtc)>> snapshot)
+    {
+        lock (_dirtyCurrentValues)
+            foreach (var item in snapshot)
+                _dirtyCurrentValues.TryAdd(item.Key, item.Value);
     }
 }

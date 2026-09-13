@@ -118,28 +118,31 @@ public partial class App : System.Windows.Application
                 typeof(App).Assembly.GetName().Version, Environment.OSVersion, Environment.UserName);
             logger.LogInformation("Startup milestone SurfaceVisible at {ElapsedMs} ms", startup.ElapsedMilliseconds);
 
-            // Render immediately; database/theme initialization continues while sign-in is disabled.
-            var shell = _host.Services.GetRequiredService<ShellNavigator>();
-            var login = shell.ShowLogin("Initializing secure database and runtime services...");
-            startupWindow.Close();
-            logger.LogInformation("Startup milestone LoginVisible at {ElapsedMs} ms", startup.ElapsedMilliseconds);
-
+            // PEHLE: DB + Theme init karo jab sirf StartupWindow (plain Window) dikha raha hai.
+            // Koi FluentWindow open nahi hai, toh ApplicationThemeManager.Apply safely run hoga.
             var databaseTask = _host.Services.GetRequiredService<DatabaseInitializer>().VerifySchemaCurrentAsync();
             var themeTask = _host.Services.GetRequiredService<ThemeManager>().LoadAsync();
             await Task.WhenAll(databaseTask, themeTask);
             logger.LogInformation("Startup milestone DatabaseAndThemeReady at {ElapsedMs} ms", startup.ElapsedMilliseconds);
 
+            // Admin enrollment check (agar first-run hai toh StartupWindow band karke enrollment dikhao)
             var enrollment = _host.Services.GetRequiredService<IInitialAdminEnrollmentService>();
             if (await enrollment.IsRequiredAsync())
             {
+                startupWindow.Close();
                 var setup = _host.Services.GetRequiredService<AdminEnrollmentWindow>();
                 if (setup.ShowDialog() != true) { Shutdown(); return; }
             }
 
             // Background services (capture / transfer supervisors).
             await _host.StartAsync();
-            login.ViewModel.InfoMessage = null;
+
+            // AB: LoginWindow dikhao — theme PEHLE se apply hai, FluentWindow safe rahega.
+            var shell = _host.Services.GetRequiredService<ShellNavigator>();
+            var login = shell.ShowLogin();
+            startupWindow.Close();
             login.ViewModel.CanSignIn = true;
+            logger.LogInformation("Startup milestone LoginVisible at {ElapsedMs} ms", startup.ElapsedMilliseconds);
 
             logger.LogInformation("WTT started successfully in {ElapsedMs} ms.", startup.ElapsedMilliseconds);
         }

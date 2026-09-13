@@ -76,6 +76,7 @@ public sealed class CapturePipelineEndToEndTests : IAsyncLifetime
         capture.RequestReconcile();
 
         await WaitUntilAsync(async () => await CountReadingsAsync(device.Id) >= 9, TimeSpan.FromSeconds(15));
+        await WaitUntilAsync(async () => (await tags.GetForDeviceAsync(device.Id)).Where(t => t.Kind == TagKind.Plc).All(t => t.CurrentValueAtUtc.HasValue), TimeSpan.FromSeconds(15));
 
         await using var db = await _host.Services.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContextAsync();
         var readings = await db.TagReadings.Where(r => r.DeviceId == device.Id).OrderBy(r => r.Id).ToListAsync();
@@ -83,6 +84,7 @@ public sealed class CapturePipelineEndToEndTests : IAsyncLifetime
         readings.Select(r => r.TagName).Distinct().Should().BeEquivalentTo(["Temperature", "Running", "LineId"]);
         readings.Where(r => r.TagName == "LineId").Should().OnlyContain(r => r.Value == "LINE-01", "custom tags are stamped into every scan");
         readings.Should().OnlyContain(r => r.Quality == TagQuality.Good && !r.IsTransferred && r.DeviceName == "SimLine1");
+        (await tags.GetForDeviceAsync(device.Id)).Where(t => t.Kind == TagKind.Plc).Should().OnlyContain(t => t.CurrentQuality == TagQuality.Good && t.CurrentValueAtUtc.HasValue);
 
         // every scan produces exactly one row per tag sharing one ScanId
         readings.GroupBy(r => r.ScanId).Should().OnlyContain(g => g.Count() == 3);

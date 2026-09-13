@@ -151,7 +151,7 @@ public sealed class DataCaptureBackgroundService : BackgroundService, IDataCaptu
         _logger.LogInformation("Data capture supervisor stopped.");
     }
 
-    private IReadOnlyCollection<DeviceCaptureStatus> CollectStatuses()
+    private List<DeviceCaptureStatus> CollectStatuses()
     {
         lock (_workers)
         {
