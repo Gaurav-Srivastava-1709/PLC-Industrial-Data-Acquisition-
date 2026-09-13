@@ -1,6 +1,6 @@
 # WTT Industrial Data Acquisition
 
-WTT is a .NET 10 LTS Windows application for unattended PLC capture, local SQL Server Express buffering and resilient transfer to central SQL Server databases.
+WTT 1.2 is a .NET 10 LTS Windows application for unattended PLC capture, local SQL Server Express buffering and resilient transfer to central SQL Server databases.
 
 ## Projects
 

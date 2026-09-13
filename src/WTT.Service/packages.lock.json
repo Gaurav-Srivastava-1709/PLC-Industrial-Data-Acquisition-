@@ -85,6 +85,15 @@
           "Serilog": "4.3.0"
         }
       },
+      "Serilog.Sinks.Debug": {
+        "type": "Direct",
+        "requested": "[3.0.0, )",
+        "resolved": "3.0.0",
+        "contentHash": "4BzXcdrgRX7wde9PmHuYd9U6YqycCC28hhpKonK7hx0wb19eiuRj16fPcPSVp0o/Y1ipJuNLYQ00R3q2Zs8FDA==",
+        "dependencies": {
+          "Serilog": "4.0.0"
+        }
+      },
       "Serilog.Sinks.File": {
         "type": "Direct",
         "requested": "[7.0.0, )",
@@ -471,7 +480,7 @@
         "dependencies": {
           "FluentValidation": "[12.1.1, )",
           "Microsoft.Extensions.Options": "[10.0.11, )",
-          "WTT.Domain": "[1.1.0, )"
+          "WTT.Domain": "[1.2.0, )"
         }
       },
       "wtt.domain": {
@@ -491,7 +500,7 @@
           "Polly.Core": "[8.7.0, )",
           "S7netplus": "[0.20.0, )",
           "System.Security.Cryptography.ProtectedData": "[10.0.11, )",
-          "WTT.Application": "[1.1.0, )",
+          "WTT.Application": "[1.2.0, )",
           "libplctag": "[1.5.2, )",
           "libplctag.NativeImport": "[1.0.41, )"
         }

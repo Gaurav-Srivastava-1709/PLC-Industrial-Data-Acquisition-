@@ -19,6 +19,8 @@ public class AppDbContext : DbContext
     public DbSet<TransferBatch> TransferBatches => Set<TransferBatch>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
+    public DbSet<ServiceRuntimeState> ServiceRuntimeStates => Set<ServiceRuntimeState>();
+    public DbSet<DeviceRuntimeState> DeviceRuntimeStates => Set<DeviceRuntimeState>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

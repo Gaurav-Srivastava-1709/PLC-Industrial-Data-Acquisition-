@@ -22,8 +22,6 @@
                 </StackPanel>
                 <WrapPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,10,0,10">
                     <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RefreshCommand}" Margin="0,0,8,0" />
-                    <ui:Button Icon="{ui:SymbolIcon ArrowSync24}" Content="Transfer now" Command="{Binding TransferNowCommand}"
-                               Visibility="{Binding CanControl, Converter={StaticResource BoolToVis}}" />
                 </WrapPanel>
             </Grid>
 
@@ -70,13 +68,10 @@
             </UniformGrid>
 
             <!-- Pipeline controls -->
-            <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,0,0,16" Visibility="{Binding CanControl, Converter={StaticResource BoolToVis}}">
+            <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,0,0,16">
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Pipelines:" VerticalAlignment="Center" Margin="0,0,16,0" FontWeight="SemiBold" />
-                    <TextBlock Text="Capture " VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <ui:ToggleSwitch IsChecked="{Binding CapturePaused, Mode=OneWay}" OnContent="Paused" OffContent="Running" Command="{Binding ToggleCapturePauseCommand}" Margin="0,0,32,0" />
-                    <TextBlock Text="Transfer " VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <ui:ToggleSwitch IsChecked="{Binding TransferPaused, Mode=OneWay}" OnContent="Paused" OffContent="Running" Command="{Binding ToggleTransferPauseCommand}" Margin="0,0,32,0" />
+                    <Ellipse Style="{StaticResource Dot}" Fill="{Binding IsServiceRunning, Converter={StaticResource BoolToBrush}}" />
+                    <TextBlock Text="{Binding ServiceStatusText}" VerticalAlignment="Center" Margin="0,0,24,0" FontWeight="SemiBold" />
                     <TextBlock VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
                         <Run Text="Last transfer: " /><Run Text="{Binding LastTransferUtc, Mode=OneWay, Converter={StaticResource UtcToLocal}}" />
                     </TextBlock>

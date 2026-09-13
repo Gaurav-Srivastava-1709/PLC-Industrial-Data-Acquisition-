@@ -75,6 +75,9 @@ public static class DependencyInjection
         services.AddSingleton<IPlcDriverFactory, PlcDriverFactory>();
         services.AddSingleton<IPlcOperationsService, PlcOperationsService>();
         services.AddSingleton<LiveValueCache>();
+        services.AddSingleton<SqlCaptureRuntimeStatusService>();
+        services.AddSingleton<ICaptureRuntimeStatusReader>(sp => sp.GetRequiredService<SqlCaptureRuntimeStatusService>());
+        services.AddSingleton<ICaptureRuntimeStatusWriter>(sp => sp.GetRequiredService<SqlCaptureRuntimeStatusService>());
 
         // ---- Pipeline controllers; only the dedicated service/test host starts them. ----
         services.AddSingleton<DataCaptureBackgroundService>();

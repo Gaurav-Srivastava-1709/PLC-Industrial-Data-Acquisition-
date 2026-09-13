@@ -1,7 +1,10 @@
 param(
+    [ValidateNotNullOrEmpty()]
     [string]$Server = ".",
+    [ValidatePattern('^[A-Za-z0-9_]+$')]
     [string]$Database = "WTT",
     [string]$BackupDirectory = "C:\ProgramData\WTT\Backups",
+    [ValidateRange(1, 3650)]
     [int]$RetentionDays = 30
 )
 
@@ -14,7 +17,7 @@ if (-not (Test-Path -LiteralPath $BackupDirectory)) {
 }
 
 $sqlcmd = Get-Command sqlcmd -ErrorAction Stop
-$stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$stamp = "$(Get-Date -Format 'yyyyMMdd-HHmmss')-$([guid]::NewGuid().ToString('N').Substring(0,8))"
 $backupPath = Join-Path $BackupDirectory "$Database-$stamp.bak"
 $escapedPath = $backupPath.Replace("'", "''")
 $query = "BACKUP DATABASE [$Database] TO DISK=N'$escapedPath' WITH COPY_ONLY, CHECKSUM, INIT; RESTORE VERIFYONLY FROM DISK=N'$escapedPath' WITH CHECKSUM;"

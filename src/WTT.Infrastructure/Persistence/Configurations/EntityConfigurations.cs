@@ -205,3 +205,30 @@ public sealed class AppSettingConfiguration : IEntityTypeConfiguration<AppSettin
         b.Property(x => x.Value).HasMaxLength(4000).IsRequired();
     }
 }
+
+public sealed class ServiceRuntimeStateConfiguration : IEntityTypeConfiguration<ServiceRuntimeState>
+{
+    public void Configure(EntityTypeBuilder<ServiceRuntimeState> b)
+    {
+        b.ToTable("ServiceRuntimeState");
+        b.HasKey(x => x.Id);
+        b.Property(x => x.Id).ValueGeneratedNever();
+        b.Property(x => x.StartedAtUtc).HasColumnType("datetime2(3)");
+        b.Property(x => x.HeartbeatAtUtc).HasColumnType("datetime2(3)");
+        b.Property(x => x.StoppedAtUtc).HasColumnType("datetime2(3)");
+        b.Property(x => x.LastError).HasMaxLength(2000);
+    }
+}
+
+public sealed class DeviceRuntimeStateConfiguration : IEntityTypeConfiguration<DeviceRuntimeState>
+{
+    public void Configure(EntityTypeBuilder<DeviceRuntimeState> b)
+    {
+        b.ToTable("DeviceRuntimeStates");
+        b.HasKey(x => x.DeviceId);
+        b.Property(x => x.StatusUpdatedAtUtc).HasColumnType("datetime2(3)");
+        b.Property(x => x.LastError).HasMaxLength(2000);
+        b.HasOne(x => x.Device).WithOne().HasForeignKey<DeviceRuntimeState>(x => x.DeviceId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => x.InstanceId);
+    }
+}

@@ -9,6 +9,18 @@ public interface IInstallationIdentity
     Guid SourceId { get; }
 }
 
+public interface ICaptureRuntimeStatusReader
+{
+    Task<CaptureRuntimeSnapshot> GetSnapshotAsync(CancellationToken ct = default);
+}
+
+public interface ICaptureRuntimeStatusWriter
+{
+    Task BeginSessionAsync(Guid instanceId, CancellationToken ct = default);
+    Task PublishAsync(Guid instanceId, IReadOnlyCollection<DeviceCaptureStatus> statuses, string? serviceError, CancellationToken ct = default);
+    Task EndSessionAsync(Guid instanceId, IReadOnlyCollection<DeviceCaptureStatus> statuses, CancellationToken ct = default);
+}
+
 /// <summary>Control surface and telemetry for the data capture pipeline.</summary>
 public interface IDataCaptureController
 {

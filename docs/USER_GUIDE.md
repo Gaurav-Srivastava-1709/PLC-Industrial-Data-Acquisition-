@@ -8,4 +8,4 @@
 6. Data Transfer shows pending rows, destination status and recent batches.
 7. `Ctrl+D` opens Dashboard. `Ctrl+L` signs out.
 
-Do not stop SQL Server or the **WTT Industrial Data Service**. If data stops, note the time and send logs from `%ProgramData%\WTT\Logs` to support.
+The UI can be closed without stopping capture. Do not stop SQL Server or the **WTT Industrial Data Service**. If data stops, note the time and send service logs from `%ProgramData%\WTT\Logs` and UI logs from `%LocalAppData%\WTT\Logs` to support.

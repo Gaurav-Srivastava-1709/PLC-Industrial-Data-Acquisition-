@@ -33,6 +33,8 @@ The provisioning script configures:
 
 Normal runtime identities should receive only the `wtt_runtime` role. Schema migrations must run under a separate deployment administrator.
 
+The release installer accepts both default and named SQL instances. `WTTData` owns capture/transfer; WPF only reads persisted heartbeat, status and tag values, so closing the UI does not stop acquisition.
+
 ## Completed Data Cutover
 
 The retired local file database was migrated into SQL Server in one transaction with identity and row-count verification. After a checksum backup and successful full restore drill, the importer, provider package and old database files were removed. `WTT` is the only application database.

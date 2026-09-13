@@ -15,8 +15,6 @@
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
                 <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RefreshCommand}" Margin="0,0,8,0" />
-                <ui:Button Content="Transfer all now" Icon="{ui:SymbolIcon ArrowSync24}" Appearance="Primary" Command="{Binding TransferNowCommand}"
-                           Visibility="{Binding CanControl, Converter={StaticResource BoolToVis}}" />
             </StackPanel>
         </Grid>
 
@@ -28,8 +26,7 @@
         </UniformGrid>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
-            <TextBlock Text="Transfer pipeline" VerticalAlignment="Center" Margin="0,0,12,0" FontWeight="SemiBold" />
-            <ui:ToggleSwitch IsChecked="{Binding IsPaused, Mode=OneWay}" OnContent="Paused" OffContent="Running" Command="{Binding TogglePauseCommand}" />
+            <TextBlock Text="Automatic transfer is owned by the WTT Windows Service." VerticalAlignment="Center" Margin="0,0,12,0" FontWeight="SemiBold" />
             <ProgressBar IsIndeterminate="True" Width="180" Height="6" Margin="16,0,0,0" Visibility="{Binding HasPending, Converter={StaticResource BoolToVis}}" />
         </StackPanel>
 
@@ -49,8 +46,6 @@
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <ui:Button Content="Transfer now" Padding="8,2" Margin="0,0,4,0" Appearance="Secondary" Command="{Binding DataContext.TransferNowCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
-                                           Visibility="{Binding DataContext.CanControl, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}" />
                                 <ui:Button Content="Enable/disable" Padding="8,2" Margin="0,0,4,0" Appearance="Secondary" Command="{Binding DataContext.ToggleEnabledCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
                                            Visibility="{Binding DataContext.CanControl, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}" />
                                 <ui:Button Icon="{ui:SymbolIcon Settings24}" Padding="8,2" Appearance="Secondary" Command="{Binding DataContext.ConfigureCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"

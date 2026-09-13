@@ -19,18 +19,20 @@ public partial class DashboardViewModel : ViewModelBase
     private readonly IDeviceService _devices;
     private readonly IDataCaptureController _capture;
     private readonly IDataTransferController _transfer;
+    private readonly ICaptureRuntimeStatusReader _runtimeStatus;
     private readonly ICurrentUserService _currentUser;
     private readonly INavigationService _navigation;
     private readonly NavigationContext _navContext;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(3) };
     private readonly Queue<(long Readings, long Buffer)> _trend = new();
 
-    public DashboardViewModel(IDeviceService devices, IDataCaptureController capture, IDataTransferController transfer, ICurrentUserService currentUser,
+    public DashboardViewModel(IDeviceService devices, IDataCaptureController capture, IDataTransferController transfer, ICaptureRuntimeStatusReader runtimeStatus, ICurrentUserService currentUser,
         INavigationService navigation, NavigationContext navContext, IDialogService dialogs, ILogger<DashboardViewModel> logger) : base(dialogs, logger)
     {
         _devices = devices;
         _capture = capture;
         _transfer = transfer;
+        _runtimeStatus = runtimeStatus;
         _currentUser = currentUser;
         _navigation = navigation;
         _navContext = navContext;
@@ -53,13 +55,14 @@ public partial class DashboardViewModel : ViewModelBase
     [ObservableProperty] private PointCollection _readingTrend = new();
     [ObservableProperty] private PointCollection _bufferTrend = new();
     [ObservableProperty] private string _trendSummary = "Collecting trend data...";
+    [ObservableProperty] private string _serviceStatusText = "Checking pipeline service...";
+    [ObservableProperty] private bool _isServiceRunning;
 
     public bool CanControl => _currentUser.HasPermission(Permission.ControlCapture);
     public bool CanManageDevices => _currentUser.HasPermission(Permission.ManageDevices);
 
     public override async Task OnNavigatedToAsync()
     {
-        _capture.DeviceStatusChanged += OnStatusChanged;
         await LoadDevicesAsync();
         await RefreshStatsAsync();
         _timer.Start();
@@ -68,7 +71,6 @@ public partial class DashboardViewModel : ViewModelBase
     public override Task OnNavigatedFromAsync()
     {
         _timer.Stop();
-        _capture.DeviceStatusChanged -= OnStatusChanged;
         return Task.CompletedTask;
     }
 
@@ -77,9 +79,11 @@ public partial class DashboardViewModel : ViewModelBase
         await RunAsync(async () =>
         {
             var list = await _devices.GetAllAsync();
+            var snapshot = await _runtimeStatus.GetSnapshotAsync();
+            var statuses = snapshot.Devices.ToDictionary(s => s.DeviceId);
             Devices.Clear();
             foreach (var d in list)
-                Devices.Add(new DeviceCardViewModel(d, _capture.GetStatus(d.Id)));
+                Devices.Add(new DeviceCardViewModel(d, statuses.GetValueOrDefault(d.Id)));
         });
     }
 
@@ -89,12 +93,18 @@ public partial class DashboardViewModel : ViewModelBase
         {
             var c = await _capture.GetStatisticsAsync();
             var t = await _transfer.GetStatisticsAsync();
-            DevicesTotal = c.DevicesTotal; DevicesRunning = c.DevicesRunning; DevicesConnected = c.DevicesConnected;
-            ReadingsToday = c.ReadingsToday; ErrorsToday = c.ErrorsToday; BufferedReadings = c.BufferedReadings;
+            var snapshot = await _runtimeStatus.GetSnapshotAsync();
+            DevicesTotal = c.DevicesTotal; DevicesRunning = snapshot.Devices.Count(s => s.IsRunning); DevicesConnected = snapshot.Devices.Count(s => s.IsConnected);
+            ReadingsToday = c.ReadingsToday; ErrorsToday = snapshot.Devices.Sum(s => s.ErrorCount); BufferedReadings = c.BufferedReadings;
             TransferredToday = t.TransferredToday; FailedBatchesToday = t.FailedBatchesToday; LastTransferUtc = t.LastSuccessAtUtc;
             CapturePaused = _capture.IsPaused; TransferPaused = _transfer.IsPaused;
             AddTrendPoint(ReadingsToday, BufferedReadings);
-            foreach (var card in Devices) card.Update(_capture.GetStatus(card.Id));
+            IsServiceRunning = snapshot.IsServiceRunning;
+            ServiceStatusText = !snapshot.StatusAvailable ? $"Status unavailable: {snapshot.ServiceError}" : snapshot.IsServiceRunning
+                ? $"Pipeline service running · heartbeat {snapshot.LastHeartbeatUtc?.ToLocalTime():HH:mm:ss}"
+                : $"Pipeline service stopped · last heartbeat {snapshot.LastHeartbeatUtc?.ToLocalTime():g}";
+            var statuses = snapshot.Devices.ToDictionary(s => s.DeviceId);
+            foreach (var card in Devices) card.Update(statuses.GetValueOrDefault(card.Id));
         }
         catch (Exception ex)
         {
@@ -120,9 +130,6 @@ public partial class DashboardViewModel : ViewModelBase
             points.Add(new Point(values.Count == 1 ? 0 : i * 300.0 / (values.Count - 1), 80 - (values[i] - min) * 76.0 / range));
         return points;
     }
-
-    private void OnStatusChanged(object? sender, DeviceCaptureStatus status) =>
-        OnUi(() => Devices.FirstOrDefault(d => d.Id == status.DeviceId)?.Update(status));
 
     [RelayCommand]
     private async Task ToggleCaptureAsync(DeviceCardViewModel card)
@@ -161,31 +168,6 @@ public partial class DashboardViewModel : ViewModelBase
         if (card is null) return;
         _navContext.SelectedDeviceId = card.Id;
         _navigation.Navigate(typeof(Views.Pages.LiveDataPage));
-    }
-
-    [RelayCommand]
-    private void ToggleCapturePause()
-    {
-        if (_capture.IsPaused) _capture.Resume(); else _capture.Pause();
-        CapturePaused = _capture.IsPaused;
-    }
-
-    [RelayCommand]
-    private void ToggleTransferPause()
-    {
-        if (_transfer.IsPaused) _transfer.Resume(); else _transfer.Pause();
-        TransferPaused = _transfer.IsPaused;
-    }
-
-    [RelayCommand]
-    private async Task TransferNowAsync()
-    {
-        await RunAsync(async () =>
-        {
-            var n = await _transfer.TransferNowAsync();
-            Dialogs.Toast("Data transfer", n == 0 ? "Nothing to transfer." : $"{n:N0} readings transferred.", ToastKind.Success);
-            await RefreshStatsAsync();
-        }, "Transfer failed");
     }
 
     [RelayCommand]

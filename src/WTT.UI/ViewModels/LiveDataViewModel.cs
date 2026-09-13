@@ -16,7 +16,7 @@ public partial class LiveDataViewModel : ViewModelBase
 {
     private readonly IDeviceService _devices;
     private readonly ITagService _tags;
-    private readonly IDataCaptureController _capture;
+    private readonly ICaptureRuntimeStatusReader _runtimeStatus;
     private readonly ICurrentUserService _currentUser;
     private readonly NavigationContext _navContext;
     private readonly Func<WriteTagViewModel> _writeFactory;
@@ -24,10 +24,10 @@ public partial class LiveDataViewModel : ViewModelBase
     private readonly DispatcherTimer _statusTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private readonly Dictionary<int, LiveTagRow> _rowsByTagId = new();
 
-    public LiveDataViewModel(IDeviceService devices, ITagService tags, IDataCaptureController capture, ICurrentUserService currentUser, NavigationContext navContext,
+    public LiveDataViewModel(IDeviceService devices, ITagService tags, ICaptureRuntimeStatusReader runtimeStatus, ICurrentUserService currentUser, NavigationContext navContext,
         Func<WriteTagViewModel> writeFactory, CsvExportService csv, IDialogService dialogs, ILogger<LiveDataViewModel> logger) : base(dialogs, logger)
     {
-        _devices = devices; _tags = tags; _capture = capture; _currentUser = currentUser; _navContext = navContext; _writeFactory = writeFactory; _csv = csv;
+        _devices = devices; _tags = tags; _runtimeStatus = runtimeStatus; _currentUser = currentUser; _navContext = navContext; _writeFactory = writeFactory; _csv = csv;
         _statusTimer.Tick += async (_, _) => await RunAsync(LoadTagsAsync);
     }
 
@@ -55,7 +55,6 @@ public partial class LiveDataViewModel : ViewModelBase
 
     public override async Task OnNavigatedToAsync()
     {
-        _capture.TagValueChanged += OnTagValueChanged;
         await RunAsync(async () =>
         {
             Devices.Clear();
@@ -68,7 +67,6 @@ public partial class LiveDataViewModel : ViewModelBase
     public override Task OnNavigatedFromAsync()
     {
         _statusTimer.Stop();
-        _capture.TagValueChanged -= OnTagValueChanged;
         return Task.CompletedTask;
     }
 
@@ -81,12 +79,10 @@ public partial class LiveDataViewModel : ViewModelBase
         if (SelectedDevice is null) { Rows.Clear(); return; }
 
         var tags = await _tags.GetForDeviceAsync(SelectedDevice.Id);
-        var live = _capture.GetLiveValues(SelectedDevice.Id).ToDictionary(v => v.TagId);
         foreach (var t in tags.Where(t => t.IsSelected).OrderBy(t => t.Kind).ThenBy(t => t.Name))
         {
             var row = new LiveTagRow(t);
-            if (live.TryGetValue(t.Id, out var v)) row.Apply(v);
-            else if (t.CurrentValueAtUtc.HasValue) row.Apply(new LiveTagValue(t.DeviceId, t.Id, t.Name, t.CurrentValue ?? t.SetValue, t.CurrentQuality, t.CurrentValueAtUtc.Value));
+            if (t.CurrentValueAtUtc.HasValue) row.Apply(new LiveTagValue(t.DeviceId, t.Id, t.Name, t.CurrentValue ?? t.SetValue, t.CurrentQuality, t.CurrentValueAtUtc.Value));
             _allRows.Add(row);
             _rowsByTagId[t.Id] = row;
         }
@@ -101,19 +97,15 @@ public partial class LiveDataViewModel : ViewModelBase
         foreach (var r in q) Rows.Add(r);
     }
 
-    private void OnTagValueChanged(object? sender, LiveTagValue v)
-    {
-        if (SelectedDevice is null || v.DeviceId != SelectedDevice.Id) return;
-        OnUi(() => { if (_rowsByTagId.TryGetValue(v.TagId, out var row)) row.Apply(v); });
-    }
-
-    private void RefreshStatus()
+    private async void RefreshStatus()
     {
         if (SelectedDevice is null) { StatusText = string.Empty; return; }
-        var s = _capture.GetStatus(SelectedDevice.Id);
+        var snapshot = await _runtimeStatus.GetSnapshotAsync();
+        var s = snapshot.Devices.FirstOrDefault(x => x.DeviceId == SelectedDevice.Id);
         IsConnected = s?.IsConnected ?? false;
         LastScanUtc = s?.LastScanUtc;
-        StatusText = s is null ? "Service data (updates from SQL Server every few seconds)."
+        StatusText = !snapshot.StatusAvailable ? $"Status unavailable: {snapshot.ServiceError}" : !snapshot.IsServiceRunning ? "Pipeline service is stopped."
+            : s is null ? "Device worker is not enabled."
             : !s.IsConnected ? $"Not connected{(s.LastError is null ? string.Empty : " — " + s.LastError)}"
             : $"{(s.IsCapturing ? "Capturing" : "Monitoring")} · {s.ScanCount:N0} scans · {s.ReadingsWritten:N0} readings written · trigger {(s.LastTriggerState is true ? "ON" : "OFF")}";
         GoodCount = _allRows.Count(r => r.Quality == TagQuality.Good);

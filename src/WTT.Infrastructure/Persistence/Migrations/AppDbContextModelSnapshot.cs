@@ -345,6 +345,61 @@ namespace WTT.Infrastructure.Persistence.Migrations
                     b.ToTable("DeviceQueryColumns", (string)null);
                 });
 
+            modelBuilder.Entity("WTT.Domain.Entities.DeviceRuntimeState", b =>
+                {
+                    b.Property<int>("DeviceId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("ErrorCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("InstanceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsCapturing")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsConnected")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsMonitoring")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("LastScanUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastSuccessfulReadUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool?>("LastTriggerState")
+                        .HasColumnType("bit");
+
+                    b.Property<long>("ReadingsWritten")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("ReconnectAttempts")
+                        .HasColumnType("int");
+
+                    b.Property<long>("ScanCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("StatusUpdatedAtUtc")
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<bool>("WorkerRunning")
+                        .HasColumnType("bit");
+
+                    b.HasKey("DeviceId");
+
+                    b.HasIndex("InstanceId");
+
+                    b.ToTable("DeviceRuntimeStates", (string)null);
+                });
+
             modelBuilder.Entity("WTT.Domain.Entities.DeviceServer", b =>
                 {
                     b.Property<int>("Id")
@@ -572,6 +627,32 @@ namespace WTT.Infrastructure.Persistence.Migrations
                     b.ToTable("DeviceTriggerConditions", (string)null);
                 });
 
+            modelBuilder.Entity("WTT.Domain.Entities.ServiceRuntimeState", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("HeartbeatAtUtc")
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<Guid>("InstanceId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<DateTime?>("StoppedAtUtc")
+                        .HasColumnType("datetime2(3)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ServiceRuntimeState", (string)null);
+                });
+
             modelBuilder.Entity("WTT.Domain.Entities.TagReading", b =>
                 {
                     b.Property<long>("Id")
@@ -777,6 +858,17 @@ namespace WTT.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Query");
+                });
+
+            modelBuilder.Entity("WTT.Domain.Entities.DeviceRuntimeState", b =>
+                {
+                    b.HasOne("WTT.Domain.Entities.Device", "Device")
+                        .WithOne()
+                        .HasForeignKey("WTT.Domain.Entities.DeviceRuntimeState", "DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Device");
                 });
 
             modelBuilder.Entity("WTT.Domain.Entities.DeviceServer", b =>

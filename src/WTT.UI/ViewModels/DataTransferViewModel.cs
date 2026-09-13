@@ -42,7 +42,6 @@ public partial class DataTransferViewModel : ViewModelBase
 
     public override async Task OnNavigatedToAsync()
     {
-        _transfer.BatchCompleted += OnBatchCompleted;
         await RefreshAsync();
         _timer.Start();
     }
@@ -50,15 +49,8 @@ public partial class DataTransferViewModel : ViewModelBase
     public override Task OnNavigatedFromAsync()
     {
         _timer.Stop();
-        _transfer.BatchCompleted -= OnBatchCompleted;
         return Task.CompletedTask;
     }
-
-    private void OnBatchCompleted(object? sender, TransferBatch b) => OnUi(() =>
-    {
-        Batches.Insert(0, b);
-        while (Batches.Count > 100) Batches.RemoveAt(Batches.Count - 1);
-    });
 
     [RelayCommand]
     private async Task RefreshAsync()
@@ -77,28 +69,10 @@ public partial class DataTransferViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private async Task TransferNowAsync(DeviceServer? server)
-    {
-        await RunAsync(async () =>
-        {
-            var n = await _transfer.TransferNowAsync(server?.DeviceId);
-            Dialogs.Toast("Data transfer", n == 0 ? "Nothing to transfer." : $"{n:N0} readings transferred.", ToastKind.Success);
-            await RefreshAsync();
-        }, "Transfer failed");
-    }
-
-    [RelayCommand]
     private async Task ToggleEnabledAsync(DeviceServer? server)
     {
         if (server is null) return;
         if (await RunAsync(() => _servers.SetEnabledAsync(server.DeviceId, !server.IsEnabled))) await RefreshAsync();
-    }
-
-    [RelayCommand]
-    private void TogglePause()
-    {
-        if (_transfer.IsPaused) _transfer.Resume(); else _transfer.Pause();
-        IsPaused = _transfer.IsPaused;
     }
 
     [RelayCommand]

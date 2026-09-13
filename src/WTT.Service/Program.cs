@@ -5,12 +5,20 @@ using Serilog;
 using WTT.Infrastructure;
 using WTT.Infrastructure.Persistence;
 
-Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "WTT", "Logs"));
-using var ownership = new Mutex(initiallyOwned: true, "Global\\WTT.PipelineService", out var ownsPipeline);
-if (!ownsPipeline) throw new InvalidOperationException("Another WTT pipeline service instance is already running.");
+var logDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "WTT", "Logs");
+Directory.CreateDirectory(logDirectory);
+Log.Logger = new LoggerConfiguration().MinimumLevel.Information()
+    .WriteTo.File(Path.Combine(logDirectory, "bootstrap-.log"), rollingInterval: RollingInterval.Day, retainedFileCountLimit: 7)
+    .CreateBootstrapLogger();
 
-var host = Host.CreateDefaultBuilder(args)
-    .UseWindowsService(options => options.ServiceName = "WTT Industrial Data Service")
+try
+{
+    Log.Information("WTT service bootstrap starting");
+    using var ownership = new Mutex(initiallyOwned: true, "Global\\WTT.PipelineService", out var ownsPipeline);
+    if (!ownsPipeline) throw new InvalidOperationException("Another WTT pipeline service instance is already running.");
+
+    var host = Host.CreateDefaultBuilder(args)
+    .UseWindowsService(options => options.ServiceName = "WTTData")
     .UseContentRoot(AppContext.BaseDirectory)
     .ConfigureAppConfiguration(cfg =>
     {
@@ -24,9 +32,32 @@ var host = Host.CreateDefaultBuilder(args)
     .ConfigureServices((ctx, services) =>
     {
         services.AddInfrastructure(ctx.Configuration);
+        services.AddHostedService<SchemaVerificationHostedService>();
         services.AddWttPipelineWorkers();
     })
-    .Build();
+        .Build();
 
-await host.Services.GetRequiredService<DatabaseInitializer>().VerifySchemaCurrentAsync();
-await host.RunAsync();
+    Log.Information("WTT service host built; starting service lifetime");
+    await host.RunAsync();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "WTT service terminated during startup or execution");
+    throw;
+}
+finally
+{
+    await Log.CloseAndFlushAsync();
+}
+
+sealed class SchemaVerificationHostedService(DatabaseInitializer database, ILogger<SchemaVerificationHostedService> logger) : IHostedService
+{
+    public async Task StartAsync(CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Verifying WTT database schema");
+        await database.VerifySchemaCurrentAsync(cancellationToken);
+        logger.LogInformation("WTT database schema is current");
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+}

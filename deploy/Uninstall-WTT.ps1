@@ -1,4 +1,5 @@
 $serviceName = "WTTData"
+Unregister-ScheduledTask -TaskName "WTT Database Backup" -Confirm:$false -ErrorAction SilentlyContinue
 if (Get-Service -Name $serviceName -ErrorAction SilentlyContinue) {
     Stop-Service -Name $serviceName -Force
     sc.exe delete $serviceName | Out-Null

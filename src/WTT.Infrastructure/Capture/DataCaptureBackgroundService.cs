@@ -31,6 +31,9 @@ public sealed class DataCaptureBackgroundService : BackgroundService, IDataCaptu
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<DataCaptureBackgroundService> _logger;
     private readonly ICurrentUserService _currentUser;
+    private readonly ICaptureRuntimeStatusWriter _runtimeStatus;
+    private readonly Guid _instanceId = Guid.NewGuid();
+    private string? _serviceError;
 
     private readonly Dictionary<int, (DeviceCaptureWorker Worker, string Fingerprint)> _workers = new();
     private readonly Dictionary<int, DeviceCaptureStatus> _lastStatus = new();
@@ -47,6 +50,7 @@ public sealed class DataCaptureBackgroundService : BackgroundService, IDataCaptu
         LiveValueCache cache,
         IOptions<CaptureOptions> options,
         ICurrentUserService currentUser,
+        ICaptureRuntimeStatusWriter runtimeStatus,
         ILoggerFactory loggerFactory,
         ILogger<DataCaptureBackgroundService> logger)
     {
@@ -57,6 +61,7 @@ public sealed class DataCaptureBackgroundService : BackgroundService, IDataCaptu
         _cache = cache;
         _options = options.Value;
         _currentUser = currentUser;
+        _runtimeStatus = runtimeStatus;
         _loggerFactory = loggerFactory;
         _logger = logger;
         _runtime.Changed += (_, _) => RequestReconcile();
@@ -103,6 +108,7 @@ public sealed class DataCaptureBackgroundService : BackgroundService, IDataCaptu
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Data capture supervisor started (reconcile every {Sec}s).", _options.ReconcileIntervalSeconds);
+        await _runtimeStatus.BeginSessionAsync(_instanceId, stoppingToken);
         try { await _runtime.ReloadAsync(stoppingToken); } catch (Exception ex) { _logger.LogWarning(ex, "Could not load runtime settings; using defaults."); }
 
         var interval = TimeSpan.FromSeconds(Math.Max(1, _options.ReconcileIntervalSeconds));
@@ -113,12 +119,17 @@ public sealed class DataCaptureBackgroundService : BackgroundService, IDataCaptu
                 await _runtime.ReloadAsync(stoppingToken);
                 await ReconcileAsync(stoppingToken);
                 await CleanupIfDueAsync(stoppingToken);
+                _serviceError = null;
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception ex)
             {
+                _serviceError = ex.Message;
                 _logger.LogError(ex, "Capture supervisor cycle failed; will retry.");
             }
+
+            try { await _runtimeStatus.PublishAsync(_instanceId, CollectStatuses(), _serviceError, stoppingToken); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { _logger.LogWarning(ex, "Could not publish runtime heartbeat."); }
 
             // Sleep until the interval elapses or someone requests an immediate reconcile.
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
@@ -136,7 +147,20 @@ public sealed class DataCaptureBackgroundService : BackgroundService, IDataCaptu
         List<DeviceCaptureWorker> workers;
         lock (_workers) { workers = _workers.Values.Select(w => w.Worker).ToList(); _workers.Clear(); }
         await Task.WhenAll(workers.Select(w => w.DisposeAsync().AsTask()));
+        await _runtimeStatus.EndSessionAsync(_instanceId, CollectStatuses(), CancellationToken.None);
         _logger.LogInformation("Data capture supervisor stopped.");
+    }
+
+    private IReadOnlyCollection<DeviceCaptureStatus> CollectStatuses()
+    {
+        lock (_workers)
+        {
+            var active = _workers.Values.Select(w => w.Worker.Status).ToDictionary(s => s.DeviceId);
+            lock (_lastStatus)
+                foreach (var status in _lastStatus.Values)
+                    active.TryAdd(status.DeviceId, status);
+            return active.Values.ToList();
+        }
     }
 
     // ---------------------------------------------------------------- reconcile

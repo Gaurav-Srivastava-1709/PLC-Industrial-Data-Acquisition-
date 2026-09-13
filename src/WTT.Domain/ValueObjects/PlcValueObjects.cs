@@ -61,6 +61,15 @@ public sealed record DeviceCaptureStatus(
         new(deviceId, deviceName, false, false, false, false, null, null, null, 0, 0, 0, null, 0);
 }
 
+public sealed record CaptureRuntimeSnapshot(
+    bool StatusAvailable,
+    bool IsServiceRunning,
+    Guid? ServiceInstanceId,
+    DateTime? ServiceStartedAtUtc,
+    DateTime? LastHeartbeatUtc,
+    string? ServiceError,
+    IReadOnlyList<DeviceCaptureStatus> Devices);
+
 /// <summary>A live tag value published by the capture pipeline.</summary>
 public sealed record LiveTagValue(
     int DeviceId,

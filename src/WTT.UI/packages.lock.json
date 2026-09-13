@@ -477,7 +477,7 @@
         "dependencies": {
           "FluentValidation": "[12.1.1, )",
           "Microsoft.Extensions.Options": "[10.0.11, )",
-          "WTT.Domain": "[1.1.0, )"
+          "WTT.Domain": "[1.2.0, )"
         }
       },
       "wtt.domain": {
@@ -496,7 +496,7 @@
           "NModbus": "[3.0.83, )",
           "Polly.Core": "[8.7.0, )",
           "S7netplus": "[0.20.0, )",
-          "WTT.Application": "[1.1.0, )",
+          "WTT.Application": "[1.2.0, )",
           "libplctag": "[1.5.2, )",
           "libplctag.NativeImport": "[1.0.41, )"
         }

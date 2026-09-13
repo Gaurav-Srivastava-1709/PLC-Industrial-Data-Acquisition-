@@ -42,9 +42,6 @@ public partial class App : System.Windows.Application
             .ConfigureServices((ctx, services) =>
             {
                 services.AddInfrastructure(ctx.Configuration);
-                // Phase 6 will move these workers to the dedicated Windows Service.
-                // Keep them in-process until that service is installed so Phase 1-5 can be tested end-to-end.
-                services.AddWttPipelineWorkers();
 
                 // WPF-UI plumbing
                 services.AddNavigationViewPageProvider();
