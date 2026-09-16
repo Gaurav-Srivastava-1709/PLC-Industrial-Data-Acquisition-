@@ -193,6 +193,10 @@ public sealed class DataTransferBackgroundService : BackgroundService, IDataTran
             {
                 await using var conn = new SqlConnection(connectionString);
                 await conn.OpenAsync(token);
+                // Filtered index UX_*_SourceId requires these SET options on every session.
+                // Pooled connections may carry other clients' defaults, so set explicitly.
+                await using (var setOpts = new SqlCommand("SET QUOTED_IDENTIFIER ON; SET ARITHABORT ON;", conn) { CommandTimeout = _options.CommandTimeoutSeconds })
+                    await setOpts.ExecuteNonQueryAsync(token);
                 await EnsureDestinationSchemaAsync(conn, server.TableName, token);
 
                 await using var tx = conn.BeginTransaction();
@@ -232,8 +236,9 @@ public sealed class DataTransferBackgroundService : BackgroundService, IDataTran
                     WHERE NOT EXISTS (
                         SELECT 1 FROM [dbo].[{server.TableName}] d WITH (UPDLOCK, HOLDLOCK)
                         WHERE d.SourceId = s.SourceId AND d.SourceReadingId = s.SourceReadingId
-                    );
-                    """, conn, tx))
+                    )
+                    OPTION (LOOP JOIN, MAXDOP 1);
+                    """, conn, tx) { CommandTimeout = _options.CommandTimeoutSeconds })
                     await merge.ExecuteNonQueryAsync(token);
                 await tx.CommitAsync(token);
             }, ct);

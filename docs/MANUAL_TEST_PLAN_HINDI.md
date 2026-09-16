@@ -165,7 +165,40 @@ Expected:
 
 ## 8. Login Test
 
-Current database me `admin` user present hai. Wahi password use karein jo pehle set kiya tha. Product me shared default password nahi hai.
+Fresh reset ke baad koi user present nahi hai. Product me shared default password nahi hai.
+
+### TC-AUTH-00 First Administrator Banana
+
+1. Startup screen ke baad `Create the first administrator` window aani chahiye.
+2. Username me `admin` enter karein.
+3. Full name me apna naam ya `Test Administrator` enter karein.
+4. Password me apna strong private password enter karein.
+5. Confirm password me wahi password dobara enter karein.
+6. `Create administrator` click karein.
+7. Password kisi screenshot, report ya shared message me na likhein.
+
+Strong password me minimum 8 characters, uppercase, lowercase aur digit hona chahiye. Example format samajhne ke liye: `Word#2026`, lekin apna alag password use karein.
+
+Expected:
+
+- Admin creation successful ho.
+- Login screen aaye.
+- SQL table `WTT.dbo.Users` me exactly 1 active Admin row bane.
+- Password plaintext me database me na dikhe; sirf BCrypt hash store ho.
+
+SSMS verification:
+
+```sql
+USE WTT;
+SELECT Username, FullName, Role, IsActive, MustChangePassword, PasswordChangedAtUtc
+FROM dbo.Users;
+```
+
+Expected: `admin`, role `Admin`, `IsActive=1`, `MustChangePassword=0`.
+
+- [ ] PASS
+- [ ] FAIL
+- Notes: ______________________________
 
 ### TC-AUTH-01 Valid Login
 
@@ -210,6 +243,42 @@ Expected: `Ctrl+D` Dashboard khole; `Ctrl+L` confirmation ke baad logout kare.
 - [ ] FAIL
 
 Password yaad nahi ho to repeated guesses na karein, account lock ho sakta hai. Testing rok kar password reset karwayein.
+
+## 8A. Database Tables Ka Simple Meaning
+
+Tables delete nahi karni hain. Fresh test me tables empty rehti hain aur features use karne par rows aati hain.
+
+| Table | Simple meaning | Row kab banegi |
+|---|---|---|
+| `__EFMigrationsHistory` | Database version record | Hamesha 3 migration rows rahengi |
+| `Users` | Login users and roles | First Admin aur naye users banane par |
+| `Devices` | PLC/device configuration | Device Save karne par |
+| `DeviceAddresses` | Modbus address blocks | Address block Save karne par |
+| `DeviceTags` | PLC, Custom aur External tags | Tag Save/generate/import karne par |
+| `DeviceTriggerConditions` | Logical trigger rules | Trigger condition add karne par |
+| `DeviceQueries` | External read-only SQL query config | External query Save karne par |
+| `DeviceQueryColumns` | Verified query ke returned columns | Query Verify karne par |
+| `DeviceServers` | Central transfer destination | Central server config Save karne par |
+| `TagReadings` | Captured historical values | Capture ON aur trigger true hone par |
+| `TransferBatches` | Transfer success/failure history | Central transfer attempt ke baad |
+| `AuditLogs` | Login/config/write security history | User actions ke baad |
+| `AppSettings` | Theme, simulator, timeout, retention | Settings Save karne par |
+| `ServiceRuntimeState` | Service heartbeat | WTT Service start hone par exactly 1 row |
+| `DeviceRuntimeStates` | Device connection/scan status | Enabled device worker start hone par |
+
+Fresh-start expected counts:
+
+```sql
+USE WTT;
+SELECT (SELECT COUNT(*) FROM dbo.Users) AS Users,
+       (SELECT COUNT(*) FROM dbo.Devices) AS Devices,
+       (SELECT COUNT(*) FROM dbo.DeviceTags) AS Tags,
+       (SELECT COUNT(*) FROM dbo.TagReadings) AS Readings,
+       (SELECT COUNT(*) FROM dbo.__EFMigrationsHistory) AS Migrations;
+```
+
+First Admin se pehle expected: Users `0`, Devices `0`, Tags `0`, Readings `0`, Migrations `3`.
+First Admin ke baad expected: Users `1`, baaki application data `0`, Migrations `3`.
 
 ## 9. Settings Aur Mock PLC
 

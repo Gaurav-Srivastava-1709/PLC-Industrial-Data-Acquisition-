@@ -26,11 +26,13 @@ public sealed class DialogService : IDialogService
 {
     private readonly IContentDialogService _dialogs;
     private readonly ISnackbarService _snackbar;
+    private readonly ILogger<DialogService> _logger;
 
-    public DialogService(IContentDialogService dialogs, ISnackbarService snackbar)
+    public DialogService(IContentDialogService dialogs, ISnackbarService snackbar, ILogger<DialogService> logger)
     {
         _dialogs = dialogs;
         _snackbar = snackbar;
+        _logger = logger;
     }
 
     public async Task ShowErrorAsync(string title, string message) => await ShowAsync(title, message, "OK", null, ControlAppearance.Danger);
@@ -51,10 +53,16 @@ public sealed class DialogService : IDialogService
             ToastKind.Error => (ControlAppearance.Danger, SymbolRegular.ErrorCircle24),
             _ => (ControlAppearance.Secondary, SymbolRegular.Info24),
         };
-        System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+        var app = System.Windows.Application.Current;
+        if (app?.Dispatcher is null)
+        {
+            _logger.LogWarning("Toast skipped (no dispatcher): {Title} - {Message}", title, message);
+            return;
+        }
+        app.Dispatcher.InvokeAsync(() =>
         {
             try { _snackbar.Show(title, message, appearance, new SymbolIcon(icon), TimeSpan.FromSeconds(kind == ToastKind.Error ? 8 : 4)); }
-            catch (Exception) { /* no presenter yet (e.g. login screen) */ }
+            catch (Exception ex) { _logger.LogWarning(ex, "Toast failed (no presenter?): {Title} - {Message}", title, message); }
         });
     }
 
@@ -112,8 +120,19 @@ public sealed class ThemeManager
     // WindowBackdropType.None kyunki saari windows explicitly None use karti hain.
     // Startup sequence ensure karta hai ki pehli baar ye call hone par koi FluentWindow
     // open nahi hoti — sirf plain StartupWindow hota hai jo theme change se affect nahi hota.
-    private static void Apply(AppTheme theme) =>
-        ApplicationThemeManager.Apply(theme == AppTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light, WindowBackdropType.None, true);
+    // NOTE: Apply hamesha UI thread par hona chahiye, nahi to khuli hui MainWindow
+    // Light mode me blank/safed dikh sakti hai (DynamicResource refresh UI thread par hota hai).
+    private static void Apply(AppTheme theme)
+    {
+        var appTheme = theme == AppTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light;
+        var app = System.Windows.Application.Current;
+        if (app is not null && !app.Dispatcher.CheckAccess())
+        {
+            app.Dispatcher.Invoke(() => ApplicationThemeManager.Apply(appTheme, WindowBackdropType.None, true));
+            return;
+        }
+        ApplicationThemeManager.Apply(appTheme, WindowBackdropType.None, true);
+    }
 }
 
 /// <summary>Auto-logout after inactivity. Timeout comes from runtime settings (Admin configurable).</summary>
@@ -199,6 +218,11 @@ public sealed class ShellNavigator
     {
         var login = _services.GetRequiredService<Views.Windows.LoginWindow>();
         if (message is not null) login.ViewModel.InfoMessage = message;
+        // Startup ke baad har baar naya LoginWindow banta hai (transient).
+        // CanSignIn default false hai taaki DB ready hone se pehle click na ho,
+        // lekin logout ke baad wali window me ise turant true karna zaroori hai,
+        // nahi to Sign in button hamesha grey rahega.
+        login.ViewModel.CanSignIn = true;
         login.Show();
         CloseAllExcept(login);
         return login;

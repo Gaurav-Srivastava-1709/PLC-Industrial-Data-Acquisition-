@@ -1,4 +1,5 @@
 using System.Windows;
+using Microsoft.Extensions.Logging;
 using Wpf.Ui;
 using Wpf.Ui.Abstractions;
 using Wpf.Ui.Controls;
@@ -10,16 +11,19 @@ public partial class MainWindow : Window
 {
     private readonly INavigationService _navigation;
     private readonly MainViewModel _vm;
+    private readonly ILogger<MainWindow> _logger;
 
     public MainWindow(
         MainViewModel viewModel,
         INavigationService navigationService,
         INavigationViewPageProvider pageProvider,
         IContentDialogService dialogService,
-        ISnackbarService snackbarService)
+        ISnackbarService snackbarService,
+        ILogger<MainWindow> logger)
     {
         _vm = viewModel;
         _navigation = navigationService;
+        _logger = logger;
         DataContext = viewModel;
         InitializeComponent();
 
@@ -33,7 +37,12 @@ public partial class MainWindow : Window
         Closed += (_, _) => viewModel.ChangePasswordRequested -= OnChangePasswordRequested;
     }
 
-    private void OnLoaded(object sender, RoutedEventArgs e) => _navigation.Navigate(typeof(Pages.DashboardPage));
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        _logger.LogInformation("MainWindow loaded — navigating to DashboardPage.");
+        var ok = _navigation.Navigate(typeof(Pages.DashboardPage));
+        _logger.LogInformation("Navigate to DashboardPage returned {Result}.", ok);
+    }
 
     private void OnChangePasswordRequested(object? sender, ChangePasswordViewModel vm)
     {

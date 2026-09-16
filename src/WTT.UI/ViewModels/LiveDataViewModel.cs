@@ -125,12 +125,12 @@ public partial class LiveDataViewModel : ViewModelBase
     private Task<bool> RefreshAsync() => RunAsync(LoadTagsAsync);
 
     [RelayCommand]
-    private async Task ExportCsvAsync()
+    private Task ExportCsvAsync() => RunAsync(async () =>
     {
         if (SelectedDevice is null || Rows.Count == 0) { Dialogs.Toast("Export", "There is no visible data to export.", ToastKind.Warning); return; }
         var path = await _csv.ExportLiveDataAsync(Rows.ToList(), SelectedDevice.Name);
         if (path is not null) Dialogs.Toast("Export complete", path, ToastKind.Success);
-    }
+    }, "Cannot export CSV");
 }
 
 public partial class LiveTagRow : ObservableObject
@@ -183,6 +183,9 @@ public partial class WriteTagViewModel : ViewModelBase
     [ObservableProperty] private string _title = string.Empty;
     [ObservableProperty] private string _description = string.Empty;
     [ObservableProperty] private string _value = string.Empty;
+    [ObservableProperty] private bool _awaitingConfirm;
+    [ObservableProperty] private string _writeButtonText = "Write";
+    [ObservableProperty] private string _confirmMessage = string.Empty;
 
     public void Initialize(DeviceTag tag)
     {
@@ -197,7 +200,20 @@ public partial class WriteTagViewModel : ViewModelBase
     [RelayCommand]
     private async Task WriteAsync()
     {
-        if (_tag.Kind == TagKind.Plc && !await Dialogs.ConfirmAsync("Confirm write", $"Write '{Value}' to {_tag.Name} ({_tag.PlcAddress})?", "Write", destructive: true)) return;
+        // Two-step confirm inside this same window. The old code showed a second
+        // ContentDialog in MainWindow which stayed hidden behind this modal window,
+        // so users never saw it until they pressed Cancel. Industry practice
+        // (ISA-101 style value echo + explicit confirm) stays, but in one place.
+        if (_tag.Kind == TagKind.Plc && !AwaitingConfirm)
+        {
+            AwaitingConfirm = true;
+            WriteButtonText = "Confirm Write";
+            ConfirmMessage = $"Write '{Value}' to {_tag.Name} ({_tag.PlcAddress})? Click Confirm Write to proceed.";
+            return;
+        }
+        AwaitingConfirm = false;
+        WriteButtonText = "Write";
+        ConfirmMessage = string.Empty;
         var ok = await RunAsync(async () =>
         {
             if (_tag.Kind == TagKind.Plc) await _plcOps.WriteTagAsync(_tag.Id, Value);
@@ -207,5 +223,27 @@ public partial class WriteTagViewModel : ViewModelBase
         if (ok) Closed?.Invoke(this, EventArgs.Empty);
     }
 
-    [RelayCommand] private void Cancel() => Closed?.Invoke(this, EventArgs.Empty);
+    partial void OnValueChanged(string value)
+    {
+        // If the user edits the value after arming, require fresh confirmation.
+        if (AwaitingConfirm)
+        {
+            AwaitingConfirm = false;
+            WriteButtonText = "Write";
+            ConfirmMessage = string.Empty;
+        }
+    }
+
+    [RelayCommand] private void Cancel()
+    {
+        // First Cancel press only disarms the armed confirm state.
+        if (AwaitingConfirm)
+        {
+            AwaitingConfirm = false;
+            WriteButtonText = "Write";
+            ConfirmMessage = string.Empty;
+            return;
+        }
+        Closed?.Invoke(this, EventArgs.Empty);
+    }
 }

@@ -4,7 +4,9 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       Title="Logs">
     <Grid Style="{StaticResource PageRoot}">
-        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+        <ProgressBar Grid.Row="1" IsIndeterminate="True" Height="3" Margin="0,8,0,0"
+                     Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
         <Grid Grid.Row="0">
             <StackPanel>
                 <TextBlock Text="Logs &amp; audit" Style="{StaticResource PageTitle}" />
@@ -17,7 +19,7 @@
                 <ui:Button Content="Open folder" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding OpenFolderCommand}" />
             </StackPanel>
         </Grid>
-        <TabControl Grid.Row="1">
+        <TabControl Grid.Row="2">
             <TabItem Header="Application log">
                 <DataGrid Style="{StaticResource Grid}" ItemsSource="{Binding Entries}" SelectedItem="{Binding Selected}" Margin="0,8,0,0" RowHeight="NaN">
                     <DataGrid.InputBindings><KeyBinding Key="C" Modifiers="Control" Command="{Binding CopySelectedCommand}" /></DataGrid.InputBindings>

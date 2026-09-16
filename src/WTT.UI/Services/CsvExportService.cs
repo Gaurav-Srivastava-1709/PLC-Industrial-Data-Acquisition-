@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using Microsoft.Win32;
+using WTT.Domain.Exceptions;
 using WTT.UI.ViewModels;
 
 namespace WTT.UI.Services;
@@ -23,16 +24,26 @@ public sealed class CsvExportService
         var temp = dialog.FileName + ".tmp";
         try
         {
-            await using var writer = new StreamWriter(temp, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
-            await writer.WriteLineAsync("Device,Tag,AddressOrKind,DataType,Value,Unit,Quality,TimestampUtc");
-            foreach (var row in rows)
             {
-                ct.ThrowIfCancellationRequested();
-                var values = new[] { deviceName, row.Name, row.Address, row.DataType, SafeSpreadsheetValue(row.Value), row.Unit, row.Quality.ToString(), row.TimestampUtc?.ToString("O", CultureInfo.InvariantCulture) };
-                await writer.WriteLineAsync(string.Join(',', values.Select(Escape)));
+                await using var writer = new StreamWriter(temp, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+                await writer.WriteLineAsync("Device,Tag,AddressOrKind,DataType,Value,Unit,Quality,TimestampUtc");
+                foreach (var row in rows)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var values = new[] { deviceName, row.Name, row.Address, row.DataType, SafeSpreadsheetValue(row.Value), row.Unit, row.Quality.ToString(), row.TimestampUtc?.ToString("O", CultureInfo.InvariantCulture) };
+                    await writer.WriteLineAsync(string.Join(',', values.Select(Escape)));
+                }
+                await writer.FlushAsync(ct);
+            } // Writer yahi close hoga taaki .tmp file ka lock chhoote, uske baad hi Move karenge.
+            // Antivirus / cloud-sync can briefly lock the fresh file. Retry before giving up.
+            Exception? moveError = null;
+            for (var attempt = 0; attempt < 3; attempt++)
+            {
+                try { File.Move(temp, dialog.FileName, overwrite: true); moveError = null; break; }
+                catch (IOException ex) { moveError = ex; await Task.Delay(300, ct); }
             }
-            await writer.FlushAsync(ct);
-            File.Move(temp, dialog.FileName, overwrite: true);
+            if (moveError is not null)
+                throw new BusinessRuleException("Could not save the CSV file. It may be open in Excel/Notepad or being scanned. Close it and try saving again.");
             return dialog.FileName;
         }
         finally { if (File.Exists(temp)) File.Delete(temp); }

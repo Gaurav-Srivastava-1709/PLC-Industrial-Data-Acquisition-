@@ -4,7 +4,7 @@ using WTT.UI.ViewModels;
 
 namespace WTT.UI.Views.Windows;
 
-public partial class AdminEnrollmentWindow : FluentWindow
+public partial class AdminEnrollmentWindow : Window
 {
     private readonly AdminEnrollmentViewModel _viewModel;
 

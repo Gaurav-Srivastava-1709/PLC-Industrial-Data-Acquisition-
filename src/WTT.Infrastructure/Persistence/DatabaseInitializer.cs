@@ -30,11 +30,12 @@ public sealed class DatabaseInitializer
 
     }
 
-    public async Task VerifySchemaCurrentAsync(CancellationToken ct = default)
+    public async Task<bool> VerifySchemaCurrentAsync(CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
         if (!await db.Database.CanConnectAsync(ct)) throw new InvalidOperationException("WTT database is unavailable.");
         var pending = (await db.Database.GetPendingMigrationsAsync(ct)).ToList();
         if (pending.Count > 0) throw new InvalidOperationException($"Database upgrade required: {string.Join(", ", pending)}");
+        return await db.Users.AnyAsync(ct);
     }
 }

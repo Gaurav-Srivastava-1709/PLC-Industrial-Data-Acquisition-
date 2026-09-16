@@ -172,13 +172,25 @@ public partial class DeviceEditViewModel : ViewModelBase
             PollIntervalMs = device.PollIntervalMs; TimeoutMs = device.TimeoutMs; Slot = device.Slot; Rack = device.Rack;
             ConnectionSize = device.ConnectionSize; CipPath = device.CipPath; UnitId = device.UnitId; WordOrder = device.WordOrder;
             OneBasedAddressing = device.OneBasedAddressing; IsEnabled = device.IsEnabled;
+            // Populate cascade deterministically: same-value assignment does not raise
+            // OnProtocolChanged, so refill Manufacturers/Models explicitly.
+            Manufacturers.Clear();
+            foreach (var m in PlcModelCatalog.ManufacturersFor(device.Protocol)) Manufacturers.Add(m);
             Protocol = device.Protocol;
-            Manufacturer = device.Manufacturer;
-            Model = Models.FirstOrDefault(m => m.Model == device.Model);
+            // OnProtocolChanged may have reset Manufacturer to first; restore saved value.
+            if (Manufacturers.Contains(device.Manufacturer))
+                Manufacturer = device.Manufacturer;
+            else
+                Manufacturer ??= Manufacturers.FirstOrDefault();
+            // Ensure models are populated for the final manufacturer.
+            OnManufacturerChanged(Manufacturer);
+            Model = Models.FirstOrDefault(m => m.Model == device.Model) ?? Models.FirstOrDefault();
         }
         else
         {
             Protocol = ProtocolType.ModbusTcp;
+            // Force cascade even when Protocol value did not change (default is already ModbusTcp).
+            OnProtocolChanged(Protocol);
         }
         OnPropertyChanged(nameof(Title));
     }

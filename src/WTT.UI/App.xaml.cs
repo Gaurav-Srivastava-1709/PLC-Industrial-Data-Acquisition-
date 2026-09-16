@@ -123,14 +123,15 @@ public partial class App : System.Windows.Application
             var databaseTask = _host.Services.GetRequiredService<DatabaseInitializer>().VerifySchemaCurrentAsync();
             var themeTask = _host.Services.GetRequiredService<ThemeManager>().LoadAsync();
             await Task.WhenAll(databaseTask, themeTask);
-            logger.LogInformation("Startup milestone DatabaseAndThemeReady at {ElapsedMs} ms", startup.ElapsedMilliseconds);
+            var hasUsers = await databaseTask;
+            var appliedTheme = _host.Services.GetRequiredService<ThemeManager>().Current;
+            logger.LogInformation("Startup milestone DatabaseAndThemeReady at {ElapsedMs} ms (Theme={Theme})", startup.ElapsedMilliseconds, appliedTheme);
 
             // Admin enrollment check (agar first-run hai toh StartupWindow band karke enrollment dikhao)
-            var enrollment = _host.Services.GetRequiredService<IInitialAdminEnrollmentService>();
-            if (await enrollment.IsRequiredAsync())
+            if (!hasUsers)
             {
-                startupWindow.Close();
                 var setup = _host.Services.GetRequiredService<AdminEnrollmentWindow>();
+                setup.Owner = startupWindow;
                 if (setup.ShowDialog() != true) { Shutdown(); return; }
             }
 

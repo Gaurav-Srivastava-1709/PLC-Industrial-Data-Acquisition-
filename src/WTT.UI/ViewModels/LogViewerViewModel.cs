@@ -25,20 +25,30 @@ public partial class LogViewerViewModel : ViewModelBase
 
     [ObservableProperty] private string _minimumLevel = "Information";
     [ObservableProperty] private string _contains = string.Empty;
-    [ObservableProperty] private int _maxLines = 500;
+    [ObservableProperty] private int _maxLines = 200;
     [ObservableProperty] private LogEntry? _selected;
 
     public string LogDirectory => _logs.LogDirectory;
 
-    public override Task OnNavigatedToAsync() => RefreshAsync();
+    // Page turant dikhna chahiye — data piche se aayega (progress bar chalegi).
+    // Pehle navigation poora refresh ka wait karta tha, isliye 20 sec tak
+    // khaali table par app freeze lagta tha.
+    public override Task OnNavigatedToAsync()
+    {
+        _ = RefreshAsync();
+        return Task.CompletedTask;
+    }
 
     [RelayCommand]
     private async Task RefreshAsync() => await RunAsync(async () =>
     {
-        var entries = await _logs.ReadRecentAsync(MaxLines, MinimumLevel, string.IsNullOrWhiteSpace(Contains) ? null : Contains);
-        Entries.Clear(); foreach (var e in entries) Entries.Add(e);
-        var audit = await _audit.GetRecentAsync(200);
-        AuditEntries.Clear(); foreach (var a in audit) AuditEntries.Add(a);
+        // File aur database ko sath-sath padho (pehle ek-ek karke padhte the,
+        // isliye slow DB par page 20 sec tak khaali lagta tha).
+        var logTask = _logs.ReadRecentAsync(MaxLines, MinimumLevel, string.IsNullOrWhiteSpace(Contains) ? null : Contains);
+        var auditTask = _audit.GetRecentAsync(200);
+        await Task.WhenAll(logTask, auditTask);
+        Entries.Clear(); foreach (var e in await logTask) Entries.Add(e);
+        AuditEntries.Clear(); foreach (var a in await auditTask) AuditEntries.Add(a);
     });
 
     [RelayCommand]
