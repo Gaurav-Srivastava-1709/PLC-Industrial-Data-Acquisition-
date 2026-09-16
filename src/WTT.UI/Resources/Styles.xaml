@@ -67,7 +67,9 @@
         <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
     </Style>
 
-    <!-- DataGrid defaults -->
+    <!-- DataGrid defaults.
+         Virtualization ON is load-bearing: without it every row is measured on each
+         refresh, which freezes scrolling on the Batches (50 rows/5s) and Logs pages. -->
     <Style x:Key="Grid" TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
         <Setter Property="AutoGenerateColumns" Value="False" />
         <Setter Property="IsReadOnly" Value="True" />
@@ -79,6 +81,14 @@
         <Setter Property="RowHeight" Value="34" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="EnableRowVirtualization" Value="True" />
+        <Setter Property="EnableColumnVirtualization" Value="True" />
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+        <Setter Property="VirtualizingPanel.CacheLength" Value="5,5" />
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
+        <Setter Property="ScrollViewer.IsDeferredScrollingEnabled" Value="True" />
+        <Setter Property="IsSynchronizedWithCurrentItem" Value="False" />
     </Style>
 
     <!-- Status dot -->

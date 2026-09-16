@@ -21,7 +21,7 @@
         </Grid>
         <TabControl Grid.Row="2">
             <TabItem Header="Application log">
-                <DataGrid Style="{StaticResource Grid}" ItemsSource="{Binding Entries}" SelectedItem="{Binding Selected}" Margin="0,8,0,0" RowHeight="NaN">
+                <DataGrid Style="{StaticResource Grid}" ItemsSource="{Binding Entries}" SelectedItem="{Binding Selected}" Margin="0,8,0,0">
                     <DataGrid.InputBindings><KeyBinding Key="C" Modifiers="Control" Command="{Binding CopySelectedCommand}" /></DataGrid.InputBindings>
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Time" Binding="{Binding Timestamp, StringFormat=yyyy-MM-dd HH:mm:ss.fff}" Width="160" />
@@ -43,8 +43,18 @@
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
                         <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="200" />
+                        <!-- Single-line + trim keeps fixed row height so virtualization can recycle rows.
+                             Full text is in the tooltip and Copy (Ctrl+C). Wrap+auto-height measured every
+                             row on each refresh and froze scrolling. -->
                         <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*">
-                            <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap" /><Setter Property="MaxHeight" Value="120" /></Style></DataGridTextColumn.ElementStyle>
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="TextWrapping" Value="NoWrap" />
+                                    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                    <Setter Property="VerticalAlignment" Value="Center" />
+                                    <Setter Property="ToolTip" Value="{Binding Message}" />
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
                     </DataGrid.Columns>
                 </DataGrid>
