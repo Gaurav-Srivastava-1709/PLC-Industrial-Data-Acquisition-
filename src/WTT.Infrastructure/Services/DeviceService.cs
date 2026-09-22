@@ -59,7 +59,7 @@ public sealed class DeviceService : IDeviceService
 
     public async Task<Device> CreateAsync(Device device, CancellationToken ct = default)
     {
-        return await CreateAsync(device, seedTags: true, ct);
+        return await CreateAsync(device, seedTags: false, ct);
     }
 
     /// <summary>
