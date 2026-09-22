@@ -78,3 +78,23 @@ public sealed record LiveTagValue(
     string? Value,
     TagQuality Quality,
     DateTime TimestampUtc);
+
+/// <summary>Message jo AlarmService publish karega aur UI subscribe karega</summary>
+public sealed record AlarmTriggeredMessage(
+    long AlarmEventId,
+    string DeviceName,
+    string TagName,
+    AlarmType AlarmType,
+    AlarmPriority Priority,
+    double TriggerValue,
+    double ThresholdValue,
+    string? EngineeringUnit,
+    DateTime TriggeredAtUtc);
+
+/// <summary>Message jab alarm clear ho jaaye</summary>
+public sealed record AlarmClearedMessage(
+    long AlarmEventId,
+    string DeviceName,
+    string TagName,
+    DateTime ClearedAtUtc);
+

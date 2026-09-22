@@ -28,6 +28,7 @@ public sealed class DeviceCaptureWorker : IAsyncDisposable
     private readonly LiveValueCache _cache;
     private readonly CaptureOptions _options;
     private readonly ILogger _logger;
+    private readonly IAlarmService? _alarmService;
     private readonly Action<LiveTagValue> _publishValue;
     private readonly Action<DeviceCaptureStatus> _publishStatus;
     private readonly Func<bool> _isPaused;
@@ -65,6 +66,7 @@ public sealed class DeviceCaptureWorker : IAsyncDisposable
         LiveValueCache cache,
         CaptureOptions options,
         ILogger logger,
+        IAlarmService? alarmService,
         Action<LiveTagValue> publishValue,
         Action<DeviceCaptureStatus> publishStatus,
         Func<bool> isPaused)
@@ -76,6 +78,7 @@ public sealed class DeviceCaptureWorker : IAsyncDisposable
         _cache = cache;
         _options = options;
         _logger = logger;
+        _alarmService = alarmService;
         _publishValue = publishValue;
         _publishStatus = publishStatus;
         _isPaused = isPaused;
@@ -286,6 +289,26 @@ public sealed class DeviceCaptureWorker : IAsyncDisposable
             var cached = _cache.Get(_device.Id, t.Id);
             if (cached is null || cached.Value != t.SetValue || cached.Quality != q)
                 PublishLive(t, t.SetValue, q, scanUtc);
+        }
+
+        // Alarm threshold evaluation — sirf numeric tags ke liye
+        if (_alarmService is not null)
+        {
+            foreach (var (name, (value, quality)) in current)
+            {
+                if (quality != TagQuality.Good || value is null) continue;
+                if (!_tagsByName.TryGetValue(name, out var tag)) continue;
+                if (!tag.IsAlarmEnabled) continue;
+
+                // Optimization: Only try parsing known numeric data types
+                if (tag.DataType is TagDataType.Bool or TagDataType.String) continue;
+                
+                if (double.TryParse(value, System.Globalization.NumberStyles.Any, 
+                    System.Globalization.CultureInfo.InvariantCulture, out var numericValue))
+                {
+                    await _alarmService.EvaluateAsync(_device, tag, numericValue, ct);
+                }
+            }
         }
 
         // ---- trigger evaluation ----

@@ -30,6 +30,7 @@
                                        Visibility="{Binding CanManageUsers, Converter={StaticResource BoolToVis}}" />
                 <ui:NavigationViewItem Content="Logs" Icon="{ui:SymbolIcon DocumentText24}" TargetPageType="{x:Type pages:LogViewerPage}"
                                        Visibility="{Binding CanViewLogs, Converter={StaticResource BoolToVis}}" />
+                <ui:NavigationViewItem Content="Alarms" Icon="{ui:SymbolIcon Alert24}" TargetPageType="{x:Type pages:AlarmsPage}" />
             </ui:NavigationView.MenuItems>
 
             <ui:NavigationView.FooterMenuItems>
@@ -45,6 +46,16 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <!-- Alarm Bell with Badge + Beep Toggle In-Out -->
+                            <ui:Button ToolTip="Active Alarms" Appearance="Secondary" Margin="0,0,6,0" Command="{Binding OpenAlarmsCommand}">
+                                <Grid>
+                                    <ui:SymbolIcon Symbol="Alert24" />
+                                    <Border CornerRadius="8" Background="#E53935" MinWidth="16" Height="16" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-6,0" Visibility="{Binding HasActiveAlarms, Converter={StaticResource BoolToVis}}">
+                                        <TextBlock Text="{Binding ActiveAlarmCount}" FontSize="10" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                </Grid>
+                            </ui:Button>
+                            <CheckBox IsChecked="{Binding IsBeepEnabled}" Content="Beep" ToolTip="Beep Silent/ON (Critical/High only)" VerticalAlignment="Center" Margin="0,0,12,0" />
                             <ui:SymbolIcon Symbol="PersonCircle24" FontSize="18" Margin="0,0,6,0" Foreground="{DynamicResource SystemAccentColorPrimaryBrush}" />
                             <TextBlock VerticalAlignment="Center" Margin="0,0,12,0">
                                 <Run Text="{Binding DisplayName, Mode=OneWay}" FontWeight="SemiBold" />

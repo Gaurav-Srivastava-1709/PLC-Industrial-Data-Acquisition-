@@ -17,6 +17,7 @@ public enum Permission
     ManageUsers,
     ManageSettings,
     ViewLogs,
+    AcknowledgeAlarm,
 }
 
 public static class RolePermissions
@@ -39,6 +40,7 @@ public static class RolePermissions
                 Permission.ViewTransfer,
                 Permission.ControlCapture,
                 Permission.ViewLogs,
+                Permission.AcknowledgeAlarm,
             },
             [UserRole.Admin] = new HashSet<Permission>(Enum.GetValues<Permission>()),
         };

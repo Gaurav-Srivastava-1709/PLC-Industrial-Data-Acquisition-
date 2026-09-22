@@ -1,0 +1,144 @@
+<Page x:Class="WTT.UI.Views.Pages.AlarmsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:viewmodels="clr-namespace:WTT.UI.ViewModels"
+      d:DataContext="{d:DesignInstance Type=viewmodels:AlarmsViewModel}"
+      mc:Ignorable="d" Title="Alarms" d:DesignHeight="768" d:DesignWidth="1024">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="Alarms &amp; Events" Style="{StaticResource PageTitle}" />
+            <TextBlock Text="Monitor active alarms and search historical events (ISA-18.2 compliant)." Style="{StaticResource Hint}" />
+            <!-- Retention In-Out + Beep In-Out Bar -->
+            <Border Style="{StaticResource Card}" Margin="0,12,0,0" Padding="12">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Retention:" VerticalAlignment="Center" Margin="0,0,8,0" Style="{StaticResource FieldLabel}"/>
+                    <ComboBox Width="90" ItemsSource="{Binding RetentionOptions}" SelectedItem="{Binding SelectedRetentionDays}" Margin="0,0,8,0"/>
+                    <TextBlock Text="Custom days:" VerticalAlignment="Center" Margin="8,0,4,0" Style="{StaticResource FieldLabel}"/>
+                    <ui:TextBox Width="60" Text="{Binding CustomRetentionDays}" Margin="0,0,8,0"/>
+                    <ui:Button Content="Save Retention" Appearance="Secondary" Command="{Binding UpdateRetentionCommand}" Margin="0,0,12,0"/>
+                    <ui:Button Content="Delete Now" Appearance="Danger" Command="{Binding PurgeNowCommand}" Margin="0,0,12,0"/>
+                    <CheckBox Content="Beep" IsChecked="{Binding IsBeepEnabled}" VerticalAlignment="Center" ToolTip="Beep ON/Silent for Critical/High"/>
+                    <TextBlock Text="Email Ready (extensible)" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontStyle="Italic"/>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+
+        <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent" BorderThickness="0">
+            <!-- ACTIVE ALARMS -->
+            <TabItem Header="Active Alarms" Padding="12,8">
+                <Grid Margin="0,16,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,12">
+                        <ui:Button Content="Acknowledge All" Icon="{ui:SymbolIcon CheckmarkCircle24}" Appearance="Primary" Command="{Binding AcknowledgeAllCommand}" />
+                        <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding LoadActiveAlarmsCommand}" Margin="12,0,0,0" />
+                    </StackPanel>
+
+                    <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding ActiveAlarms}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Priority" Binding="{Binding Priority}" Width="80" />
+                            <DataGridTextColumn Header="State" Binding="{Binding State}" Width="100" />
+                            <DataGridTextColumn Header="Triggered (UTC)" Binding="{Binding TriggeredAtUtc, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="140" />
+                            <DataGridTextColumn Header="Device" Binding="{Binding DeviceName}" Width="150" />
+                            <DataGridTextColumn Header="Tag" Binding="{Binding TagName}" Width="180" />
+                            <DataGridTextColumn Header="Type" Binding="{Binding AlarmType}" Width="80" />
+                            <DataGridTextColumn Header="Value" Binding="{Binding TriggerValue}" Width="70" />
+                            <DataGridTextColumn Header="Limit" Binding="{Binding ThresholdValue}" Width="70" />
+                            <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" />
+                            <DataGridTemplateColumn Header="" Width="120">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ui:Button Style="{StaticResource RowBtn}" Content="Acknowledge" Command="{Binding DataContext.AcknowledgeCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" 
+                                                   Visibility="{Binding State, Converter={StaticResource StringToVisConverter}}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- ALARM HISTORY -->
+            <TabItem Header="Alarm History" Padding="12,8">
+                <Grid Margin="0,16,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Filters -->
+                    <Border Grid.Row="0" Style="{StaticResource Card}" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="Search Filters" Style="{StaticResource SectionTitle}" />
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+
+                                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,8">
+                                    <TextBlock Text="Device name" Style="{StaticResource FieldLabel}"/>
+                                    <ui:TextBox Text="{Binding FilterDeviceName, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,8,8">
+                                    <TextBlock Text="Tag name" Style="{StaticResource FieldLabel}"/>
+                                    <ui:TextBox Text="{Binding FilterTagName, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,8,8">
+                                    <TextBlock Text="Priority" Style="{StaticResource FieldLabel}"/>
+                                    <ComboBox ItemsSource="{Binding Priorities}" SelectedItem="{Binding FilterPriority}" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="0" Grid.Column="3" Margin="0,0,0,8">
+                                    <TextBlock Text="State" Style="{StaticResource FieldLabel}"/>
+                                    <ComboBox ItemsSource="{Binding States}" SelectedItem="{Binding FilterState}" />
+                                </StackPanel>
+
+                                <!-- Date pickers would go here, omitting for simplicity/space. Standard textboxes for now -->
+                                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                                    <ui:Button Content="Clear" Command="{Binding ClearFiltersCommand}" Margin="0,0,8,0" />
+                                    <ui:Button Content="Search" Icon="{ui:SymbolIcon Search24}" Appearance="Primary" Command="{Binding LoadHistoryCommand}" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Data Grid -->
+                    <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding HistoryAlarms}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Triggered (UTC)" Binding="{Binding TriggeredAtUtc, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="140" />
+                            <DataGridTextColumn Header="Cleared (UTC)" Binding="{Binding ClearedAtUtc, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="140" />
+                            <DataGridTextColumn Header="State" Binding="{Binding State}" Width="100" />
+                            <DataGridTextColumn Header="Priority" Binding="{Binding Priority}" Width="80" />
+                            <DataGridTextColumn Header="Device" Binding="{Binding DeviceName}" Width="120" />
+                            <DataGridTextColumn Header="Tag" Binding="{Binding TagName}" Width="150" />
+                            <DataGridTextColumn Header="Val" Binding="{Binding TriggerValue}" Width="60" />
+                            <DataGridTextColumn Header="Limit" Binding="{Binding ThresholdValue}" Width="60" />
+                            <DataGridTextColumn Header="Ack By" Binding="{Binding AcknowledgedBy}" Width="120" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- Pagination -->
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                        <ui:Button Icon="{ui:SymbolIcon ChevronLeft24}" Command="{Binding PrevPageCommand}" />
+                        <TextBlock Text="{Binding CurrentPage}" VerticalAlignment="Center" Margin="12,0" />
+                        <TextBlock Text="of" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <TextBlock Text="{Binding TotalPages}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <ui:Button Icon="{ui:SymbolIcon ChevronRight24}" Command="{Binding NextPageCommand}" />
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Page>

@@ -169,3 +169,28 @@ public enum AppTheme
     Light = 0,
     Dark = 1,
 }
+
+/// <summary>Alarm priority level (ISA-18.2 standard)</summary>
+public enum AlarmPriority
+{
+    Critical = 1,  // Immediate action — safety/equipment risk
+    High = 2,      // Prompt attention — process disruption
+    Medium = 3,    // Normal attention — operational issue
+    Low = 4,       // Advisory — informational
+}
+
+/// <summary>Alarm type — value direction</summary>
+public enum AlarmType
+{
+    High = 1,   // Value > MaxThreshold
+    Low = 2,    // Value < MinThreshold
+}
+
+/// <summary>ISA-18.2 Alarm State Machine</summary>
+public enum AlarmState
+{
+    Active = 1,         // Alarm is active (unacknowledged)
+    Acknowledged = 2,   // Operator acknowledged, condition still active
+    Cleared = 3,        // Value returned to normal range
+    Shelved = 4,        // Operator temporarily muted (maintenance)
+}

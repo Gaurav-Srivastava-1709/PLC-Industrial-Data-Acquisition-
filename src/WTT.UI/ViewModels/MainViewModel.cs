@@ -14,16 +14,27 @@ public partial class MainViewModel : ViewModelBase
     private readonly ShellNavigator _shell;
     private readonly Func<ChangePasswordViewModel> _changePasswordFactory;
     private readonly INavigationService _navigation;
+    private readonly IAlarmService _alarmService;
+    private readonly ISnackbarService _snackbarService;
 
     public MainViewModel(ICurrentUserService currentUser, ShellNavigator shell, Func<ChangePasswordViewModel> changePasswordFactory, INavigationService navigation,
+        IAlarmService alarmService, ISnackbarService snackbarService,
         IDialogService dialogs, ILogger<MainViewModel> logger) : base(dialogs, logger)
     {
         _currentUser = currentUser;
         _shell = shell;
         _changePasswordFactory = changePasswordFactory;
         _navigation = navigation;
+        _alarmService = alarmService;
+        _snackbarService = snackbarService;
+        
         _currentUser.Changed += (_, _) => OnUi(RefreshUser);
+        
+        _alarmService.AlarmTriggered += OnAlarmTriggered;
+        _alarmService.AlarmCleared += OnAlarmCleared;
+        
         RefreshUser();
+        _ = RefreshAlarmCountAsync();
     }
 
     [ObservableProperty] private string _displayName = string.Empty;
@@ -67,5 +78,53 @@ public partial class MainViewModel : ViewModelBase
         var vm = _changePasswordFactory();
         vm.Initialize(_currentUser.User!.Id, forced: false);
         ChangePasswordRequested?.Invoke(this, vm);
+    }
+
+    [ObservableProperty] private int _activeAlarmCount;
+    [ObservableProperty] private bool _isBeepEnabled = true;
+    public bool HasActiveAlarms => ActiveAlarmCount > 0;
+
+    private async Task RefreshAlarmCountAsync()
+    {
+        var count = await _alarmService.GetActiveAlarmCountAsync(CancellationToken.None);
+        System.Windows.Application.Current.Dispatcher.Invoke(() => { ActiveAlarmCount = count; OnPropertyChanged(nameof(HasActiveAlarms)); });
+        try { var beep = await _alarmService.GetBeepEnabledAsync(CancellationToken.None); System.Windows.Application.Current.Dispatcher.Invoke(() => IsBeepEnabled = beep); } catch { }
+    }
+
+    partial void OnIsBeepEnabledChanged(bool value)
+    {
+        _ = _alarmService.SetBeepEnabledAsync(value, CancellationToken.None);
+        Dialogs.Toast("Alarms", value ? "Beep ON" : "Beep Silent", ToastKind.Info);
+    }
+
+    [RelayCommand]
+    private void ToggleBeep() => IsBeepEnabled = !IsBeepEnabled;
+
+    [RelayCommand]
+    private void OpenAlarms() => _navigation.Navigate(typeof(Views.Pages.AlarmsPage));
+
+    private void OnAlarmTriggered(object? sender, WTT.Domain.ValueObjects.AlarmTriggeredMessage msg)
+    {
+        _ = RefreshAlarmCountAsync();
+        // Beep is handled by InAppAlarmNotifier (respects IsBeepEnabled). Here also beep if not already (fallback)
+        if (IsBeepEnabled && (msg.Priority == WTT.Domain.Enums.AlarmPriority.Critical || msg.Priority == WTT.Domain.Enums.AlarmPriority.High))
+        {
+            try { System.Media.SystemSounds.Exclamation.Play(); } catch { }
+        }
+        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        {
+            _snackbarService.Show(
+                "Alarm Triggered",
+                $"[{msg.Priority}] {msg.DeviceName}/{msg.TagName} = {msg.TriggerValue:0.###} {msg.EngineeringUnit}",
+                Wpf.Ui.Controls.ControlAppearance.Danger,
+                new Wpf.Ui.Controls.SymbolIcon(Wpf.Ui.Controls.SymbolRegular.Warning24),
+                TimeSpan.FromSeconds(5)
+            );
+        });
+    }
+
+    private void OnAlarmCleared(object? sender, WTT.Domain.ValueObjects.AlarmClearedMessage msg)
+    {
+        _ = RefreshAlarmCountAsync();
     }
 }

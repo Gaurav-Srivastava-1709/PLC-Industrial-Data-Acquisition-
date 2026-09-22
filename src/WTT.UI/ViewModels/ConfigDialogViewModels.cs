@@ -31,6 +31,7 @@ public partial class TagEditViewModel : ViewModelBase
 
     public IReadOnlyList<TagDataType> DataTypes { get; } = Enum.GetValues<TagDataType>();
     public IReadOnlyList<ModbusRegisterType> RegisterTypes { get; } = Enum.GetValues<ModbusRegisterType>();
+    public IReadOnlyList<AlarmPriority> AlarmPriorities { get; } = Enum.GetValues<AlarmPriority>();
     public ObservableCollection<DeviceAddress> Blocks { get; } = new();
     public ObservableCollection<DeviceQuery> Queries { get; } = new();
     public ObservableCollection<DeviceQueryColumn> Columns { get; } = new();
@@ -58,6 +59,16 @@ public partial class TagEditViewModel : ViewModelBase
     [ObservableProperty] private DeviceQueryColumn? _column;
     [ObservableProperty] private string? _readResult;
     [ObservableProperty] private string _addressHint = string.Empty;
+
+    // ---- Alarm threshold fields ----
+    [ObservableProperty] private bool _isAlarmEnabled;
+    [ObservableProperty] private double? _alarmMinThreshold;
+    [ObservableProperty] private double? _alarmMaxThreshold;
+    [ObservableProperty] private double _alarmDeadband = 2.0;
+    [ObservableProperty] private int _alarmOnDelaySeconds;
+    [ObservableProperty] private int _alarmOffDelaySeconds;
+    [ObservableProperty] private AlarmPriority _alarmPriority = AlarmPriority.Medium;
+    [ObservableProperty] private string? _alarmDescription;
 
     public bool IsPlc => Kind == TagKind.Plc;
     public bool IsCustom => Kind == TagKind.Custom;
@@ -102,6 +113,16 @@ public partial class TagEditViewModel : ViewModelBase
             IsWriteEnabled = tag.IsWriteEnabled; WriteMinimum = tag.WriteMinimum; WriteMaximum = tag.WriteMaximum; MinimumWriteIntervalMs = tag.MinimumWriteIntervalMs;
             Query = Queries.FirstOrDefault(q => q.Id == tag.QueryId);
             Column = Columns.FirstOrDefault(c => c.Id == tag.QueryColumnId);
+
+            // Alarm fields
+            IsAlarmEnabled = tag.IsAlarmEnabled;
+            AlarmMinThreshold = tag.AlarmMinThreshold;
+            AlarmMaxThreshold = tag.AlarmMaxThreshold;
+            AlarmDeadband = tag.AlarmDeadband;
+            AlarmOnDelaySeconds = tag.AlarmOnDelaySeconds;
+            AlarmOffDelaySeconds = tag.AlarmOffDelaySeconds;
+            AlarmPriority = tag.AlarmPriority;
+            AlarmDescription = tag.AlarmDescription;
         }
         else
         {
@@ -120,6 +141,15 @@ public partial class TagEditViewModel : ViewModelBase
         ScaleFactor = ScaleFactor, ScaleOffset = ScaleOffset, DecimalPlaces = DecimalPlaces, EngineeringUnit = EngineeringUnit,
         IsWriteEnabled = IsPlc && IsWriteEnabled, WriteMinimum = WriteMinimum, WriteMaximum = WriteMaximum, MinimumWriteIntervalMs = Math.Clamp(MinimumWriteIntervalMs, 250, 60000),
         QueryId = IsExternal ? Query?.Id : null, QueryColumnId = IsExternal ? Column?.Id : null,
+        // Alarm fields
+        IsAlarmEnabled = IsAlarmEnabled,
+        AlarmMinThreshold = IsAlarmEnabled ? AlarmMinThreshold : null,
+        AlarmMaxThreshold = IsAlarmEnabled ? AlarmMaxThreshold : null,
+        AlarmDeadband = AlarmDeadband,
+        AlarmOnDelaySeconds = AlarmOnDelaySeconds,
+        AlarmOffDelaySeconds = AlarmOffDelaySeconds,
+        AlarmPriority = AlarmPriority,
+        AlarmDescription = AlarmDescription,
     };
 
     [RelayCommand]

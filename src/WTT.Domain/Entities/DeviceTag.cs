@@ -75,5 +75,15 @@ public class DeviceTag : AuditableEntity
     public int? QueryColumnId { get; set; }
     public DeviceQueryColumn? QueryColumn { get; set; }
 
+    // ---- Alarm Threshold Configuration ----
+    public bool IsAlarmEnabled { get; set; }
+    public double? AlarmMinThreshold { get; set; }
+    public double? AlarmMaxThreshold { get; set; }
+    public double AlarmDeadband { get; set; } = 2.0;
+    public int AlarmOnDelaySeconds { get; set; }
+    public int AlarmOffDelaySeconds { get; set; }
+    public AlarmPriority AlarmPriority { get; set; } = AlarmPriority.Medium;
+    public string? AlarmDescription { get; set; }
+
     public string DisplayName => string.IsNullOrWhiteSpace(Alias) ? Name : Alias!;
 }

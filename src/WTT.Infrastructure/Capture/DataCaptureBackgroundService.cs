@@ -32,6 +32,7 @@ public sealed class DataCaptureBackgroundService : BackgroundService, IDataCaptu
     private readonly ILogger<DataCaptureBackgroundService> _logger;
     private readonly ICurrentUserService _currentUser;
     private readonly ICaptureRuntimeStatusWriter _runtimeStatus;
+    private readonly IAlarmService _alarmService;
     private readonly Guid _instanceId = Guid.NewGuid();
     private string? _serviceError;
 
@@ -51,6 +52,7 @@ public sealed class DataCaptureBackgroundService : BackgroundService, IDataCaptu
         IOptions<CaptureOptions> options,
         ICurrentUserService currentUser,
         ICaptureRuntimeStatusWriter runtimeStatus,
+        IAlarmService alarmService,
         ILoggerFactory loggerFactory,
         ILogger<DataCaptureBackgroundService> logger)
     {
@@ -62,6 +64,7 @@ public sealed class DataCaptureBackgroundService : BackgroundService, IDataCaptu
         _options = options.Value;
         _currentUser = currentUser;
         _runtimeStatus = runtimeStatus;
+        _alarmService = alarmService;
         _loggerFactory = loggerFactory;
         _logger = logger;
         _runtime.Changed += (_, _) => RequestReconcile();
@@ -212,6 +215,7 @@ public sealed class DataCaptureBackgroundService : BackgroundService, IDataCaptu
             {
                 var worker = new DeviceCaptureWorker(device, _driverFactory, _dbFactory, _externalQueries, _cache, _options,
                     _loggerFactory.CreateLogger($"WTT.Capture.{device.Name}"),
+                    _alarmService,
                     v => TagValueChanged?.Invoke(this, v),
                     s => { lock (_lastStatus) _lastStatus[s.DeviceId] = s; DeviceStatusChanged?.Invoke(this, s); },
                     () => _paused);

@@ -80,6 +80,8 @@ public partial class App : System.Windows.Application
                 services.AddTransient<UsersViewModel>();
                 services.AddTransient<LogViewerPage>();
                 services.AddTransient<LogViewerViewModel>();
+                services.AddTransient<AlarmsPage>();
+                services.AddTransient<AlarmsViewModel>();
                 services.AddTransient<SettingsPage>();
                 services.AddTransient<SettingsViewModel>();
 

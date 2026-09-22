@@ -22,6 +22,74 @@ namespace WTT.Infrastructure.Persistence.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("WTT.Domain.Entities.AlarmEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("AcknowledgedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("AcknowledgedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("AlarmType")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ClearedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("DeviceName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("DeviceTagId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EngineeringUnit")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<int>("State")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TagName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<double>("ThresholdValue")
+                        .HasColumnType("float");
+
+                    b.Property<double>("TriggerValue")
+                        .HasColumnType("float");
+
+                    b.Property<DateTime>("TriggeredAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceTagId");
+
+                    b.HasIndex("TriggeredAtUtc");
+
+                    b.HasIndex("Priority", "State");
+
+                    b.ToTable("AlarmEvents");
+                });
+
             modelBuilder.Entity("WTT.Domain.Entities.AppSetting", b =>
                 {
                     b.Property<string>("Key")
@@ -478,6 +546,27 @@ namespace WTT.Infrastructure.Persistence.Migrations
                     b.Property<int?>("AddressId")
                         .HasColumnType("int");
 
+                    b.Property<double>("AlarmDeadband")
+                        .HasColumnType("float");
+
+                    b.Property<string>("AlarmDescription")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double?>("AlarmMaxThreshold")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("AlarmMinThreshold")
+                        .HasColumnType("float");
+
+                    b.Property<int>("AlarmOffDelaySeconds")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AlarmOnDelaySeconds")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AlarmPriority")
+                        .HasColumnType("int");
+
                     b.Property<string>("Alias")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -517,6 +606,9 @@ namespace WTT.Infrastructure.Persistence.Migrations
                     b.Property<string>("EngineeringUnit")
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<bool>("IsAlarmEnabled")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("IsSelected")
                         .HasColumnType("bit");
@@ -825,6 +917,17 @@ namespace WTT.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("WTT.Domain.Entities.AlarmEvent", b =>
+                {
+                    b.HasOne("WTT.Domain.Entities.DeviceTag", "DeviceTag")
+                        .WithMany()
+                        .HasForeignKey("DeviceTagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DeviceTag");
                 });
 
             modelBuilder.Entity("WTT.Domain.Entities.DeviceAddress", b =>

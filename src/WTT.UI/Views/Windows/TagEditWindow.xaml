@@ -82,6 +82,51 @@
                     </Grid>
                     <TextBlock Style="{StaticResource Hint}" Text="Writes are denied by default. Safe writes enforce type/range, cooldown and controller readback verification." />
 
+                    <!-- ========= ALARM SETTINGS ========= -->
+                    <TextBlock Text="Alarm settings" Style="{StaticResource SectionTitle}" Margin="0,16,0,4" />
+                    <CheckBox Content="Enable alarm monitoring for this tag" IsChecked="{Binding IsAlarmEnabled}" />
+                    <StackPanel Visibility="{Binding IsAlarmEnabled, Converter={StaticResource BoolToVis}}" Margin="0,8,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                <TextBlock Text="Min threshold" Style="{StaticResource FieldLabel}" />
+                                <ui:TextBox Text="{Binding AlarmMinThreshold, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}" PlaceholderText="low limit" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Max threshold" Style="{StaticResource FieldLabel}" />
+                                <ui:TextBox Text="{Binding AlarmMaxThreshold, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}" PlaceholderText="high limit" />
+                            </StackPanel>
+                        </Grid>
+                        <Grid Margin="0,6,0,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                <TextBlock Text="Deadband %" Style="{StaticResource FieldLabel}" />
+                                <ui:NumberBox Value="{Binding AlarmDeadband}" Minimum="0" Maximum="50" SpinButtonPlacementMode="Compact" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="0,0,8,0">
+                                <TextBlock Text="On-delay (s)" Style="{StaticResource FieldLabel}" />
+                                <ui:NumberBox Value="{Binding AlarmOnDelaySeconds}" Minimum="0" Maximum="3600" SpinButtonPlacementMode="Compact" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Off-delay (s)" Style="{StaticResource FieldLabel}" />
+                                <ui:NumberBox Value="{Binding AlarmOffDelaySeconds}" Minimum="0" Maximum="3600" SpinButtonPlacementMode="Compact" />
+                            </StackPanel>
+                        </Grid>
+                        <Grid Margin="0,6,0,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                <TextBlock Text="Priority" Style="{StaticResource FieldLabel}" />
+                                <ComboBox ItemsSource="{Binding AlarmPriorities}" SelectedItem="{Binding AlarmPriority}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Description" Style="{StaticResource FieldLabel}" />
+                                <ui:TextBox Text="{Binding AlarmDescription, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="optional alarm note" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,4,0,0"
+                                   Text="Deadband prevents chattering (ISA-18.2). On-delay prevents false alarms from spikes. Off-delay prevents premature clearing." />
+                    </StackPanel>
+
                     <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                         <ui:Button Content="Test read" Icon="{ui:SymbolIcon Play24}" Command="{Binding TestReadCommand}" />
                         <TextBlock Text="{Binding ReadResult}" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="320" />

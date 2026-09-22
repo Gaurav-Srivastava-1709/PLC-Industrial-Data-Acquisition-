@@ -21,6 +21,7 @@ public class AppDbContext : DbContext
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<ServiceRuntimeState> ServiceRuntimeStates => Set<ServiceRuntimeState>();
     public DbSet<DeviceRuntimeState> DeviceRuntimeStates => Set<DeviceRuntimeState>();
+    public DbSet<AlarmEvent> AlarmEvents => Set<AlarmEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

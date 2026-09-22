@@ -72,6 +72,17 @@ public sealed class DeviceTagValidator : AbstractValidator<DeviceTag>
             RuleFor(t => t.QueryId).NotNull().WithMessage("Select an external query.");
             RuleFor(t => t.QueryColumnId).NotNull().WithMessage("Select a query column.");
         });
+
+        When(t => t.IsAlarmEnabled, () =>
+        {
+            RuleFor(t => t.AlarmDeadband).InclusiveBetween(0.0, 50.0).WithMessage("Deadband must be between 0% and 50%.");
+            RuleFor(t => t.AlarmOnDelaySeconds).GreaterThanOrEqualTo(0);
+            RuleFor(t => t.AlarmOffDelaySeconds).GreaterThanOrEqualTo(0);
+            RuleFor(t => t).Must(t => !t.AlarmMinThreshold.HasValue || !t.AlarmMaxThreshold.HasValue || t.AlarmMinThreshold < t.AlarmMaxThreshold)
+                .WithMessage("Min threshold must be strictly less than Max threshold.");
+            RuleFor(t => t).Must(t => t.AlarmMinThreshold.HasValue || t.AlarmMaxThreshold.HasValue)
+                .WithMessage("At least one threshold (Min or Max) must be set when alarm is enabled.");
+        });
     }
 }
 

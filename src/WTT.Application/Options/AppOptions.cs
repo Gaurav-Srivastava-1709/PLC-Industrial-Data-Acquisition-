@@ -76,3 +76,23 @@ public sealed class SimulationOptions
     /// <summary>Route every device to the built-in simulator instead of a real protocol driver.</summary>
     public bool UseMockPlc { get; set; }
 }
+
+/// <summary>Bound from the "Alarm" configuration section.</summary>
+public sealed class AlarmOptions
+{
+    public const string SectionName = "Alarm";
+
+    /// <summary>How many days to keep alarm history (configurable In-Out). 0 = keep forever.</summary>
+    public int RetentionDays { get; set; } = 90;
+
+    /// <summary>Whether audible beep is enabled for Critical/High alarms. User can toggle silent.</summary>
+    public bool BeepEnabled { get; set; } = true;
+
+    /// <summary>Future extensibility: Email notifications enabled (plug EmailAlarmNotifier).</summary>
+    public bool EmailEnabled { get; set; } = false;
+
+    public string? EmailSmtpHost { get; set; }
+    public int EmailSmtpPort { get; set; } = 587;
+    public string? EmailFrom { get; set; }
+    public string? EmailToCsv { get; set; }
+}
