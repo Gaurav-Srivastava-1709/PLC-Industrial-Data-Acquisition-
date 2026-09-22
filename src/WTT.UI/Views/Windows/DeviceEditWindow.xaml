@@ -110,6 +110,18 @@
 
                 <CheckBox Content="Device enabled" IsChecked="{Binding IsEnabled}" Margin="0,16,0,0" />
 
+                <!-- Auto Tag Provisioning — sirf new device pe dikhega -->
+                <Border Margin="0,16,0,0" Padding="12" CornerRadius="8"
+                        Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                        Visibility="{Binding ShowAutoSeed, Converter={StaticResource BoolToVis}}">
+                    <StackPanel>
+                        <CheckBox Content="🚀 Auto-provision default tags" IsChecked="{Binding AutoSeedTags}" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding AutoSeedHint}" Style="{StaticResource Hint}" Margin="28,2,0,0"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                </Border>
+
                 <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
                     <ui:Button Content="Test connection" Icon="{ui:SymbolIcon PlugConnected24}" Command="{Binding TestConnectionCommand}" />
                     <TextBlock Text="{Binding TestResult}" VerticalAlignment="Center" Margin="12,0,0,0" TextWrapping="Wrap" MaxWidth="360">

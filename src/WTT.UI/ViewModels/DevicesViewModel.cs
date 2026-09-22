@@ -155,6 +155,10 @@ public partial class DeviceEditViewModel : ViewModelBase
     [ObservableProperty] private string? _testResult;
     [ObservableProperty] private bool _testSucceeded;
 
+    // Auto Tag Provisioning — sirf new device ke liye dikhega
+    [ObservableProperty] private bool _autoSeedTags = true;
+    [ObservableProperty] private string _autoSeedHint = string.Empty;
+
     public bool ShowSlot => Model?.UsesSlot ?? false;
     public bool ShowRack => Model?.UsesRack ?? false;
     public bool ShowConnectionSize => Model?.UsesConnectionSize ?? false;
@@ -162,6 +166,9 @@ public partial class DeviceEditViewModel : ViewModelBase
     public bool ShowWordOrder => Model?.UsesWordOrder ?? false;
     public bool ShowCipPath => Protocol == ProtocolType.EthernetIp;
     public string AddressHint => Model?.AddressHint ?? string.Empty;
+
+    /// <summary>Auto-seed checkbox sirf new device add karte waqt dikhega, edit pe nahi.</summary>
+    public bool ShowAutoSeed => _original is null;
 
     public void Initialize(Device? device)
     {
@@ -222,6 +229,17 @@ public partial class DeviceEditViewModel : ViewModelBase
         }
         OnPropertyChanged(nameof(ShowSlot)); OnPropertyChanged(nameof(ShowRack)); OnPropertyChanged(nameof(ShowConnectionSize));
         OnPropertyChanged(nameof(ShowUnitId)); OnPropertyChanged(nameof(ShowWordOrder)); OnPropertyChanged(nameof(AddressHint));
+
+        // Auto-seed hint: model ke hisab se batao kitne tags banengi
+        if (value is not null && _original is null)
+        {
+            var templateTags = Application.Catalog.TagTemplateLibrary.GetTemplateFor(value.Model);
+            var canBrowse = value.Model is DeviceModel.ControlLogix or DeviceModel.CompactLogix;
+            AutoSeedHint = canBrowse
+                ? $"Browse {value.DisplayName} for tags (with {templateTags.Count} fallback starter tags)"
+                : $"Create {templateTags.Count} default tags for {value.DisplayName}";
+        }
+        else AutoSeedHint = string.Empty;
     }
 
     private Device Build()
@@ -252,7 +270,12 @@ public partial class DeviceEditViewModel : ViewModelBase
         var ok = await RunAsync(async () =>
         {
             var d = Build();
-            if (_original is null) await _devices.CreateAsync(d); else await _devices.UpdateAsync(d);
+            // Naya device: seedTags parameter pass karo (checkbox se)
+            // Edit: seedTags=false (existing device pe provisioning nahi)
+            if (_original is null)
+                await _devices.CreateAsync(d, seedTags: AutoSeedTags);
+            else
+                await _devices.UpdateAsync(d);
         }, inlineErrors: true);
         if (ok)
         {

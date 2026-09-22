@@ -18,6 +18,8 @@ public sealed class DeviceService : IDeviceService
     private readonly ICurrentUserService _currentUser;
     private readonly IAuditService _audit;
     private readonly IDataCaptureController _capture;
+    // Auto tag provisioning service — device create ke baad tags seed karta hai
+    private readonly ITagProvisioningService _provisioning;
     private readonly ILogger<DeviceService> _logger;
 
     public DeviceService(
@@ -25,12 +27,14 @@ public sealed class DeviceService : IDeviceService
         ICurrentUserService currentUser,
         IAuditService audit,
         IDataCaptureController capture,
+        ITagProvisioningService provisioning,
         ILogger<DeviceService> logger)
     {
         _factory = factory;
         _currentUser = currentUser;
         _audit = audit;
         _capture = capture;
+        _provisioning = provisioning;
         _logger = logger;
     }
 
@@ -55,6 +59,15 @@ public sealed class DeviceService : IDeviceService
 
     public async Task<Device> CreateAsync(Device device, CancellationToken ct = default)
     {
+        return await CreateAsync(device, seedTags: true, ct);
+    }
+
+    /// <summary>
+    /// Device create karo aur optional auto tag provisioning karo.
+    /// <paramref name="seedTags"/> = true → protocol/model ke hisab se default tags create honge.
+    /// </summary>
+    public async Task<Device> CreateAsync(Device device, bool seedTags, CancellationToken ct = default)
+    {
         _currentUser.Demand(Permission.ManageDevices);
         Normalize(device);
         Validate(device);
@@ -63,12 +76,21 @@ public sealed class DeviceService : IDeviceService
         if (await db.Devices.AnyAsync(d => d.Name == device.Name, ct))
             throw new BusinessRuleException($"A device named '{device.Name}' already exists.");
 
+        // Device save karo — Id generate hoga jo tags ke liye chahiye
         var entity = new Device();
         CopyEditable(device, entity);
         db.Devices.Add(entity);
         await db.SaveChangesAsync(ct);
 
         await _audit.RecordAsync("CreateDevice", entity.Name, $"{entity.Protocol}/{entity.Model} @ {entity.Host}:{entity.Port}", true, ct);
+
+        // Auto Tag Provisioning — Device save hone ke BAAD call karo
+        // Agar provisioning fail bhi ho, device saved rahegi (non-destructive)
+        var tagCount = await _provisioning.ProvisionAsync(entity, seedTags, ct);
+        if (tagCount > 0)
+            _logger.LogInformation("Auto-provisioned {Count} default tags for device {Device} ({Model}).",
+                tagCount, entity.Name, entity.Model);
+
         _capture.RequestReconcile();
         return entity;
     }

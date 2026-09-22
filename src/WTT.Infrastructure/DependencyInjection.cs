@@ -62,6 +62,7 @@ public static class DependencyInjection
         services.AddSingleton<IExternalSqlPolicy, ExternalSqlSelectPolicy>();
         services.AddSingleton<IInstallationIdentity, FileInstallationIdentity>();
         services.AddSingleton<IDeviceService, DeviceService>();
+        services.AddSingleton<ITagProvisioningService, TagProvisioningService>();
         services.AddSingleton<IDeviceAddressService, DeviceAddressService>();
         services.AddSingleton<ITagService, TagService>();
         services.AddSingleton<ITriggerService, TriggerService>();

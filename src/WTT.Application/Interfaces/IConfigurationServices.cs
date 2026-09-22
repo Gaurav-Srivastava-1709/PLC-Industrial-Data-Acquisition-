@@ -10,6 +10,8 @@ public interface IDeviceService
     Task<IReadOnlyList<Device>> GetAllAsync(CancellationToken ct = default);
     Task<Device?> GetByIdAsync(int id, bool includeChildren = false, CancellationToken ct = default);
     Task<Device> CreateAsync(Device device, CancellationToken ct = default);
+    /// <summary>Device create with optional auto tag provisioning control.</summary>
+    Task<Device> CreateAsync(Device device, bool seedTags, CancellationToken ct = default);
     Task<Device> UpdateAsync(Device device, CancellationToken ct = default);
     Task DeleteAsync(int id, CancellationToken ct = default);
 
@@ -43,6 +45,21 @@ public interface ITagService
 
     /// <summary>Merge browsed controller tags into the device's PLC tag list. Returns number of tags added.</summary>
     Task<int> ImportDiscoveredAsync(int deviceId, IEnumerable<DiscoveredTag> discovered, bool selectNew, CancellationToken ct = default);
+}
+
+/// <summary>
+/// Jab naya device create ho, protocol/model ke hisab se default tags
+/// automatically seed karta hai. Browse-capable devices ke liye PLC se live
+/// import attempt karta hai; baaki sabhi ke liye template-based starter tags.
+/// </summary>
+public interface ITagProvisioningService
+{
+    /// <summary>
+    /// Device ke liye default tags provision karo.
+    /// <paramref name="seedTags"/> = false ⇒ kuch nahi karta (admin ne checkbox OFF kiya).
+    /// Returns: number of tags actually created (0 se lekar unlimited).
+    /// </summary>
+    Task<int> ProvisionAsync(Device device, bool seedTags, CancellationToken ct = default);
 }
 
 public interface ITriggerService
