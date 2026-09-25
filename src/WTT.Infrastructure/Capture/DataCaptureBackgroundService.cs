@@ -243,7 +243,9 @@ public sealed class DataCaptureBackgroundService : BackgroundService, IDataCaptu
             sb.Append(t.Id).Append(',').Append(t.Name).Append(',').Append(t.Kind).Append(',').Append(t.DataType).Append(',').Append(t.PlcAddress).Append(',')
               .Append(t.RegisterType).Append(',').Append(t.ElementCount).Append(',').Append(t.IsSelected).Append(',').Append(t.ScaleFactor).Append(',').Append(t.ScaleOffset).Append(',')
               .Append(t.DecimalPlaces).Append(',').Append(t.Address?.RegisterType).Append(',').Append(t.Address?.DecimalPlaces).Append(',')
-              .Append(t.Kind == Domain.Enums.TagKind.Custom ? t.SetValue : null).Append(',').Append(t.QueryColumnId).Append(';');
+              .Append(t.Kind == Domain.Enums.TagKind.Custom ? t.SetValue : null).Append(',').Append(t.QueryColumnId).Append(',')
+              .Append(t.IsAlarmEnabled).Append(',').Append(t.AlarmMinThreshold).Append(',').Append(t.AlarmMaxThreshold).Append(',')
+              .Append(t.AlarmDeadband).Append(',').Append(t.AlarmOnDelaySeconds).Append(',').Append(t.AlarmOffDelaySeconds).Append(',').Append(t.AlarmPriority).Append(';');
         foreach (var c in d.TriggerConditions.OrderBy(c => c.Order))
             sb.Append(c.Id).Append(',').Append(c.Order).Append(',').Append(c.Conjunction).Append(',').Append(c.TagName).Append(',').Append(c.Operator).Append(',').Append(c.Value).Append(';');
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(sb.ToString())));

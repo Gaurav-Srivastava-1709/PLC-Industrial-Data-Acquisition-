@@ -8,20 +8,20 @@ public interface IAlarmService
 {
     /// <summary>Ek tag ki value check karo threshold ke against (Called by CaptureWorker)</summary>
     Task EvaluateAsync(Device device, DeviceTag tag, double currentValue, CancellationToken ct);
-    
+
     /// <summary>Active alarms ka count (badge ke liye)</summary>
     Task<int> GetActiveAlarmCountAsync(CancellationToken ct);
-    
+
     /// <summary>Active alarms list</summary>
     Task<IReadOnlyList<AlarmEvent>> GetActiveAlarmsAsync(CancellationToken ct);
-    
+
     /// <summary>Alarm history with pagination</summary>
     Task<(IReadOnlyList<AlarmEvent> Items, int TotalCount)> GetAlarmHistoryAsync(
         AlarmHistoryFilter filter, int page, int pageSize, CancellationToken ct);
-    
+
     /// <summary>Operator acknowledge kare</summary>
     Task AcknowledgeAsync(long alarmEventId, string acknowledgedBy, CancellationToken ct);
-    
+
     /// <summary>Bulk acknowledge</summary>
     Task AcknowledgeAllAsync(string acknowledgedBy, CancellationToken ct);
 
@@ -34,7 +34,16 @@ public interface IAlarmService
     Task<bool> GetBeepEnabledAsync(CancellationToken ct);
     Task SetBeepEnabledAsync(bool enabled, CancellationToken ct);
 
+    /// <summary>ISA-18.2 Alarm Shelving - Temporarily suppress alarms during maintenance</summary>
+    Task ShelveAlarmAsync(int tagId, TimeSpan duration, string shelvedBy, string reason, CancellationToken ct);
+    Task UnshelveAlarmAsync(int tagId, string unshelvedBy, CancellationToken ct);
+    Task<IReadOnlyList<AlarmShelveState>> GetShelvedAlarmsAsync(CancellationToken ct);
+
     // Events for UI subscription
     event EventHandler<AlarmTriggeredMessage>? AlarmTriggered;
     event EventHandler<AlarmClearedMessage>? AlarmCleared;
+    event EventHandler? AlarmCountChanged;
+
+    /// <summary>UI process poller to trigger in-memory events for changes made by the Background Service</summary>
+    Task SyncCrossProcessAlarmsAsync(CancellationToken ct);
 }

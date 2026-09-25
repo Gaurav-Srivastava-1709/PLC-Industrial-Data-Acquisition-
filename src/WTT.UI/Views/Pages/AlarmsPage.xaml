@@ -7,6 +7,13 @@
       xmlns:viewmodels="clr-namespace:WTT.UI.ViewModels"
       d:DataContext="{d:DesignInstance Type=viewmodels:AlarmsViewModel}"
       mc:Ignorable="d" Title="Alarms" d:DesignHeight="768" d:DesignWidth="1024">
+    <Page.Resources>
+        <Style x:Key="RowBtn" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="2"/>
+        </Style>
+    </Page.Resources>
     <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -31,7 +38,7 @@
             </Border>
         </StackPanel>
 
-        <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex}" Background="Transparent" BorderThickness="0">
+        <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}" Background="Transparent" BorderThickness="0">
             <!-- ACTIVE ALARMS -->
             <TabItem Header="Active Alarms" Padding="12,8">
                 <Grid Margin="0,16,0,0">
@@ -59,8 +66,20 @@
                             <DataGridTemplateColumn Header="" Width="120">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <ui:Button Style="{StaticResource RowBtn}" Content="Acknowledge" Command="{Binding DataContext.AcknowledgeCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" 
-                                                   Visibility="{Binding State, Converter={StaticResource StringToVisConverter}}" />
+                                        <ui:Button Command="{Binding DataContext.AcknowledgeCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}">
+                                            <ui:Button.Style>
+                                                <Style TargetType="ui:Button" BasedOn="{StaticResource RowBtn}">
+                                                    <Setter Property="Content" Value="Acknowledge" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding State}" Value="Acknowledged">
+                                                            <Setter Property="IsEnabled" Value="False" />
+                                                            <Setter Property="Content" Value="Acknowledged" />
+                                                            <Setter Property="Opacity" Value="0.6" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </ui:Button.Style>
+                                        </ui:Button>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>

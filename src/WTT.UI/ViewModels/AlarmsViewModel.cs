@@ -15,6 +15,8 @@ public partial class AlarmsViewModel : ViewModelBase
 {
     private readonly IAlarmService _alarmService;
     private readonly ICurrentUserService _currentUser;
+    private readonly System.Windows.Threading.DispatcherTimer _autoRefreshTimer = new() { Interval = TimeSpan.FromSeconds(2) };
+    private int _autoRefreshing;
 
     public AlarmsViewModel(IAlarmService alarmService, ICurrentUserService currentUser, IDialogService dialogs, ILogger<AlarmsViewModel> logger) : base(dialogs, logger)
     {
@@ -23,9 +25,27 @@ public partial class AlarmsViewModel : ViewModelBase
 
         _alarmService.AlarmTriggered += OnAlarmTriggered;
         _alarmService.AlarmCleared += OnAlarmCleared;
+        // Industry: badge/count change must refresh the list too — was a no-op before, so the page stayed empty until manual Refresh.
+        _alarmService.AlarmCountChanged += (_, _) => _ = RefreshActiveFromDbAsync();
+        _autoRefreshTimer.Tick += (_, _) => _ = AutoRefreshAsync();
     }
 
     [ObservableProperty] private int _selectedTabIndex;
+
+    // Tab switch hone par turant fresh data load karo (Active ya History)
+    partial void OnSelectedTabIndexChanged(int value)
+    {
+        if (value == 1)
+        {
+            // Alarm History tab open hua — background me latest audit history load karo
+            _ = RefreshHistoryQuietAsync();
+        }
+        else if (value == 0)
+        {
+            // Active Alarms tab open hua — live active alarms sync karo
+            _ = RefreshActiveFromDbAsync();
+        }
+    }
     
     // --- Active Alarms ---
     public ObservableCollection<AlarmEvent> ActiveAlarms { get; } = new();
@@ -66,15 +86,17 @@ public partial class AlarmsViewModel : ViewModelBase
         await LoadHistoryAsync();
         await LoadRetentionAsync();
         await LoadBeepAsync();
+        // Industry SCADA: alarm list auto-refreshes every 2s while visible — no manual Refresh needed.
+        _autoRefreshTimer.Start();
     }
 
     private async Task LoadRetentionAsync()
     {
-        try { var days = await _alarmService.GetRetentionDaysAsync(CancellationToken.None); System.Windows.Application.Current.Dispatcher.Invoke(() => { SelectedRetentionDays = RetentionOptions.Contains(days) ? days : 90; CustomRetentionDays = days; }); } catch { }
+        try { var days = await _alarmService.GetRetentionDaysAsync(CancellationToken.None); OnUi(() => { SelectedRetentionDays = RetentionOptions.Contains(days) ? days : 90; CustomRetentionDays = days; }); } catch { }
     }
     private async Task LoadBeepAsync()
     {
-        try { var beep = await _alarmService.GetBeepEnabledAsync(CancellationToken.None); System.Windows.Application.Current.Dispatcher.Invoke(() => IsBeepEnabled = beep); } catch { }
+        try { var beep = await _alarmService.GetBeepEnabledAsync(CancellationToken.None); OnUi(() => IsBeepEnabled = beep); } catch { }
     }
 
     [RelayCommand]
@@ -108,7 +130,133 @@ public partial class AlarmsViewModel : ViewModelBase
 
     public override Task OnNavigatedFromAsync()
     {
+        _autoRefreshTimer.Stop();
         return Task.CompletedTask;
+    }
+
+    // Industrial SCADA: Har 2 second me background sync chalti hai
+    private async Task AutoRefreshAsync()
+    {
+        if (System.Threading.Interlocked.Exchange(ref _autoRefreshing, 1) == 1) return;
+        try
+        {
+            // Cross-process DB changes ko pehle sync karo
+            try { await _alarmService.SyncCrossProcessAlarmsAsync(CancellationToken.None); } catch { }
+            
+            // Current selected tab ke hisab se data auto-refresh karo
+            if (SelectedTabIndex == 0)
+            {
+                // Active Alarms tab open hai toh active list refresh karo
+                await RefreshActiveFromDbAsync();
+            }
+            else if (SelectedTabIndex == 1)
+            {
+                // Alarm History tab open hai toh history audit log ko background me update rakho
+                await RefreshHistoryQuietAsync();
+            }
+        }
+        finally { System.Threading.Interlocked.Exchange(ref _autoRefreshing, 0); }
+    }
+
+    // Active Alarms ko bina screen flicker ke diff karke update karta hai
+    private async Task RefreshActiveFromDbAsync()
+    {
+        try
+        {
+            var active = await _alarmService.GetActiveAlarmsAsync(CancellationToken.None);
+            OnUi(() =>
+            {
+                var activeMap = active.ToDictionary(a => a.Id);
+                
+                // 1. Jo alarms ab active nahi rahe (cleared ho chuke hain), unhe list se hatao
+                for (int i = ActiveAlarms.Count - 1; i >= 0; i--)
+                {
+                    if (!activeMap.ContainsKey(ActiveAlarms[i].Id))
+                    {
+                        ActiveAlarms.RemoveAt(i);
+                    }
+                }
+
+                // 2. Jo alarms pehle se list me hain, unka State (Active vs Acknowledged) aur AckBy sync karo
+                for (int i = 0; i < ActiveAlarms.Count; i++)
+                {
+                    var existing = ActiveAlarms[i];
+                    if (activeMap.TryGetValue(existing.Id, out var fresh))
+                    {
+                        if (existing.State != fresh.State || existing.AcknowledgedBy != fresh.AcknowledgedBy)
+                        {
+                            // Item replace karne se DataGrid row turant updated status render karti hai
+                            ActiveAlarms[i] = fresh;
+                        }
+                    }
+                }
+
+                // 3. Jo bilkul naye alarms trigger hue hain, unhe list me jodo
+                var existingIds = ActiveAlarms.Select(a => a.Id).ToHashSet();
+                foreach (var a in active)
+                {
+                    if (!existingIds.Contains(a.Id))
+                    {
+                        ActiveAlarms.Add(a);
+                    }
+                }
+            });
+        }
+        catch { }
+    }
+
+    // History filter ka reusable object generate karta hai
+    private AlarmHistoryFilter CreateCurrentHistoryFilter()
+    {
+        return new AlarmHistoryFilter(
+            FromUtc: FilterFromDate?.ToUniversalTime(),
+            ToUtc: FilterToDate?.ToUniversalTime(),
+            Priority: FilterPriority,
+            AlarmType: FilterType,
+            State: FilterState,
+            DeviceName: string.IsNullOrWhiteSpace(FilterDeviceName) ? null : FilterDeviceName,
+            TagName: string.IsNullOrWhiteSpace(FilterTagName) ? null : FilterTagName
+        );
+    }
+
+    // Background me bina full-screen spinner ke Alarm History ko DB ke sath 100% sync rakhta hai
+    private async Task RefreshHistoryQuietAsync()
+    {
+        try
+        {
+            var filter = CreateCurrentHistoryFilter();
+            var (items, totalCount) = await _alarmService.GetAlarmHistoryAsync(filter, CurrentPage, PageSize, CancellationToken.None);
+            
+            OnUi(() =>
+            {
+                // Agar item count alag hai ya list empty thi, toh fresh reload karo
+                if (HistoryAlarms.Count != items.Count)
+                {
+                    HistoryAlarms.Clear();
+                    foreach (var item in items) HistoryAlarms.Add(item);
+                }
+                else
+                {
+                    // Item-by-item check karo taki scroll position ya selection jump na kare
+                    for (int i = 0; i < items.Count; i++)
+                    {
+                        var cur = HistoryAlarms[i];
+                        var fresh = items[i];
+
+                        if (cur.Id != fresh.Id || 
+                            cur.State != fresh.State || 
+                            cur.AcknowledgedBy != fresh.AcknowledgedBy || 
+                            cur.ClearedAtUtc != fresh.ClearedAtUtc)
+                        {
+                            // Status change (e.g. Active -> Acknowledged) turant UI pe reflect ho
+                            HistoryAlarms[i] = fresh;
+                        }
+                    }
+                }
+                TotalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
+            });
+        }
+        catch { }
     }
 
     [RelayCommand]
@@ -117,11 +265,13 @@ public partial class AlarmsViewModel : ViewModelBase
         await RunAsync(async () =>
         {
             var active = await _alarmService.GetActiveAlarmsAsync(CancellationToken.None);
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            OnUi(() =>
             {
                 ActiveAlarms.Clear();
                 foreach (var a in active) ActiveAlarms.Add(a);
             });
+            // Active load hone ke sath history bhi background me ready rakho
+            await RefreshHistoryQuietAsync();
         });
     }
 
@@ -130,19 +280,10 @@ public partial class AlarmsViewModel : ViewModelBase
     {
         await RunAsync(async () =>
         {
-            var filter = new AlarmHistoryFilter(
-                FromUtc: FilterFromDate?.ToUniversalTime(),
-                ToUtc: FilterToDate?.ToUniversalTime(),
-                Priority: FilterPriority,
-                AlarmType: FilterType,
-                State: FilterState,
-                DeviceName: string.IsNullOrWhiteSpace(FilterDeviceName) ? null : FilterDeviceName,
-                TagName: string.IsNullOrWhiteSpace(FilterTagName) ? null : FilterTagName
-            );
-
+            var filter = CreateCurrentHistoryFilter();
             var (items, totalCount) = await _alarmService.GetAlarmHistoryAsync(filter, CurrentPage, PageSize, CancellationToken.None);
             
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            OnUi(() =>
             {
                 HistoryAlarms.Clear();
                 foreach (var item in items) HistoryAlarms.Add(item);
@@ -157,8 +298,14 @@ public partial class AlarmsViewModel : ViewModelBase
         if (alarm == null) return;
         await RunAsync(async () =>
         {
+            // DB me acknowledge save karo (operator username ke sath)
             await _alarmService.AcknowledgeAsync(alarm.Id, _currentUser.Username ?? "Unknown", CancellationToken.None);
-            await LoadActiveAlarmsAsync();
+            
+            // 1. Active alarms ko update karo (button disable aur opacity update ho jayegi)
+            await RefreshActiveFromDbAsync();
+
+            // 2. ISA-18.2 Standard: History log ko turant update karo taaki audit trail me 'Acknowledged' aur 'admin' bina delay ke dikhe
+            await RefreshHistoryQuietAsync();
         });
     }
 
@@ -167,8 +314,12 @@ public partial class AlarmsViewModel : ViewModelBase
     {
         await RunAsync(async () =>
         {
+            // Saare active alarms ko ek sath acknowledge karo
             await _alarmService.AcknowledgeAllAsync(_currentUser.Username ?? "Unknown", CancellationToken.None);
-            await LoadActiveAlarmsAsync();
+            
+            // Active aur History dono grids ko turant update karo
+            await RefreshActiveFromDbAsync();
+            await RefreshHistoryQuietAsync();
         });
     }
 
@@ -208,11 +359,36 @@ public partial class AlarmsViewModel : ViewModelBase
 
     private void OnAlarmTriggered(object? sender, AlarmTriggeredMessage msg)
     {
-        System.Windows.Application.Current.Dispatcher.InvokeAsync(LoadActiveAlarmsAsync);
+        OnUi(() =>
+        {
+            // Insert incrementally at the top, without clearing the whole list
+            var alarm = new AlarmEvent
+            {
+                Id = msg.AlarmEventId,
+                DeviceName = msg.DeviceName,
+                TagName = msg.TagName,
+                AlarmType = msg.AlarmType,
+                Priority = msg.Priority,
+                TriggerValue = msg.TriggerValue,
+                ThresholdValue = msg.ThresholdValue,
+                EngineeringUnit = msg.EngineeringUnit,
+                TriggeredAtUtc = msg.TriggeredAtUtc,
+                State = AlarmState.Active
+            };
+            ActiveAlarms.Insert(0, alarm);
+        });
     }
 
     private void OnAlarmCleared(object? sender, AlarmClearedMessage msg)
     {
-        System.Windows.Application.Current.Dispatcher.InvokeAsync(LoadActiveAlarmsAsync);
+        OnUi(() =>
+        {
+            // Find and remove the cleared alarm from Active list
+            var existing = ActiveAlarms.FirstOrDefault(a => a.Id == msg.AlarmEventId);
+            if (existing != null)
+            {
+                ActiveAlarms.Remove(existing);
+            }
+        });
     }
 }

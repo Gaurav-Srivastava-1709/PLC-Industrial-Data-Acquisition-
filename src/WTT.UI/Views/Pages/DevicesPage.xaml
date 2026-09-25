@@ -25,33 +25,41 @@
         <ui:TextBox Grid.Row="1" PlaceholderText="Search by name, host or model…" Icon="{ui:SymbolIcon Search24}" Width="360" HorizontalAlignment="Left"
                     Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12" />
 
-        <DataGrid Grid.Row="2" Style="{StaticResource Grid}" ItemsSource="{Binding Devices}" SelectedItem="{Binding Selected}">
+        <DataGrid Grid.Row="2" Style="{StaticResource Grid}" ItemsSource="{Binding Devices}" SelectedItem="{Binding Selected}"
+                  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1"
+                  CanUserResizeColumns="True" CanUserReorderColumns="False">
             <DataGrid.InputBindings>
                 <MouseBinding MouseAction="LeftDoubleClick" Command="{Binding ConfigureCommand}" />
             </DataGrid.InputBindings>
+            <DataGrid.Resources>
+                <Style TargetType="TextBlock" x:Key="TrimCell">
+                    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                    <Setter Property="VerticalAlignment" Value="Center" />
+                </Style>
+            </DataGrid.Resources>
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="" Width="36">
+                <DataGridTemplateColumn Header="" Width="32" MinWidth="32" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Ellipse Style="{StaticResource Dot}" Fill="{Binding IsEnabled, Converter={StaticResource BoolToBrush}}" HorizontalAlignment="Center" Margin="0" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="200" />
-                <DataGridTextColumn Header="Protocol" Binding="{Binding Protocol, Converter={StaticResource EnumDesc}}" Width="110" />
-                <DataGridTextColumn Header="Manufacturer" Binding="{Binding Manufacturer, Converter={StaticResource EnumDesc}}" Width="120" />
-                <DataGridTextColumn Header="Model" Binding="{Binding Model, Converter={StaticResource EnumDesc}}" Width="120" />
-                <DataGridTextColumn Header="Host" Binding="{Binding Host}" Width="140" />
-                <DataGridTextColumn Header="Port" Binding="{Binding Port}" Width="60" />
-                <DataGridTextColumn Header="Poll (ms)" Binding="{Binding PollIntervalMs}" Width="80" />
-                <DataGridTextColumn Header="Mode" Binding="{Binding CaptureMode, Converter={StaticResource EnumDesc}}" Width="100" />
-                <DataGridCheckBoxColumn Header="Capture" Binding="{Binding IsCaptureEnabled}" Width="70" />
-                <DataGridCheckBoxColumn Header="Monitor" Binding="{Binding IsMonitorEnabled}" Width="70" />
-                <DataGridTemplateColumn Header="" Width="*">
+                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" MinWidth="150" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Protocol" Binding="{Binding Protocol, Converter={StaticResource EnumDesc}}" Width="90" MinWidth="80" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Manufacturer" Binding="{Binding Manufacturer, Converter={StaticResource EnumDesc}}" Width="100" MinWidth="90" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Model" Binding="{Binding Model, Converter={StaticResource EnumDesc}}" Width="105" MinWidth="95" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Host" Binding="{Binding Host}" Width="105" MinWidth="90" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Port" Binding="{Binding Port}" Width="55" MinWidth="50" />
+                <DataGridTextColumn Header="Poll (ms)" Binding="{Binding PollIntervalMs}" Width="70" MinWidth="65" />
+                <DataGridTextColumn Header="Mode" Binding="{Binding CaptureMode, Converter={StaticResource EnumDesc}}" Width="80" MinWidth="70" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridCheckBoxColumn Header="Capture" Binding="{Binding IsCaptureEnabled}" Width="60" MinWidth="55" CanUserResize="False" />
+                <DataGridCheckBoxColumn Header="Monitor" Binding="{Binding IsMonitorEnabled}" Width="60" MinWidth="55" CanUserResize="False" />
+                <DataGridTemplateColumn Header="Actions" Width="225" MinWidth="225" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <ui:Button Content="Configure" Icon="{ui:SymbolIcon Settings24}" Appearance="Secondary" Margin="0,0,6,0" Padding="8,4"
+                                <ui:Button Content="Configure" Icon="{ui:SymbolIcon Settings24}" Appearance="Secondary" Margin="0,0,6,0" Padding="8,4" MinWidth="105"
                                            Command="{Binding DataContext.ConfigureCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
                                 <ui:Button Icon="{ui:SymbolIcon Edit24}" ToolTip="Edit connection" Appearance="Secondary" Margin="0,0,6,0" Padding="8,4"
                                            Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"

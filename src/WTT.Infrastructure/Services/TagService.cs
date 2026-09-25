@@ -103,6 +103,15 @@ public sealed class TagService : ITagService
         entity.MinimumWriteIntervalMs = Math.Clamp(tag.MinimumWriteIntervalMs, 250, 60000);
         entity.QueryId = tag.QueryId;
         entity.QueryColumnId = tag.QueryColumnId;
+        // ---- Alarm Threshold Configuration ----
+        entity.IsAlarmEnabled = tag.IsAlarmEnabled;
+        entity.AlarmMinThreshold = tag.AlarmMinThreshold;
+        entity.AlarmMaxThreshold = tag.AlarmMaxThreshold;
+        entity.AlarmDeadband = tag.AlarmDeadband;
+        entity.AlarmOnDelaySeconds = tag.AlarmOnDelaySeconds;
+        entity.AlarmOffDelaySeconds = tag.AlarmOffDelaySeconds;
+        entity.AlarmPriority = tag.AlarmPriority;
+        entity.AlarmDescription = tag.AlarmDescription;
         await db.SaveChangesAsync(ct);
 
         await _audit.RecordAsync("SaveTag", $"{device.Name}/{entity.Name}", $"{entity.Kind} {entity.DataType} {entity.PlcAddress}", true, ct);

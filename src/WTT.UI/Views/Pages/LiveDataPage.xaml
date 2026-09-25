@@ -34,10 +34,21 @@
             </StackPanel>
         </Border>
 
-        <DataGrid Grid.Row="2" Style="{StaticResource Grid}" ItemsSource="{Binding Rows}">
+        <DataGrid Grid.Row="2" Style="{StaticResource Grid}" ItemsSource="{Binding Rows}"
+                  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1"
+                  CanUserResizeColumns="True" CanUserReorderColumns="False">
+            <DataGrid.Resources>
+                <Style TargetType="TextBlock" x:Key="TrimCell">
+                    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                    <Setter Property="VerticalAlignment" Value="Center" />
+                </Style>
+            </DataGrid.Resources>
             <DataGrid.RowStyle>
                 <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
                     <Style.Triggers>
+                        <DataTrigger Binding="{Binding HasActiveAlarm}" Value="True">
+                            <Setter Property="Background" Value="#26FF3B30" />
+                        </DataTrigger>
                         <DataTrigger Binding="{Binding Changed}" Value="True">
                             <DataTrigger.EnterActions>
                                 <BeginStoryboard>
@@ -47,26 +58,94 @@
                                 </BeginStoryboard>
                             </DataTrigger.EnterActions>
                         </DataTrigger>
+                        <DataTrigger Binding="{Binding HasActiveAlarm}" Value="True">
+                            <Setter Property="ToolTip" Value="{Binding AlarmStatus}" />
+                        </DataTrigger>
                     </Style.Triggers>
                     <Setter Property="Background"><Setter.Value><SolidColorBrush Color="Transparent" /></Setter.Value></Setter>
                 </Style>
             </DataGrid.RowStyle>
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="" Width="30">
+                <DataGridTemplateColumn Header="" Width="28" MinWidth="28" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <Ellipse Style="{StaticResource Dot}" Width="9" Height="9" Margin="0" HorizontalAlignment="Center" Fill="{Binding Quality, Converter={StaticResource QualityToBrush}}" ToolTip="{Binding Quality}" />
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Tag" Binding="{Binding Name}" Width="220" />
-                <DataGridTextColumn Header="Address / kind" Binding="{Binding Address}" Width="180" />
-                <DataGridTextColumn Header="Type" Binding="{Binding DataType}" Width="70" />
-                <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="160" FontFamily="Consolas" FontWeight="SemiBold" />
-                <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="60" />
-                <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="100" />
-                <DataGridTextColumn Header="Updated" Binding="{Binding TimestampUtc, Converter={StaticResource UtcToLocal}, ConverterParameter=HH:mm:ss.fff}" Width="110" />
-                <DataGridTemplateColumn Header="" Width="*">
+                <DataGridTextColumn Header="Tag" Binding="{Binding Name}" Width="*" MinWidth="140" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Address / kind" Binding="{Binding Address}" Width="110" MinWidth="90" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Type" Binding="{Binding DataType}" Width="65" MinWidth="60" />
+                <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="100" MinWidth="85" FontFamily="Consolas" FontWeight="SemiBold">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasActiveAlarm}" Value="True">
+                                    <Setter Property="Foreground" Value="#FFFF3B30" />
+                                    <Setter Property="FontWeight" Value="Bold" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="50" MinWidth="45" />
+                <DataGridTextColumn Header="Min" Binding="{Binding MinDisplay}" Width="60" MinWidth="55" />
+                <DataGridTextColumn Header="Max" Binding="{Binding MaxDisplay}" Width="60" MinWidth="55" />
+                <DataGridTemplateColumn Header="Alarm" Width="85" MinWidth="75">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Text="—" Foreground="{DynamicResource TextFillColorTertiaryBrush}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsAlarmEnabled}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <Border CornerRadius="4" Padding="6,1" Visibility="{Binding IsAlarmEnabled, Converter={StaticResource BoolToVis}}">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="Transparent" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasActiveAlarm}" Value="True">
+                                                    <Setter Property="Background" Value="#FFFF3B30" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsAlarmEnabled}" Value="True">
+                                                    <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding HasActiveAlarm}" Value="True">
+                                                    <Setter Property="Background" Value="#FFFF3B30" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding AlarmStatus}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasActiveAlarm}" Value="True">
+                                                            <Setter Property="Foreground" Value="White" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <TextBlock Text="{Binding AlarmPriority, StringFormat= ({0})}" FontSize="10" Margin="3,0,0,0" VerticalAlignment="Center" Opacity="0.8" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="75" MinWidth="65" />
+                <DataGridTextColumn Header="Updated" Binding="{Binding TimestampUtc, Converter={StaticResource UtcToLocal}, ConverterParameter=HH:mm:ss.fff}" Width="100" MinWidth="90" />
+                <DataGridTemplateColumn Header="" Width="80" MinWidth="80" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <ui:Button Content="Write" Icon="{ui:SymbolIcon Edit24}" Padding="8,2" HorizontalAlignment="Right" Appearance="Secondary"

@@ -88,11 +88,35 @@ public sealed class AlarmOptions
     /// <summary>Whether audible beep is enabled for Critical/High alarms. User can toggle silent.</summary>
     public bool BeepEnabled { get; set; } = true;
 
-    /// <summary>Future extensibility: Email notifications enabled (plug EmailAlarmNotifier).</summary>
+    /// <summary>Email notifications enabled for Critical/High priority alarms.</summary>
     public bool EmailEnabled { get; set; } = false;
 
-    public string? EmailSmtpHost { get; set; }
-    public int EmailSmtpPort { get; set; } = 587;
+    /// <summary>SMTP server hostname or IP address.</summary>
+    public string? SmtpHost { get; set; }
+
+    /// <summary>SMTP server port (default: 587 for TLS, 25 for unencrypted, 465 for SSL).</summary>
+    public int? SmtpPort { get; set; } = 587;
+
+    /// <summary>Use SSL/TLS for SMTP connection.</summary>
+    public bool? SmtpUseSsl { get; set; } = true;
+
+    /// <summary>SMTP authentication username (leave null for anonymous).</summary>
+    public string? SmtpUsername { get; set; }
+
+    /// <summary>SMTP authentication password.</summary>
+    public string? SmtpPassword { get; set; }
+
+    /// <summary>Email sender address (From field).</summary>
     public string? EmailFrom { get; set; }
+
+    /// <summary>Comma-separated list of recipient email addresses.</summary>
     public string? EmailToCsv { get; set; }
+
+    // Legacy properties for backward compatibility
+    [Obsolete("Use SmtpHost instead")]
+    public string? EmailSmtpHost { get => SmtpHost; set => SmtpHost = value; }
+
+    [Obsolete("Use SmtpPort instead")]
+    public int EmailSmtpPort { get => SmtpPort ?? 587; set => SmtpPort = value; }
 }
+

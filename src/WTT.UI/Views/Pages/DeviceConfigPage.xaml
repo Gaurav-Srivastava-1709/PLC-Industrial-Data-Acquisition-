@@ -46,41 +46,134 @@
                             <ui:Button Content="Add PLC tag" Icon="{ui:SymbolIcon Add24}" Appearance="Primary" Command="{Binding AddTagCommand}" CommandParameter="Plc" />
                         </StackPanel>
                     </Grid>
-                    <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding PlcTags}" SelectedItem="{Binding SelectedPlcTag}">
+                    <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding PlcTags}" SelectedItem="{Binding SelectedPlcTag}"
+                              HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1"
+                              CanUserResizeColumns="True" CanUserReorderColumns="False">
+                        <DataGrid.Resources>
+                            <Style TargetType="TextBlock" x:Key="TrimCell">
+                                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                <Setter Property="VerticalAlignment" Value="Center" />
+                            </Style>
+                        </DataGrid.Resources>
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+                                <Setter Property="Background" Value="Transparent" />
+                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <Style.Triggers>
+                                    <!-- Industry highlight: alarm enabled but value not parsable is ignored, otherwise red tint when out-of-range -->
+                                    <DataTrigger Binding="{Binding IsAlarmEnabled}" Value="True">
+                                        <Setter Property="ToolTip" Value="{Binding AlarmDescription}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
                         <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="On" Width="44">
+                            <DataGridTemplateColumn Header="On" Width="48" MinWidth="48">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <CheckBox IsChecked="{Binding IsSelected, Mode=OneWay}" HorizontalAlignment="Center"
+                                        <CheckBox HorizontalAlignment="Center" VerticalAlignment="Center"
                                                   Command="{Binding DataContext.ToggleSelectedCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
+                                                  IsChecked="{Binding IsSelected, Mode=OneWay}"
                                                   IsEnabled="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}}" />
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Tag name" Binding="{Binding Name}" Width="200" />
-                            <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" Width="140" />
-                            <DataGridTextColumn Header="Address" Binding="{Binding PlcAddress}" Width="160" />
-                            <DataGridTextColumn Header="Type" Binding="{Binding DataType}" Width="70" />
-                            <DataGridTextColumn Header="Reg" Binding="{Binding RegisterType, Converter={StaticResource EnumDesc}}" Width="110" />
-                            <DataGridTextColumn Header="Count" Binding="{Binding ElementCount}" Width="55" />
-                            <DataGridTextColumn Header="Scale" Binding="{Binding ScaleFactor}" Width="60" />
-                            <DataGridTextColumn Header="Unit" Binding="{Binding EngineeringUnit}" Width="60" />
-                            <DataGridTemplateColumn Header="Current" Width="120">
+                            <DataGridTextColumn Header="Tag name" Binding="{Binding Name}" Width="*" MinWidth="130" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" Width="80" MinWidth="60" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTextColumn Header="Address" Binding="{Binding PlcAddress}" Width="75" MinWidth="65" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTextColumn Header="Type" Binding="{Binding DataType}" Width="65" MinWidth="60" />
+                            <DataGridTextColumn Header="Reg" Binding="{Binding RegisterType, Converter={StaticResource EnumDesc}}" Width="135" MinWidth="110" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTextColumn Header="Count" Binding="{Binding ElementCount}" Width="50" MinWidth="45" />
+                            <DataGridTextColumn Header="Scale" Binding="{Binding ScaleFactor}" Width="55" MinWidth="50" />
+                            <DataGridTextColumn Header="Unit" Binding="{Binding EngineeringUnit}" Width="50" MinWidth="45" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTextColumn Header="Min" Binding="{Binding AlarmMinThreshold, TargetNullValue=—}" Width="60" MinWidth="55">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsAlarmEnabled}" Value="False">
+                                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                <Setter Property="Text" Value="—" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Max" Binding="{Binding AlarmMaxThreshold, TargetNullValue=—}" Width="60" MinWidth="55">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsAlarmEnabled}" Value="False">
+                                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                <Setter Property="Text" Value="—" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTemplateColumn Header="Alarm" Width="85" MinWidth="75">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <StackPanel Orientation="Horizontal">
-                                            <Ellipse Style="{StaticResource Dot}" Width="8" Height="8" Fill="{Binding CurrentQuality, Converter={StaticResource QualityToBrush}}" />
-                                            <TextBlock Text="{Binding CurrentValue}" VerticalAlignment="Center" />
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <TextBlock Text="—" Foreground="{DynamicResource TextFillColorTertiaryBrush}" HorizontalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsAlarmEnabled}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <Border CornerRadius="4" Padding="6,1" Visibility="{Binding IsAlarmEnabled, Converter={StaticResource BoolToVis}}">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding AlarmPriority}" Value="Critical">
+                                                                <Setter Property="Background" Value="#33FF3B30" />
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding AlarmPriority}" Value="High">
+                                                                <Setter Property="Background" Value="#33FFA500" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="⚠" Margin="0,0,3,0" VerticalAlignment="Center" FontSize="11" />
+                                                    <TextBlock Text="{Binding AlarmPriority}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Border>
                                         </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="" Width="*">
+                            <DataGridTemplateColumn Header="Current" Width="90" MinWidth="80">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Ellipse Style="{StaticResource Dot}" Width="8" Height="8" Fill="{Binding CurrentQuality, Converter={StaticResource QualityToBrush}}" />
+                                            <TextBlock Text="{Binding CurrentValue}" VerticalAlignment="Center" FontWeight="SemiBold">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsAlarmEnabled}" Value="True">
+                                                                <!-- Highlight is handled via RowStyle below, keep text readable -->
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Header="" Width="80" MinWidth="80" CanUserResize="False">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}">
-                                            <ui:Button Style="{StaticResource RowBtn}" Icon="{ui:SymbolIcon Edit24}" Command="{Binding DataContext.EditTagCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
-                                            <ui:Button Style="{StaticResource RowBtn}" Icon="{ui:SymbolIcon Delete24}" Appearance="Danger" Command="{Binding DataContext.DeleteTagCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                                            <ui:Button Style="{StaticResource RowBtn}" Icon="{ui:SymbolIcon Edit24}" ToolTip="Edit tag" Command="{Binding DataContext.EditTagCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                                            <ui:Button Style="{StaticResource RowBtn}" Icon="{ui:SymbolIcon Delete24}" ToolTip="Delete tag" Appearance="Danger" Command="{Binding DataContext.DeleteTagCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
                                         </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>

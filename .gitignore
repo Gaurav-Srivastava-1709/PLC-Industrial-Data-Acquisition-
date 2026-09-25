@@ -11,3 +11,9 @@ obj/
 *.log
 Logs/
 artifacts/
+
+# Node - ignore accidental npm installs
+node_modules/
+package.json
+package-lock.json
+

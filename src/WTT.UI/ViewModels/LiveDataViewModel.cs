@@ -143,6 +143,10 @@ public partial class LiveTagRow : ObservableObject
         Kind = tag.Kind;
         DataType = tag.DataType.ToString();
         Unit = tag.EngineeringUnit;
+        AlarmMinThreshold = tag.AlarmMinThreshold;
+        AlarmMaxThreshold = tag.AlarmMaxThreshold;
+        IsAlarmEnabled = tag.IsAlarmEnabled;
+        AlarmPriority = tag.AlarmPriority;
     }
 
     public DeviceTag Tag { get; }
@@ -152,6 +156,26 @@ public partial class LiveTagRow : ObservableObject
     public string DataType { get; }
     public string? Unit { get; }
     public bool IsWritable => Kind != TagKind.Plc || Tag.IsWriteEnabled;
+    public double? AlarmMinThreshold { get; }
+    public double? AlarmMaxThreshold { get; }
+    public bool IsAlarmEnabled { get; }
+    public AlarmPriority AlarmPriority { get; }
+    public string MinDisplay => AlarmMinThreshold.HasValue ? AlarmMinThreshold.Value.ToString("0.##") : "—";
+    public string MaxDisplay => AlarmMaxThreshold.HasValue ? AlarmMaxThreshold.Value.ToString("0.##") : "—";
+    public string AlarmStatus
+    {
+        get
+        {
+            if (!IsAlarmEnabled) return "—";
+            if (!double.TryParse(Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var v)) return "OK";
+            if (AlarmMaxThreshold.HasValue && v > AlarmMaxThreshold.Value) return "HIGH";
+            if (AlarmMinThreshold.HasValue && v < AlarmMinThreshold.Value) return "LOW";
+            return "OK";
+        }
+    }
+    public bool HasActiveAlarm => AlarmStatus == "HIGH" || AlarmStatus == "LOW";
+    public bool IsHighAlarm => AlarmStatus == "HIGH";
+    public bool IsLowAlarm => AlarmStatus == "LOW";
 
     [ObservableProperty] private string? _value;
     [ObservableProperty] private TagQuality _quality = TagQuality.Uncertain;
@@ -164,6 +188,10 @@ public partial class LiveTagRow : ObservableObject
         Value = v.Value;
         Quality = v.Quality;
         TimestampUtc = v.TimestampUtc;
+        OnPropertyChanged(nameof(AlarmStatus));
+        OnPropertyChanged(nameof(HasActiveAlarm));
+        OnPropertyChanged(nameof(IsHighAlarm));
+        OnPropertyChanged(nameof(IsLowAlarm));
     }
 }
 

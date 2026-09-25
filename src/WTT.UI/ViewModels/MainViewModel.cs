@@ -16,6 +16,7 @@ public partial class MainViewModel : ViewModelBase
     private readonly INavigationService _navigation;
     private readonly IAlarmService _alarmService;
     private readonly ISnackbarService _snackbarService;
+    private readonly System.Windows.Threading.DispatcherTimer _syncTimer;
 
     public MainViewModel(ICurrentUserService currentUser, ShellNavigator shell, Func<ChangePasswordViewModel> changePasswordFactory, INavigationService navigation,
         IAlarmService alarmService, ISnackbarService snackbarService,
@@ -32,9 +33,15 @@ public partial class MainViewModel : ViewModelBase
         
         _alarmService.AlarmTriggered += OnAlarmTriggered;
         _alarmService.AlarmCleared += OnAlarmCleared;
+        _alarmService.AlarmCountChanged += (_, _) => _ = RefreshAlarmCountAsync();
         
         RefreshUser();
         _ = RefreshAlarmCountAsync();
+
+        // UI Cross-Process Sync (Polls DB for new alarms created by the background service)
+        _syncTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        _syncTimer.Tick += (_, _) => _ = _alarmService.SyncCrossProcessAlarmsAsync(CancellationToken.None);
+        _syncTimer.Start();
     }
 
     [ObservableProperty] private string _displayName = string.Empty;
@@ -87,8 +94,8 @@ public partial class MainViewModel : ViewModelBase
     private async Task RefreshAlarmCountAsync()
     {
         var count = await _alarmService.GetActiveAlarmCountAsync(CancellationToken.None);
-        System.Windows.Application.Current.Dispatcher.Invoke(() => { ActiveAlarmCount = count; OnPropertyChanged(nameof(HasActiveAlarms)); });
-        try { var beep = await _alarmService.GetBeepEnabledAsync(CancellationToken.None); System.Windows.Application.Current.Dispatcher.Invoke(() => IsBeepEnabled = beep); } catch { }
+        OnUi(() => { ActiveAlarmCount = count; OnPropertyChanged(nameof(HasActiveAlarms)); });
+        try { var beep = await _alarmService.GetBeepEnabledAsync(CancellationToken.None); OnUi(() => IsBeepEnabled = beep); } catch { }
     }
 
     partial void OnIsBeepEnabledChanged(bool value)
@@ -106,12 +113,8 @@ public partial class MainViewModel : ViewModelBase
     private void OnAlarmTriggered(object? sender, WTT.Domain.ValueObjects.AlarmTriggeredMessage msg)
     {
         _ = RefreshAlarmCountAsync();
-        // Beep is handled by InAppAlarmNotifier (respects IsBeepEnabled). Here also beep if not already (fallback)
-        if (IsBeepEnabled && (msg.Priority == WTT.Domain.Enums.AlarmPriority.Critical || msg.Priority == WTT.Domain.Enums.AlarmPriority.High))
-        {
-            try { System.Media.SystemSounds.Exclamation.Play(); } catch { }
-        }
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+        // Beep is handled by InAppAlarmNotifier (respects IsBeepEnabled).
+        OnUi(() =>
         {
             _snackbarService.Show(
                 "Alarm Triggered",

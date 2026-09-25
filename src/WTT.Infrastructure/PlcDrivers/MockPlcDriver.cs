@@ -1,4 +1,9 @@
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
+using System.Threading;
 using WTT.Domain.Common;
 using WTT.Domain.Entities;
 using WTT.Domain.Enums;
@@ -14,8 +19,104 @@ namespace WTT.Infrastructure.PlcDrivers;
 /// </summary>
 public sealed class MockPlcDriver : IPlcDriver
 {
-    private static readonly ConcurrentDictionary<string, object> WrittenValues = new();
+    // Fix: Path changed to CommonApplicationData (C:\ProgramData) so both Service (Session 0) and UI (Session 1) see the exact same file
+    private static readonly string StateFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "WTT", "WTT_MockPlcState.json");
     private static readonly DateTime Epoch = DateTime.UtcNow;
+
+    // Named Mutex — cross-process lock. Dono processes (UI + Service) me ek hi naam ka Mutex hota hai.
+    // Jab ek process iske andar hai, doosra wait karega. Ye TOCTOU race ko 100% prevent karta hai.
+    private static readonly Mutex StateMutex = new(false, @"Global\WTT_MockPlcStateMutex");
+
+    // Read karta hai JSON file se — Mutex ke andar call hota hai (seedha call mat karo)
+    private static Dictionary<string, string> ReadSharedStateUnsafe()
+    {
+        try
+        {
+            if (File.Exists(StateFilePath))
+            {
+                using var fs = new FileStream(StateFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                using var sr = new StreamReader(fs);
+                var json = sr.ReadToEnd();
+                if (!string.IsNullOrWhiteSpace(json))
+                {
+                    return JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new();
+                }
+            }
+        }
+        catch { /* File read error — return empty state */ }
+        return new Dictionary<string, string>();
+    }
+
+    // Ye safe wrapper hai — Mutex acquire karke Read karta hai
+    private static Dictionary<string, string> ReadSharedState()
+    {
+        try
+        {
+            // 500ms tak Mutex ka wait karega, uske baad skip kar dega (deadlock prevention)
+            if (!StateMutex.WaitOne(500)) return new Dictionary<string, string>();
+            try
+            {
+                return ReadSharedStateUnsafe();
+            }
+            finally
+            {
+                StateMutex.ReleaseMutex();
+            }
+        }
+        catch (AbandonedMutexException)
+        {
+            // Agar doosra process crash hua tha to Mutex "abandoned" milta hai — par usable rehta hai
+            return ReadSharedStateUnsafe();
+        }
+    }
+
+    // Write karta hai — Pura Read → Modify → Write cycle ek hi Mutex lock ke andar hota hai
+    // Isse 2 processes kabhi bhi ek doosre ki write overwrite nahi kar sakte
+    private static void WriteSharedState(string key, string value)
+    {
+        try
+        {
+            if (!StateMutex.WaitOne(500)) return; // Deadlock prevention — 500ms se zyada wait nahi karega
+            try
+            {
+                // Step 1: Purana data padho
+                var state = ReadSharedStateUnsafe();
+                // Step 2: Naya key-value add/update karo
+                state[key] = value;
+                var json = JsonSerializer.Serialize(state);
+
+                // Step 3: Directory bana lo agar nahi hai
+                var dir = Path.GetDirectoryName(StateFilePath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                // Step 4: File me atomically likh do (FileShare.None = exclusive lock)
+                using var fs = new FileStream(StateFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
+                using var sw = new StreamWriter(fs);
+                sw.Write(json);
+            }
+            finally
+            {
+                StateMutex.ReleaseMutex();
+            }
+        }
+        catch (AbandonedMutexException)
+        {
+            // Crash recovery — try once more without lock
+            try
+            {
+                var state = ReadSharedStateUnsafe();
+                state[key] = value;
+                var dir = Path.GetDirectoryName(StateFilePath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                File.WriteAllText(StateFilePath, JsonSerializer.Serialize(state));
+            }
+            catch { /* Best effort */ }
+        }
+        catch { /* Ignore other errors for simulator resilience */ }
+    }
 
     public MockPlcDriver(Device device) => Device = device;
 
@@ -41,6 +142,8 @@ public sealed class MockPlcDriver : IPlcDriver
     {
         var t = (DateTime.UtcNow - Epoch).TotalSeconds;
         var list = new List<TagReadResult>(tags.Count);
+        var sharedState = ReadSharedState();
+
         foreach (var tag in tags)
         {
             if (string.IsNullOrWhiteSpace(tag.PlcAddress))
@@ -49,10 +152,35 @@ public sealed class MockPlcDriver : IPlcDriver
                 continue;
             }
             var key = Key(tag);
-            if (WrittenValues.TryGetValue(key, out var written))
+            if (sharedState.TryGetValue(key, out var writtenStr))
             {
-                list.Add(TagReadResult.Good(tag, written));
-                continue;
+                var parts = writtenStr.Split('|');
+                var valToParse = parts[0];
+                bool isExpired = false;
+                
+                if (parts.Length > 1 && long.TryParse(parts[1], out var ticks))
+                {
+                    if (DateTime.UtcNow.Ticks > ticks) isExpired = true;
+                }
+                else if (parts.Length == 1)
+                {
+                    // For backward compatibility with old writes, expire them immediately so they don't get stuck forever
+                    isExpired = true;
+                }
+
+                if (!isExpired)
+                {
+                    try
+                    {
+                        var typed = TagValueFormatter.ParseForWrite(tag.DataType, valToParse);
+                        list.Add(TagReadResult.Good(tag, typed));
+                        continue;
+                    }
+                    catch
+                    {
+                        // Fallback to simulation if parsing fails
+                    }
+                }
             }
             list.Add(TagReadResult.Good(tag, Simulate(tag, t)));
         }
@@ -62,7 +190,10 @@ public sealed class MockPlcDriver : IPlcDriver
     public Task WriteAsync(TagWriteRequest request, CancellationToken cancellationToken)
     {
         var typed = TagValueFormatter.ParseForWrite(request.Tag.DataType, request.Value); // throws FormatException on bad input
-        WrittenValues[Key(request.Tag)] = typed;
+        // UI se aayi value ko 15 second ke expiry ke sath save karte hain (Force Timeout)
+        var valStr = Convert.ToString(typed, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
+        var expiryTicks = DateTime.UtcNow.AddSeconds(15).Ticks;
+        WriteSharedState(Key(request.Tag), $"{valStr}|{expiryTicks}");
         return Task.CompletedTask;
     }
 

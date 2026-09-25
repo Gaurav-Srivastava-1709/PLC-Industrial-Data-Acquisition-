@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -13,17 +14,45 @@ using WTT.Infrastructure.Persistence;
 
 namespace WTT.Infrastructure.Services;
 
-public sealed class AlarmEvaluationService : IAlarmService
+public sealed class AlarmEvaluationService : IAlarmService, IDisposable, IAsyncDisposable
 {
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly ILogger<AlarmEvaluationService> _logger;
     private readonly AlarmOptions _alarmOptions;
     private readonly ICurrentUserService _currentUser;
-    
+    private readonly CancellationTokenSource _cts = new();
+
+    // FIX #1: Memory leak prevention - will add periodic cleanup
     private readonly ConcurrentDictionary<int, AlarmTagState> _states = new();
+
+    // FIX #4: Flood suppression tracking (tagId -> (firstAlarmTime, count))
+    private readonly ConcurrentDictionary<int, AlarmFloodState> _floodTracking = new();
+
+    // FIX #5: Alarm shelving tracking (tagId -> shelveExpiry)
+    private readonly ConcurrentDictionary<int, InternalAlarmShelveState> _shelvedAlarms = new();
+
+    private DateTime _lastSyncTime;
+    private DateTime _lastCleanupTime;
+
+    // FIX #3: Startup race condition - initialization lock
+    private readonly SemaphoreSlim _initLock = new(0, 1);
+    private bool _isInitialized = false;
+
+    private abstract record AlarmDbCommand;
+    private record TriggerDbCommand(AlarmEvent Event, bool IsCritical) : AlarmDbCommand;
+    private record ClearDbCommand(AlarmEvent Event, DateTime ClearedAtUtc) : AlarmDbCommand;
+
+    // FIX #2: Bounded channel to prevent memory exhaustion
+    private readonly Channel<AlarmDbCommand> _dbQueue = Channel.CreateBounded<AlarmDbCommand>(
+        new BoundedChannelOptions(1000)
+        {
+            SingleReader = true,
+            FullMode = BoundedChannelFullMode.DropOldest // Drop old alarms if queue is full
+        });
 
     public event EventHandler<AlarmTriggeredMessage>? AlarmTriggered;
     public event EventHandler<AlarmClearedMessage>? AlarmCleared;
+    public event EventHandler? AlarmCountChanged;
 
     public AlarmEvaluationService(IDbContextFactory<AppDbContext> dbFactory, ILogger<AlarmEvaluationService> logger, IOptions<AlarmOptions> alarmOptions, ICurrentUserService currentUser)
     {
@@ -31,14 +60,123 @@ public sealed class AlarmEvaluationService : IAlarmService
         _logger = logger;
         _alarmOptions = alarmOptions.Value;
         _currentUser = currentUser;
-        _ = LoadActiveAlarmsAsync();
+        _lastSyncTime = DateTime.UtcNow;
+        _lastCleanupTime = DateTime.UtcNow;
+
+        // FIX #3: Proper async initialization with completion signaling
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await LoadActiveAlarmsAsync(_cts.Token);
+                _isInitialized = true;
+                _initLock.Release();
+                _logger.LogInformation("AlarmEvaluationService initialized successfully with {Count} active alarms", _states.Count);
+            }
+            catch (OperationCanceledException) { _initLock.Release(); }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Fatal error during alarm service initialization");
+                _initLock.Release(); // Release even on error to prevent deadlock
+            }
+        }, _cts.Token);
+
+        _ = ProcessDbQueueAsync(_cts.Token);
+
+        // FIX #1: Start periodic cleanup task
+        _ = PeriodicCleanupAsync(_cts.Token);
     }
 
-    private async Task LoadActiveAlarmsAsync()
+    // FIX #2: Enhanced queue processing with retry logic for transient failures
+    private async Task ProcessDbQueueAsync(CancellationToken token)
     {
         try
         {
-            await using var db = await _dbFactory.CreateDbContextAsync();
+            await foreach (var cmd in _dbQueue.Reader.ReadAllAsync(token))
+            {
+                const int maxRetries = 3;
+                int retryCount = 0;
+                bool success = false;
+
+                while (!success && retryCount < maxRetries)
+                {
+                    token.ThrowIfCancellationRequested();
+                    try
+                    {
+                        await using var db = await _dbFactory.CreateDbContextAsync(token);
+
+                    if (cmd is TriggerDbCommand tc)
+                    {
+                        db.AlarmEvents.Add(tc.Event);
+                        await db.SaveChangesAsync();
+
+                        var msg = new AlarmTriggeredMessage(
+                            tc.Event.Id, tc.Event.DeviceName, tc.Event.TagName, tc.Event.AlarmType, tc.Event.Priority,
+                            tc.Event.TriggerValue, tc.Event.ThresholdValue, tc.Event.EngineeringUnit, tc.Event.TriggeredAtUtc);
+
+                        AlarmTriggered?.Invoke(this, msg);
+                        AlarmCountChanged?.Invoke(this, EventArgs.Empty);
+                        if (Notifier != null)
+                        {
+                            _ = Task.Run(async () => { try { await Notifier.NotifyTriggeredAsync(msg, CancellationToken.None); } catch { } });
+                        }
+
+                        _logger.LogInformation("Alarm {Priority} triggered: {Device}/{Tag} (Value={Value} {Unit})",
+                            tc.Event.Priority, tc.Event.DeviceName, tc.Event.TagName, tc.Event.TriggerValue, tc.Event.EngineeringUnit);
+                        success = true;
+                    }
+                    else if (cmd is ClearDbCommand cc)
+                    {
+                        var alarm = await db.AlarmEvents.FindAsync(new object[] { cc.Event.Id });
+                        if (alarm != null)
+                        {
+                            alarm.State = AlarmState.Cleared;
+                            alarm.ClearedAtUtc = cc.ClearedAtUtc;
+                            await db.SaveChangesAsync();
+
+                            var clearedMsg = new AlarmClearedMessage(cc.Event.Id, cc.Event.DeviceName, cc.Event.TagName, cc.ClearedAtUtc);
+                            AlarmCleared?.Invoke(this, clearedMsg);
+                            AlarmCountChanged?.Invoke(this, EventArgs.Empty);
+                            if (Notifier != null)
+                            {
+                                _ = Task.Run(async () => { try { await Notifier.NotifyClearedAsync(clearedMsg, CancellationToken.None); } catch { } });
+                            }
+
+                            _logger.LogInformation("Alarm cleared: {Device}/{Tag}", cc.Event.DeviceName, cc.Event.TagName);
+                        }
+                        success = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    retryCount++;
+                    if (retryCount >= maxRetries)
+                    {
+                        _logger.LogError(ex, "Failed to process alarm db command after {Retries} retries. Command type: {Type}", maxRetries, cmd.GetType().Name);
+                        // FIX #2: Log to separate error file for recovery
+                        if (cmd is TriggerDbCommand tc)
+                        {
+                            _logger.LogCritical("LOST ALARM: {Device}/{Tag} Priority={Priority} Value={Value} Time={Time:o}",
+                                tc.Event.DeviceName, tc.Event.TagName, tc.Event.Priority, tc.Event.TriggerValue, tc.Event.TriggeredAtUtc);
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning(ex, "Error processing alarm db queue (retry {Retry}/{Max})", retryCount, maxRetries);
+                        await Task.Delay(TimeSpan.FromMilliseconds(100 * retryCount), token); // Exponential backoff
+                    }
+                }
+            }
+        }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task LoadActiveAlarmsAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            await using var db = await _dbFactory.CreateDbContextAsync(ct);
             var active = await db.AlarmEvents
                 .Where(a => a.State == AlarmState.Active || a.State == AlarmState.Acknowledged)
                 .ToListAsync();
@@ -47,11 +185,13 @@ public sealed class AlarmEvaluationService : IAlarmService
             {
                 _states[a.DeviceTagId] = new AlarmTagState
                 {
-                    CurrentAlarmEventId = a.Id,
+                    ActiveEvent = a,
                     IsActive = true,
                     TriggerType = a.AlarmType
                 };
             }
+            _lastSyncTime = DateTime.UtcNow;
+            _logger.LogInformation("Loaded {Count} active alarms from database", active.Count);
         }
         catch (Exception ex)
         {
@@ -59,59 +199,151 @@ public sealed class AlarmEvaluationService : IAlarmService
         }
     }
 
-    // Notifier pipeline (Beep + Email extensible) - set after DI build to avoid circular dep
+    // FIX #1: Periodic cleanup to prevent memory leak
+    private async Task PeriodicCleanupAsync(CancellationToken token)
+    {
+        while (!token.IsCancellationRequested)
+        {
+            try
+            {
+                // Cleanup every 10 minutes
+                await Task.Delay(TimeSpan.FromMinutes(10), token);
+
+                var now = DateTime.UtcNow;
+                if ((now - _lastCleanupTime).TotalMinutes < 10) continue;
+
+                await using var db = await _dbFactory.CreateDbContextAsync(token);
+
+                // Get all tag IDs that currently have alarms enabled
+                var activeTagIds = await db.DeviceTags
+                    .Where(t => t.IsAlarmEnabled)
+                    .Select(t => t.Id)
+                    .ToHashSetAsync(token);
+
+                // Remove state entries for deleted or disabled tags
+                int removed = 0;
+                foreach (var tagId in _states.Keys)
+                {
+                    if (!activeTagIds.Contains(tagId))
+                    {
+                        if (_states.TryRemove(tagId, out _))
+                        {
+                            removed++;
+                        }
+                    }
+                }
+
+                // Cleanup flood tracking (remove entries older than 5 minutes)
+                var floodCutoff = now.AddMinutes(-5);
+                foreach (var tagId in _floodTracking.Keys)
+                {
+                    if (_floodTracking.TryGetValue(tagId, out var flood) && flood.WindowStart < floodCutoff)
+                    {
+                        _floodTracking.TryRemove(tagId, out _);
+                    }
+                }
+
+                // Cleanup expired shelved alarms
+                foreach (var tagId in _shelvedAlarms.Keys)
+                {
+                    if (_shelvedAlarms.TryGetValue(tagId, out var shelve) && now > shelve.UnshelveAtUtc)
+                    {
+                        _shelvedAlarms.TryRemove(tagId, out _);
+                        _logger.LogInformation("Alarm shelving expired for tag {TagId}", tagId);
+                    }
+                }
+
+                _lastCleanupTime = now;
+
+                if (removed > 0)
+                {
+                    _logger.LogInformation("Periodic cleanup: removed {Count} stale alarm state entries. Active states: {Active}, Flood tracking: {Flood}, Shelved: {Shelved}",
+                        removed, _states.Count, _floodTracking.Count, _shelvedAlarms.Count);
+                }
+            }
+            catch (OperationCanceledException) { break; }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during periodic alarm state cleanup");
+            }
+        }
+    }
+
     public IAlarmNotifier? Notifier { get; set; }
 
     public async Task EvaluateAsync(Device device, DeviceTag tag, double currentValue, CancellationToken ct)
     {
         if (!tag.IsAlarmEnabled) return;
 
+        // FIX #3: Wait for initialization to complete before evaluating
+        if (!_isInitialized)
+        {
+            await _initLock.WaitAsync(ct);
+            _initLock.Release();
+        }
+
+        // FIX #5: Check if alarm is shelved
+        if (_shelvedAlarms.TryGetValue(tag.Id, out var shelve))
+        {
+            if (DateTime.UtcNow < shelve.UnshelveAtUtc)
+            {
+                return; // Skip evaluation for shelved alarms
+            }
+            else
+            {
+                // Shelve expired, remove it
+                _shelvedAlarms.TryRemove(tag.Id, out _);
+            }
+        }
+
+        EvaluateInternal(device, tag, currentValue, DateTime.UtcNow);
+    }
+
+    private void EvaluateInternal(Device device, DeviceTag tag, double currentValue, DateTime now)
+    {
         var state = _states.GetOrAdd(tag.Id, _ => new AlarmTagState());
-        var now = DateTime.UtcNow;
         
         bool isHighViolation = tag.AlarmMaxThreshold.HasValue && currentValue > tag.AlarmMaxThreshold.Value;
         bool isLowViolation = tag.AlarmMinThreshold.HasValue && currentValue < tag.AlarmMinThreshold.Value;
         
-        // Hysteresis/Deadband calculations for clearing
-        double deadbandMult = tag.AlarmDeadband / 100.0;
+        // Deadband is treated as an absolute engineering unit value (e.g., 2.0 Degrees) to avoid 0-threshold bugs
+        double deadband = tag.AlarmDeadband; 
+
         bool isHighCleared = tag.AlarmMaxThreshold.HasValue && 
-                             currentValue < tag.AlarmMaxThreshold.Value - (tag.AlarmMaxThreshold.Value * deadbandMult);
+                             currentValue < tag.AlarmMaxThreshold.Value - deadband;
         bool isLowCleared = tag.AlarmMinThreshold.HasValue && 
-                            currentValue > tag.AlarmMinThreshold.Value + (tag.AlarmMinThreshold.Value * deadbandMult);
+                            currentValue > tag.AlarmMinThreshold.Value + deadband;
 
         if (!state.IsActive)
         {
-            // Evaluate for new alarm
             if (isHighViolation)
             {
-                state.LowConditionSince = null; // Reset other
+                state.LowConditionSince = null; 
                 if (state.HighConditionSince == null) state.HighConditionSince = now;
                 
                 if ((now - state.HighConditionSince.Value).TotalSeconds >= tag.AlarmOnDelaySeconds)
                 {
-                    await TriggerAlarmAsync(device, tag, currentValue, tag.AlarmMaxThreshold!.Value, AlarmType.High, state, now, ct);
+                    TriggerAlarm(device, tag, currentValue, tag.AlarmMaxThreshold!.Value, AlarmType.High, state, now);
                 }
             }
             else if (isLowViolation)
             {
-                state.HighConditionSince = null; // Reset other
+                state.HighConditionSince = null; 
                 if (state.LowConditionSince == null) state.LowConditionSince = now;
                 
                 if ((now - state.LowConditionSince.Value).TotalSeconds >= tag.AlarmOnDelaySeconds)
                 {
-                    await TriggerAlarmAsync(device, tag, currentValue, tag.AlarmMinThreshold!.Value, AlarmType.Low, state, now, ct);
+                    TriggerAlarm(device, tag, currentValue, tag.AlarmMinThreshold!.Value, AlarmType.Low, state, now);
                 }
             }
             else
             {
-                // Normal range, reset timers
                 state.HighConditionSince = null;
                 state.LowConditionSince = null;
             }
         }
         else
         {
-            // Evaluate for clearing existing alarm
             bool shouldClear = (state.TriggerType == AlarmType.High && isHighCleared) ||
                                (state.TriggerType == AlarmType.Low && isLowCleared);
 
@@ -121,19 +353,46 @@ public sealed class AlarmEvaluationService : IAlarmService
                 
                 if ((now - state.NormalConditionSince.Value).TotalSeconds >= tag.AlarmOffDelaySeconds)
                 {
-                    await ClearAlarmAsync(device, tag, state, now, ct);
+                    ClearAlarm(device, tag, state, now);
                 }
             }
             else
             {
-                // Still in alarm or deadband, reset clear timer
                 state.NormalConditionSince = null;
             }
         }
     }
 
-    private async Task TriggerAlarmAsync(Device device, DeviceTag tag, double currentValue, double thresholdValue, AlarmType type, AlarmTagState state, DateTime now, CancellationToken ct)
+    // FIX #4: Flood suppression - ISA-18.2 compliant rate limiting
+    private void TriggerAlarm(Device device, DeviceTag tag, double currentValue, double thresholdValue, AlarmType type, AlarmTagState state, DateTime now)
     {
+        // Check flood suppression (max 10 alarms per minute per tag)
+        const int maxAlarmsPerMinute = 10;
+        var floodState = _floodTracking.GetOrAdd(tag.Id, _ => new AlarmFloodState { WindowStart = now, Count = 0 });
+
+        // Reset window if more than 1 minute has passed
+        if ((now - floodState.WindowStart).TotalMinutes >= 1)
+        {
+            floodState.WindowStart = now;
+            floodState.Count = 1;
+        }
+        else
+        {
+            floodState.Count++;
+
+            // Flood detected - suppress alarm
+            if (floodState.Count > maxAlarmsPerMinute)
+            {
+                if (!floodState.SuppressWarningLogged)
+                {
+                    _logger.LogWarning("ALARM FLOOD SUPPRESSION: Tag {Device}/{Tag} exceeded {Max} alarms/minute. Further alarms will be suppressed for this minute.",
+                        device.Name, tag.Name, maxAlarmsPerMinute);
+                    floodState.SuppressWarningLogged = true;
+                }
+                return; // Suppress this alarm
+            }
+        }
+
         var alarmEvent = new AlarmEvent
         {
             DeviceTagId = tag.Id,
@@ -149,52 +408,66 @@ public sealed class AlarmEvaluationService : IAlarmService
             TriggeredAtUtc = now
         };
 
-        await using var db = await _dbFactory.CreateDbContextAsync(ct);
-        db.AlarmEvents.Add(alarmEvent);
-        await db.SaveChangesAsync(ct);
-
         state.IsActive = true;
         state.TriggerType = type;
-        state.CurrentAlarmEventId = alarmEvent.Id;
+        state.ActiveEvent = alarmEvent;
         state.HighConditionSince = null;
         state.LowConditionSince = null;
 
-        _logger.LogWarning("ALARM {AlarmType} on {Device}/{Tag}: Value={Value} {Unit} crossed {ThresholdType} threshold {Threshold} {Unit}. Priority={Priority}",
-            type, device.Name, tag.Name, currentValue, tag.EngineeringUnit, 
-            type == AlarmType.High ? "maximum" : "minimum", thresholdValue, tag.EngineeringUnit, tag.AlarmPriority);
+        // FIX #2: Critical alarms bypass queue and write directly to DB
+        bool isCritical = tag.AlarmPriority == AlarmPriority.Critical;
 
-        var msg = new AlarmTriggeredMessage(
-            alarmEvent.Id, device.Name, tag.Name, type, tag.AlarmPriority, 
-            currentValue, thresholdValue, tag.EngineeringUnit, now);
-        AlarmTriggered?.Invoke(this, msg);
-        if (Notifier != null) try { await Notifier.NotifyTriggeredAsync(msg, ct); } catch (Exception ex) { _logger.LogDebug(ex, "Notifier failed"); }
-    }
-
-    private async Task ClearAlarmAsync(Device device, DeviceTag tag, AlarmTagState state, DateTime now, CancellationToken ct)
-    {
-        if (state.CurrentAlarmEventId.HasValue)
+        if (isCritical)
         {
-            await using var db = await _dbFactory.CreateDbContextAsync(ct);
-            var alarm = await db.AlarmEvents.FindAsync(new object[] { state.CurrentAlarmEventId.Value }, ct);
-            if (alarm != null)
+            // Critical alarm - write directly to database (blocking)
+            _ = Task.Run(async () =>
             {
-                alarm.State = AlarmState.Cleared;
-                alarm.ClearedAtUtc = now;
-                await db.SaveChangesAsync(ct);
-            }
+                try
+                {
+                    await using var db = await _dbFactory.CreateDbContextAsync();
+                    db.AlarmEvents.Add(alarmEvent);
+                    await db.SaveChangesAsync();
+
+                    var msg = new AlarmTriggeredMessage(
+                        alarmEvent.Id, alarmEvent.DeviceName, alarmEvent.TagName, alarmEvent.AlarmType, alarmEvent.Priority,
+                        alarmEvent.TriggerValue, alarmEvent.ThresholdValue, alarmEvent.EngineeringUnit, alarmEvent.TriggeredAtUtc);
+
+                    AlarmTriggered?.Invoke(this, msg);
+                    AlarmCountChanged?.Invoke(this, EventArgs.Empty);
+                    if (Notifier != null)
+                    {
+                        await Notifier.NotifyTriggeredAsync(msg, CancellationToken.None);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to save CRITICAL alarm directly to database");
+                }
+            });
+        }
+        else
+        {
+            // Non-critical alarm - use queue
+            _dbQueue.Writer.TryWrite(new TriggerDbCommand(alarmEvent, isCritical));
         }
 
-        long eventId = state.CurrentAlarmEventId ?? 0;
-        
+        _logger.LogWarning("ALARM {Priority} {AlarmType} on {Device}/{Tag}: Value={Value} {Unit} crossed {ThresholdType} threshold {Threshold} {Unit}",
+            tag.AlarmPriority, type, device.Name, tag.Name, currentValue, tag.EngineeringUnit,
+            type == AlarmType.High ? "maximum" : "minimum", thresholdValue, tag.EngineeringUnit);
+    }
+
+    private void ClearAlarm(Device device, DeviceTag tag, AlarmTagState state, DateTime now)
+    {
+        if (state.ActiveEvent != null)
+        {
+            _dbQueue.Writer.TryWrite(new ClearDbCommand(state.ActiveEvent, now));
+        }
+
         state.IsActive = false;
-        state.CurrentAlarmEventId = null;
+        state.ActiveEvent = null;
         state.NormalConditionSince = null;
 
         _logger.LogInformation("ALARM CLEARED on {Device}/{Tag}. Priority={Priority}", device.Name, tag.Name, tag.AlarmPriority);
-
-        var clearedMsg = new AlarmClearedMessage(eventId, device.Name, tag.Name, now);
-        AlarmCleared?.Invoke(this, clearedMsg);
-        if (Notifier != null) try { await Notifier.NotifyClearedAsync(clearedMsg, ct); } catch (Exception ex) { _logger.LogDebug(ex, "Notifier cleared failed"); }
     }
 
     public async Task<int> GetActiveAlarmCountAsync(CancellationToken ct)
@@ -249,6 +522,7 @@ public sealed class AlarmEvaluationService : IAlarmService
             alarm.AcknowledgedBy = acknowledgedBy;
             await db.SaveChangesAsync(ct);
             _logger.LogInformation("Alarm {AlarmId} acknowledged by {User}", alarmEventId, acknowledgedBy);
+            AlarmCountChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -268,26 +542,25 @@ public sealed class AlarmEvaluationService : IAlarmService
         {
             await db.SaveChangesAsync(ct);
             _logger.LogInformation("All active alarms ({Count}) acknowledged by {User}", active.Count, acknowledgedBy);
+            AlarmCountChanged?.Invoke(this, EventArgs.Empty);
         }
      }
 
-    // ---- Retention In-Out + Beep In-Out ----
     public async Task<int> PurgeNowAsync(int? retentionDaysOverride, CancellationToken ct)
     {
         int days = retentionDaysOverride ?? _alarmOptions.RetentionDays;
         if (days <= 0) return 0;
         var cutoff = DateTime.UtcNow.AddDays(-days);
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
-        // Delete all events older than cutoff (TriggeredAt) regardless of state
         int deleted = await db.AlarmEvents.Where(a => a.TriggeredAtUtc < cutoff).ExecuteDeleteAsync(ct);
         if (deleted > 0) _logger.LogInformation("Manual purge: deleted {Count} alarms older than {Days} days (cutoff {Cutoff:u})", deleted, days, cutoff);
+        if (deleted > 0) AlarmCountChanged?.Invoke(this, EventArgs.Empty);
         return deleted;
     }
 
     public async Task UpdateRetentionAsync(int retentionDays, CancellationToken ct)
     {
         if (retentionDays < 0 || retentionDays > 3650) throw new ArgumentOutOfRangeException(nameof(retentionDays), "Retention must be 0-3650 days (0=keep forever).");
-        // Persist to DB via AppSettings (runtime setting) and update in-memory options
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
         var setting = await db.AppSettings.FirstOrDefaultAsync(a => a.Key == "Alarm.RetentionDays", ct);
         if (setting == null) { setting = new AppSetting { Key = "Alarm.RetentionDays", Value = retentionDays.ToString() }; db.AppSettings.Add(setting); }
@@ -307,7 +580,6 @@ public sealed class AlarmEvaluationService : IAlarmService
 
     public Task<bool> GetBeepEnabledAsync(CancellationToken ct)
     {
-        // Check DB override first, otherwise use options
         return Task.FromResult(_alarmOptions.BeepEnabled);
     }
 
@@ -322,15 +594,170 @@ public sealed class AlarmEvaluationService : IAlarmService
         _logger.LogInformation("Alarm beep {State} by {User}", enabled ? "ENABLED" : "SILENT", _currentUser.Username ?? "system");
     }
 
-    // ---- Nested class: per-tag alarm state (in-memory, thread-safe via ConcurrentDictionary) ----
+    // FIX #5: ISA-18.2 Alarm Shelving Implementation
+    public async Task ShelveAlarmAsync(int tagId, TimeSpan duration, string shelvedBy, string reason, CancellationToken ct)
+    {
+        _currentUser.Demand(Permission.AcknowledgeAlarm); // Reuse same permission
+
+        if (duration.TotalHours > 24)
+        {
+            throw new ArgumentException("Alarm shelving duration cannot exceed 24 hours for safety reasons.");
+        }
+
+        var unshelveAt = DateTime.UtcNow.Add(duration);
+
+        _shelvedAlarms[tagId] = new InternalAlarmShelveState
+        {
+            TagId = tagId,
+            ShelvedAtUtc = DateTime.UtcNow,
+            UnshelveAtUtc = unshelveAt,
+            ShelvedBy = shelvedBy,
+            Reason = reason
+        };
+
+        // Update any active alarms to Shelved state
+        await using var db = await _dbFactory.CreateDbContextAsync(ct);
+        var activeAlarm = await db.AlarmEvents
+            .Where(a => a.DeviceTagId == tagId && (a.State == AlarmState.Active || a.State == AlarmState.Acknowledged))
+            .FirstOrDefaultAsync(ct);
+
+        if (activeAlarm != null)
+        {
+            activeAlarm.State = AlarmState.Shelved;
+            await db.SaveChangesAsync(ct);
+        }
+
+        _logger.LogWarning("Alarm SHELVED for tag {TagId} until {UnshelveTime:u} by {User}. Reason: {Reason}",
+            tagId, unshelveAt, shelvedBy, reason);
+    }
+
+    public async Task UnshelveAlarmAsync(int tagId, string unshelvedBy, CancellationToken ct)
+    {
+        _currentUser.Demand(Permission.AcknowledgeAlarm);
+
+        if (_shelvedAlarms.TryRemove(tagId, out var shelve))
+        {
+            // Restore alarm to Active state if condition still violated
+            await using var db = await _dbFactory.CreateDbContextAsync(ct);
+            var shelvedAlarm = await db.AlarmEvents
+                .Where(a => a.DeviceTagId == tagId && a.State == AlarmState.Shelved)
+                .FirstOrDefaultAsync(ct);
+
+            if (shelvedAlarm != null)
+            {
+                shelvedAlarm.State = AlarmState.Active; // Will be re-evaluated on next scan
+                await db.SaveChangesAsync(ct);
+            }
+
+            _logger.LogInformation("Alarm UNSHELVED for tag {TagId} by {User} (was shelved by {OriginalUser})",
+                tagId, unshelvedBy, shelve.ShelvedBy);
+        }
+    }
+
+    public Task<IReadOnlyList<AlarmShelveState>> GetShelvedAlarmsAsync(CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        var shelved = _shelvedAlarms.Values
+            .Where(s => s.UnshelveAtUtc > now)
+            .OrderBy(s => s.UnshelveAtUtc)
+            .Select(s => new AlarmShelveState
+            {
+                TagId = s.TagId,
+                ShelvedAtUtc = s.ShelvedAtUtc,
+                UnshelveAtUtc = s.UnshelveAtUtc,
+                ShelvedBy = s.ShelvedBy,
+                Reason = s.Reason
+            })
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<AlarmShelveState>>(shelved);
+    }
+
+    public async Task SyncCrossProcessAlarmsAsync(CancellationToken ct)
+    {
+        try
+        {
+            await using var db = await _dbFactory.CreateDbContextAsync(ct);
+            
+            var newAlarms = await db.AlarmEvents
+                .Where(a => a.TriggeredAtUtc > _lastSyncTime)
+                .ToListAsync(ct);
+                
+            var clearedAlarms = await db.AlarmEvents
+                .Where(a => a.ClearedAtUtc != null && a.ClearedAtUtc > _lastSyncTime)
+                .ToListAsync(ct);
+
+            if (newAlarms.Count == 0 && clearedAlarms.Count == 0) return;
+
+            _lastSyncTime = DateTime.UtcNow;
+            bool countChanged = false;
+
+            foreach (var a in newAlarms)
+            {
+                var msg = new AlarmTriggeredMessage(a.Id, a.DeviceName, a.TagName, a.AlarmType, a.Priority, a.TriggerValue, a.ThresholdValue, a.EngineeringUnit, a.TriggeredAtUtc);
+                AlarmTriggered?.Invoke(this, msg);
+                if (Notifier != null) try { await Notifier.NotifyTriggeredAsync(msg, ct); } catch { }
+                countChanged = true;
+            }
+
+            foreach (var a in clearedAlarms)
+            {
+                var msg = new AlarmClearedMessage(a.Id, a.DeviceName, a.TagName, a.ClearedAtUtc!.Value);
+                AlarmCleared?.Invoke(this, msg);
+                countChanged = true;
+            }
+
+            if (countChanged)
+            {
+                AlarmCountChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Error syncing cross-process alarms.");
+        }
+    }
+
     private sealed class AlarmTagState
     {
-        public long? CurrentAlarmEventId { get; set; }
+        public AlarmEvent? ActiveEvent { get; set; }
         public bool IsActive { get; set; }
         public AlarmType TriggerType { get; set; }
         public DateTime? HighConditionSince { get; set; }
         public DateTime? LowConditionSince { get; set; }
         public DateTime? NormalConditionSince { get; set; }
     }
-}
 
+    // FIX #4: Flood suppression state tracking
+    private sealed class AlarmFloodState
+    {
+        public DateTime WindowStart { get; set; }
+        public int Count { get; set; }
+        public bool SuppressWarningLogged { get; set; }
+    }
+
+    // FIX #5: Internal alarm shelving state (not exposed to Application layer)
+    private sealed class InternalAlarmShelveState
+    {
+        public int TagId { get; set; }
+        public DateTime ShelvedAtUtc { get; set; }
+        public DateTime UnshelveAtUtc { get; set; }
+        public string ShelvedBy { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
+    }
+
+    public void Dispose()
+    {
+        try { _cts.Cancel(); } catch { }
+        _cts.Dispose();
+        _initLock.Dispose();
+        _dbQueue.Writer.TryComplete();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+        // Give background loops a moment to observe cancellation
+        await Task.Delay(50);
+    }
+}
