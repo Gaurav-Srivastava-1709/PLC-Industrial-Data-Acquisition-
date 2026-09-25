@@ -104,7 +104,15 @@
                             <StackPanel>
                                 <Grid>
                                     <StackPanel Orientation="Horizontal">
-                                        <Ellipse Style="{StaticResource Dot}" Fill="{Binding IsConnected, Converter={StaticResource BoolToBrush}}" />
+                                        <Ellipse Style="{StaticResource Dot}" ToolTip="{Binding StatusText}">
+                                            <Ellipse.Fill>
+                                                <MultiBinding Converter="{StaticResource DeviceStatusToBrush}">
+                                                    <Binding Path="IsRunning" />
+                                                    <Binding Path="IsConnected" />
+                                                    <Binding Path="LastError" />
+                                                </MultiBinding>
+                                            </Ellipse.Fill>
+                                        </Ellipse>
                                         <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" />
                                     </StackPanel>
                                     <TextBlock Text="{Binding StatusText}" HorizontalAlignment="Right" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />

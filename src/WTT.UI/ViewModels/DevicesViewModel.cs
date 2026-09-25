@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -9,6 +10,7 @@ using WTT.Application.Interfaces;
 using WTT.Application.Security;
 using WTT.Domain.Entities;
 using WTT.Domain.Enums;
+using WTT.Domain.ValueObjects;
 using WTT.UI.Services;
 
 namespace WTT.UI.ViewModels;
@@ -20,21 +22,25 @@ public partial class DevicesViewModel : ViewModelBase
     private readonly INavigationService _navigation;
     private readonly NavigationContext _navContext;
     private readonly Func<DeviceEditViewModel> _editFactory;
-    private List<Device> _all = new();
+    private readonly ICaptureRuntimeStatusReader _runtimeStatus;
+    private readonly DispatcherTimer _statusTimer = new() { Interval = TimeSpan.FromSeconds(3) };
+    private List<DeviceRowViewModel> _all = new();
 
     public DevicesViewModel(IDeviceService devices, ICurrentUserService currentUser, INavigationService navigation, NavigationContext navContext,
-        Func<DeviceEditViewModel> editFactory, IDialogService dialogs, ILogger<DevicesViewModel> logger) : base(dialogs, logger)
+        Func<DeviceEditViewModel> editFactory, ICaptureRuntimeStatusReader runtimeStatus, IDialogService dialogs, ILogger<DevicesViewModel> logger) : base(dialogs, logger)
     {
         _devices = devices;
         _currentUser = currentUser;
         _navigation = navigation;
         _navContext = navContext;
         _editFactory = editFactory;
+        _runtimeStatus = runtimeStatus;
+        _statusTimer.Tick += async (_, _) => await RefreshStatusesAsync();
     }
 
-    public ObservableCollection<Device> Devices { get; } = new();
+    public ObservableCollection<DeviceRowViewModel> Devices { get; } = new();
 
-    [ObservableProperty] private Device? _selected;
+    [ObservableProperty] private DeviceRowViewModel? _selected;
     [ObservableProperty] private string _search = string.Empty;
 
     public bool CanManage => _currentUser.HasPermission(Permission.ManageDevices);
@@ -44,21 +50,52 @@ public partial class DevicesViewModel : ViewModelBase
 
     partial void OnSearchChanged(string value) => ApplyFilter();
 
-    public override Task OnNavigatedToAsync() => LoadAsync();
+    public override async Task OnNavigatedToAsync()
+    {
+        await LoadAsync();
+        _statusTimer.Start();
+    }
+
+    public override Task OnNavigatedFromAsync()
+    {
+        _statusTimer.Stop();
+        return Task.CompletedTask;
+    }
 
     private async Task LoadAsync()
     {
         await RunAsync(async () =>
         {
-            _all = (await _devices.GetAllAsync()).ToList();
+            var list = (await _devices.GetAllAsync()).ToList();
+            var snapshot = await _runtimeStatus.GetSnapshotAsync();
+            var statuses = snapshot.Devices.ToDictionary(s => s.DeviceId);
+            _all = list.Select(d => new DeviceRowViewModel(d, statuses.GetValueOrDefault(d.Id))).ToList();
             ApplyFilter();
         });
+    }
+
+    // Display-only refresh: re-reads the snapshot and updates dots in place (no Clear → no flicker, selection kept).
+    private async Task RefreshStatusesAsync()
+    {
+        try
+        {
+            var snapshot = await _runtimeStatus.GetSnapshotAsync();
+            var statuses = snapshot.Devices.ToDictionary(s => s.DeviceId);
+            OnUi(() =>
+            {
+                foreach (var row in _all) row.Update(statuses.GetValueOrDefault(row.Device.Id));
+            });
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Devices status refresh failed.");
+        }
     }
 
     private void ApplyFilter()
     {
         var q = string.IsNullOrWhiteSpace(Search) ? _all
-            : _all.Where(d => d.Name.Contains(Search, StringComparison.OrdinalIgnoreCase) || d.Host.Contains(Search, StringComparison.OrdinalIgnoreCase) || d.Model.ToString().Contains(Search, StringComparison.OrdinalIgnoreCase));
+            : _all.Where(d => d.Device.Name.Contains(Search, StringComparison.OrdinalIgnoreCase) || d.Device.Host.Contains(Search, StringComparison.OrdinalIgnoreCase) || d.Device.Model.ToString().Contains(Search, StringComparison.OrdinalIgnoreCase));
         Devices.Clear();
         foreach (var d in q) Devices.Add(d);
     }
@@ -73,9 +110,9 @@ public partial class DevicesViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void Edit(Device? device)
+    private void Edit(DeviceRowViewModel? row)
     {
-        device ??= Selected;
+        var device = row?.Device ?? Selected?.Device;
         if (device is null) return;
         var vm = _editFactory();
         vm.Initialize(device);
@@ -84,18 +121,18 @@ public partial class DevicesViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void Configure(Device? device)
+    private void Configure(DeviceRowViewModel? row)
     {
-        device ??= Selected;
+        var device = row?.Device ?? Selected?.Device;
         if (device is null) return;
         _navContext.SelectedDeviceId = device.Id;
         _navigation.Navigate(typeof(Views.Pages.DeviceConfigPage));
     }
 
     [RelayCommand]
-    private async Task DeleteAsync(Device? device)
+    private async Task DeleteAsync(DeviceRowViewModel? row)
     {
-        device ??= Selected;
+        var device = row?.Device ?? Selected?.Device;
         if (device is null) return;
         if (!await Dialogs.ConfirmAsync("Delete device", $"Delete '{device.Name}' and all its tags, address blocks, queries and transfer settings?\n\nThis cannot be undone.", "Delete", destructive: true))
             return;
@@ -108,6 +145,44 @@ public partial class DevicesViewModel : ViewModelBase
 
     [RelayCommand]
     private Task RefreshAsync() => LoadAsync();
+}
+
+/// <summary>
+/// Display-only row wrapper: the Device entity plus its live connection state.
+/// Same status-text rules as <see cref="DeviceCardViewModel"/> so both screens agree.
+/// </summary>
+public partial class DeviceRowViewModel : ObservableObject
+{
+    public DeviceRowViewModel(Device device, DeviceCaptureStatus? status)
+    {
+        Device = device;
+        Update(status);
+    }
+
+    public Device Device { get; }
+
+    [ObservableProperty] private bool _isRunning;
+    [ObservableProperty] private bool _isConnected;
+    [ObservableProperty] private string? _lastError;
+    [ObservableProperty] private string _statusText = "Stopped";
+
+    public string StatusToolTip => string.IsNullOrWhiteSpace(LastError) ? StatusText : $"{StatusText} — {LastError}";
+
+    public void Update(DeviceCaptureStatus? s)
+    {
+        if (s is null)
+        {
+            IsRunning = false; IsConnected = false; LastError = null;
+            StatusText = Device.IsEnabled ? "Stopped" : "Disabled";
+            return;
+        }
+        IsRunning = s.IsRunning;
+        IsConnected = s.IsConnected;
+        LastError = s.LastError;
+        StatusText = !s.IsRunning ? "Stopped"
+            : !s.IsConnected ? (s.ReconnectAttempts > 0 ? $"Reconnecting (attempt {s.ReconnectAttempts})" : "Connecting…")
+            : "Connected";
+    }
 }
 
 /// <summary>Add / edit dialog with Protocol → Manufacturer → Model cascade and conditional fields.</summary>

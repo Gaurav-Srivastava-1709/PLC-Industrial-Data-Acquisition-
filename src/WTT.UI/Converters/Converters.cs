@@ -69,6 +69,35 @@ public sealed class BoolToBrushConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotSupportedException();
 }
 
+/// <summary>
+/// Device connection state → dot brush (ISA-101 style, display only).
+/// Uses the same Good/Warn/Bad/Neutral brushes as everywhere else, so it works
+/// in both dark and light themes with no theme-specific code.
+/// Mapping (existing snapshot fields only, no behavior change):
+/// grey = worker stopped/disabled · green = connected · red = failed with error · amber = connecting.
+/// </summary>
+public sealed class DeviceStatusToBrushConverter : IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+    {
+        var app = System.Windows.Application.Current;
+        object Good() => app.TryFindResource("GoodBrush") ?? Brushes.Green;
+        object Warn() => app.TryFindResource("WarnBrush") ?? Brushes.Orange;
+        object Bad() => app.TryFindResource("BadBrush") ?? Brushes.Red;
+        object Neutral() => app.TryFindResource("NeutralBrush") ?? Brushes.Gray;
+
+        var isRunning = values.Length > 0 && values[0] is true;
+        var isConnected = values.Length > 1 && values[1] is true;
+        var lastError = values.Length > 2 ? values[2] as string : null;
+
+        if (!isRunning) return Neutral();
+        if (isConnected) return Good();
+        return string.IsNullOrWhiteSpace(lastError) ? Warn() : Bad();
+    }
+
+    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) => throw new NotSupportedException();
+}
+
 /// <summary>Enum → friendly text (DescriptionAttribute if present, else name split on case boundaries).</summary>
 public sealed class EnumDescriptionConverter : IValueConverter
 {

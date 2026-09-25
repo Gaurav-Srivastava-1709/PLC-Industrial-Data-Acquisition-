@@ -25,6 +25,8 @@ public partial class DashboardViewModel : ViewModelBase
     private readonly NavigationContext _navContext;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(3) };
     private readonly Queue<(long Readings, long Buffer)> _trend = new();
+    // Connection toast dedup: deviceId -> (downNotified, wasConnected). Prevents snack spam every 3s.
+    private readonly Dictionary<int, (bool DownNotified, bool WasConnected)> _connNotify = new();
 
     public DashboardViewModel(IDeviceService devices, IDataCaptureController capture, IDataTransferController transfer, ICaptureRuntimeStatusReader runtimeStatus, ICurrentUserService currentUser,
         INavigationService navigation, NavigationContext navContext, IDialogService dialogs, ILogger<DashboardViewModel> logger) : base(dialogs, logger)
@@ -105,10 +107,48 @@ public partial class DashboardViewModel : ViewModelBase
                 : $"Pipeline service stopped · last heartbeat {snapshot.LastHeartbeatUtc?.ToLocalTime():g}";
             var statuses = snapshot.Devices.ToDictionary(s => s.DeviceId);
             foreach (var card in Devices) card.Update(statuses.GetValueOrDefault(card.Id));
+            NotifyConnectionChanges(statuses);
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Dashboard refresh failed.");
+        }
+    }
+
+    // Industry: connection loss must surface as a toast, not just red card text.
+    // Fires once per down/up transition — never every tick.
+    private void NotifyConnectionChanges(Dictionary<int, DeviceCaptureStatus> statuses)
+    {
+        foreach (var card in Devices)
+        {
+            var s = statuses.GetValueOrDefault(card.Id);
+            _connNotify.TryGetValue(card.Id, out var prev);
+            if (s is null || !s.IsRunning)
+            {
+                // Worker stopped/disabled — reset so next start notifies fresh.
+                _connNotify[card.Id] = (false, false);
+                continue;
+            }
+            if (!s.IsConnected)
+            {
+                if (!prev.DownNotified)
+                {
+                    var err = string.IsNullOrWhiteSpace(s.LastError) ? "connection failed" : s.LastError;
+                    if (err.Length > 140) err = err[..140] + "…";
+                    var attempt = s.ReconnectAttempts > 0 ? $" (retry {s.ReconnectAttempts})" : string.Empty;
+                    Dialogs.Toast("Device disconnected", $"{card.Name}: {err}{attempt}", ToastKind.Warning);
+                    _connNotify[card.Id] = (true, false);
+                }
+            }
+            else if (prev.DownNotified)
+            {
+                Dialogs.Toast("Device reconnected", $"{card.Name}: connected.", ToastKind.Success);
+                _connNotify[card.Id] = (false, true);
+            }
+            else
+            {
+                _connNotify[card.Id] = (false, true);
+            }
         }
     }
 

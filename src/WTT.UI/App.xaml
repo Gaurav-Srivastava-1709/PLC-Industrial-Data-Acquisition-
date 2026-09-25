@@ -20,6 +20,7 @@
             <conv:NotNullToVisibilityConverter x:Key="NotNullToVis" />
             <conv:QualityToBrushConverter x:Key="QualityToBrush" />
             <conv:BoolToBrushConverter x:Key="BoolToBrush" />
+            <conv:DeviceStatusToBrushConverter x:Key="DeviceStatusToBrush" />
             <conv:EnumDescriptionConverter x:Key="EnumDesc" />
             <conv:UtcToLocalConverter x:Key="UtcToLocal" />
             <conv:CountToVisibilityConverter x:Key="CountToVis" />
