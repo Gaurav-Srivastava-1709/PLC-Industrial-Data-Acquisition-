@@ -16,10 +16,18 @@ public partial class MainViewModel : ViewModelBase
     private readonly INavigationService _navigation;
     private readonly IAlarmService _alarmService;
     private readonly ISnackbarService _snackbarService;
+    private readonly ICaptureRuntimeStatusReader _runtimeStatus;
+    private readonly IDataTransferController _transfer;
     private readonly System.Windows.Threading.DispatcherTimer _syncTimer;
+    // App-wide monitors (shell lives for the whole session, unlike pages): dedup maps stop toast spam.
+    private readonly Dictionary<int, (bool DownNotified, bool WasConnected)> _connNotify = new();
+    private long _prevFailedBatches;
+    private bool _transferBaselineSet;
+    private int _tickCount;
+    private int _monitorBusy;
 
     public MainViewModel(ICurrentUserService currentUser, ShellNavigator shell, Func<ChangePasswordViewModel> changePasswordFactory, INavigationService navigation,
-        IAlarmService alarmService, ISnackbarService snackbarService,
+        IAlarmService alarmService, ISnackbarService snackbarService, ICaptureRuntimeStatusReader runtimeStatus, IDataTransferController transfer,
         IDialogService dialogs, ILogger<MainViewModel> logger) : base(dialogs, logger)
     {
         _currentUser = currentUser;
@@ -28,6 +36,8 @@ public partial class MainViewModel : ViewModelBase
         _navigation = navigation;
         _alarmService = alarmService;
         _snackbarService = snackbarService;
+        _runtimeStatus = runtimeStatus;
+        _transfer = transfer;
         
         _currentUser.Changed += (_, _) => OnUi(RefreshUser);
         
@@ -39,9 +49,87 @@ public partial class MainViewModel : ViewModelBase
         _ = RefreshAlarmCountAsync();
 
         // UI Cross-Process Sync (Polls DB for new alarms created by the background service)
+        // + app-wide device/transfer health monitor: fires on every page, not just Dashboard.
         _syncTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-        _syncTimer.Tick += (_, _) => _ = _alarmService.SyncCrossProcessAlarmsAsync(CancellationToken.None);
+        _syncTimer.Tick += (_, _) => _ = OnSyncTickAsync();
         _syncTimer.Start();
+    }
+
+    // Single guarded tick: alarm sync every 2s, health monitors staggered so a slow DB never piles up.
+    private async Task OnSyncTickAsync()
+    {
+        if (System.Threading.Interlocked.Exchange(ref _monitorBusy, 1) == 1) return;
+        try
+        {
+            try { await _alarmService.SyncCrossProcessAlarmsAsync(CancellationToken.None); } catch (Exception ex) { Logger.LogDebug(ex, "Alarm sync tick failed."); }
+            try { await CheckDeviceConnectionsAsync(); } catch (Exception ex) { Logger.LogDebug(ex, "Device health tick failed."); }
+            if (++_tickCount % 5 == 0)
+            {
+                try { await CheckTransferHealthAsync(); } catch (Exception ex) { Logger.LogDebug(ex, "Transfer health tick failed."); }
+            }
+        }
+        finally { System.Threading.Interlocked.Exchange(ref _monitorBusy, 0); }
+    }
+
+    // Industry: connection loss must toast on ANY page, once per down/up transition — never every tick.
+    private async Task CheckDeviceConnectionsAsync()
+    {
+        var snapshot = await _runtimeStatus.GetSnapshotAsync();
+        var seen = new HashSet<int>();
+        foreach (var s in snapshot.Devices)
+        {
+            seen.Add(s.DeviceId);
+            _connNotify.TryGetValue(s.DeviceId, out var prev);
+            if (!s.IsRunning)
+            {
+                _connNotify[s.DeviceId] = (false, false);
+                continue;
+            }
+            if (!s.IsConnected)
+            {
+                if (!prev.DownNotified)
+                {
+                    var err = string.IsNullOrWhiteSpace(s.LastError) ? "connection failed" : s.LastError;
+                    if (err.Length > 140) err = err[..140] + "…";
+                    var attempt = s.ReconnectAttempts > 0 ? $" (retry {s.ReconnectAttempts})" : string.Empty;
+                    Dialogs.Toast("Device disconnected", $"{s.DeviceName}: {err}{attempt}", ToastKind.Warning);
+                    _connNotify[s.DeviceId] = (true, false);
+                }
+            }
+            else if (prev.DownNotified)
+            {
+                Dialogs.Toast("Device reconnected", $"{s.DeviceName}: connected.", ToastKind.Success);
+                _connNotify[s.DeviceId] = (false, true);
+            }
+            else
+            {
+                _connNotify[s.DeviceId] = (false, true);
+            }
+        }
+        // Workers that vanished (device disabled) must not hold stale down-flags.
+        foreach (var id in _connNotify.Keys.Where(k => !seen.Contains(k)).ToList())
+            _connNotify[id] = (false, false);
+    }
+
+    // Industry: a dead central server must shout, not just sit red on one page.
+    // Toasts once when the daily failure count rises; recovers silently to avoid noise.
+    private async Task CheckTransferHealthAsync()
+    {
+        var stats = await _transfer.GetStatisticsAsync();
+        if (!_transferBaselineSet)
+        {
+            _prevFailedBatches = stats.FailedBatchesToday;
+            _transferBaselineSet = true;
+            return;
+        }
+        if (stats.FailedBatchesToday > _prevFailedBatches)
+        {
+            var fresh = stats.FailedBatchesToday - _prevFailedBatches;
+            Dialogs.Toast("Data transfer failing",
+                $"{fresh} batch(es) just failed ({stats.FailedBatchesToday} today) · {stats.PendingRecords:N0} records waiting. Check Data Transfer.",
+                ToastKind.Warning);
+        }
+        _prevFailedBatches = stats.FailedBatchesToday;
     }
 
     [ObservableProperty] private string _displayName = string.Empty;
