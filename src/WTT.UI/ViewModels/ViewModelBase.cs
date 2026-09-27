@@ -76,4 +76,11 @@ public abstract partial class ViewModelBase : ObservableObject, IPageViewModel
         if (d is null || d.CheckAccess()) action();
         else d.InvokeAsync(action);
     }
+
+    protected static Task OnUiAsync(Func<Task> action)
+    {
+        var d = System.Windows.Application.Current?.Dispatcher;
+        if (d is null || d.CheckAccess()) return action();
+        return d.InvokeAsync(action).Task.Unwrap();
+    }
 }

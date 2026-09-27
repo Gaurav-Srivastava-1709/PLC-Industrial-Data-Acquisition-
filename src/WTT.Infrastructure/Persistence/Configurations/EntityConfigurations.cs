@@ -89,6 +89,8 @@ public sealed class TagReadingConfiguration : IEntityTypeConfiguration<TagReadin
         b.HasIndex(x => new { x.DeviceId, x.IsTransferred, x.Id });
         // Retention cleanup query
         b.HasIndex(x => new { x.IsTransferred, x.TimestampUtc });
+        // Historian trend query: WHERE DeviceId + TagName + TimestampUtc range ORDER BY TimestampUtc
+        b.HasIndex(x => new { x.DeviceId, x.TagName, x.TimestampUtc });
     }
 }
 

@@ -24,6 +24,8 @@
                                        Visibility="{Binding CanViewDevices, Converter={StaticResource BoolToVis}}" />
                 <ui:NavigationViewItem Content="Live Data" Icon="{ui:SymbolIcon PulseSquare24}" TargetPageType="{x:Type pages:LiveDataPage}"
                                        Visibility="{Binding CanViewLiveData, Converter={StaticResource BoolToVis}}" />
+                <ui:NavigationViewItem Content="Trends" Icon="{ui:SymbolIcon DataHistogram24}" TargetPageType="{x:Type pages:TrendsPage}"
+                                       Visibility="{Binding CanViewLiveData, Converter={StaticResource BoolToVis}}" />
                 <ui:NavigationViewItem Content="Data Transfer" Icon="{ui:SymbolIcon ArrowSync24}" TargetPageType="{x:Type pages:DataTransferPage}"
                                        Visibility="{Binding CanViewTransfer, Converter={StaticResource BoolToVis}}" />
                 <ui:NavigationViewItem Content="Users" Icon="{ui:SymbolIcon People24}" TargetPageType="{x:Type pages:UsersPage}"

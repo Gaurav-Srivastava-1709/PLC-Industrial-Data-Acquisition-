@@ -74,7 +74,7 @@ public sealed class CompositeAlarmNotifier : IAlarmNotifier
 }
 
 /// <summary>Production-grade Email notifier with SMTP support for Critical/High priority alarms</summary>
-public sealed class EmailAlarmNotifier : IAlarmNotifier
+public sealed class EmailAlarmNotifier : IAlarmNotifier, IDisposable
 {
     private readonly ILogger<EmailAlarmNotifier> _logger;
     private readonly IOptions<AlarmOptions> _options;
@@ -84,6 +84,11 @@ public sealed class EmailAlarmNotifier : IAlarmNotifier
     {
         _logger = logger;
         _options = options;
+    }
+
+    public void Dispose()
+    {
+        _emailThrottle.Dispose();
     }
 
     public async Task NotifyTriggeredAsync(AlarmTriggeredMessage msg, CancellationToken ct)

@@ -80,9 +80,46 @@
 
             <Border Grid.Row="3" Style="{StaticResource Card}" Margin="0,0,0,16">
                 <Grid>
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="90"/></Grid.RowDefinitions>
-                    <StackPanel><TextBlock Text="Live historian trend" Style="{StaticResource SectionTitle}"/><TextBlock Text="{Binding TrendSummary}" Style="{StaticResource Hint}"/></StackPanel>
-                    <Canvas Grid.Row="1" Height="84" ClipToBounds="True" Background="{DynamicResource ControlFillColorDefaultBrush}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="84"/>
+                    </Grid.RowDefinitions>
+                    
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Pipeline Ingestion &amp; Buffer Activity" Style="{StaticResource SectionTitle}"/>
+                            <TextBlock Text="{Binding TrendSummary}" Style="{StaticResource Hint}"/>
+                        </StackPanel>
+                        <!-- Dedicated Historian Trends Page shortcut -->
+                        <ui:Button Grid.Column="1" Content="Open Full Historian Trends" Icon="{ui:SymbolIcon DataHistogram24}"
+                                   Command="{Binding OpenTrendsCommand}" Appearance="Primary" VerticalAlignment="Center" />
+                    </Grid>
+
+                    <!-- Legend badges -->
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,6,0,8">
+                        <Border Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="8" Height="8" Fill="{DynamicResource SystemAccentColorPrimaryBrush}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Readings Ingested (Today): " FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <TextBlock Text="{Binding ReadingsToday, StringFormat={}{0:N0}}" FontSize="11" FontWeight="Bold" />
+                            </StackPanel>
+                        </Border>
+                        <Border Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="4" Padding="6,2">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="8" Height="8" Fill="#FFF59E0B" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Waiting in Local Buffer: " FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <TextBlock Text="{Binding BufferedReadings, StringFormat={}{0:N0}}" FontSize="11" FontWeight="Bold" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Real-time Sparkline -->
+                    <Canvas Grid.Row="2" Height="80" ClipToBounds="True" Background="{DynamicResource ControlFillColorDefaultBrush}">
                         <Polyline Points="{Binding ReadingTrend}" Stroke="{DynamicResource SystemAccentColorPrimaryBrush}" StrokeThickness="2.5" />
                         <Polyline Points="{Binding BufferTrend}" Stroke="#FFF59E0B" StrokeThickness="2" StrokeDashArray="4,2" />
                     </Canvas>

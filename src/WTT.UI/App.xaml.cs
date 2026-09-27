@@ -74,12 +74,15 @@ public partial class App : System.Windows.Application
                 services.AddTransient<DeviceConfigViewModel>();
                 services.AddTransient<LiveDataPage>();
                 services.AddTransient<LiveDataViewModel>();
+                // SCADA Historian Trends (Singleton taaki navigate karne par pens/state lose na ho)
+                services.AddSingleton<TrendsPage>();
+                services.AddSingleton<TrendsViewModel>();
                 services.AddTransient<DataTransferPage>();
                 services.AddTransient<DataTransferViewModel>();
                 services.AddTransient<UsersPage>();
                 services.AddTransient<UsersViewModel>();
                 services.AddTransient<LogViewerPage>();
-                services.AddTransient<LogViewerViewModel>();
+                services.AddTransient<LogViewerViewModel>(); 
                 services.AddTransient<AlarmsPage>();
                 services.AddTransient<AlarmsViewModel>();
                 services.AddTransient<SettingsPage>();

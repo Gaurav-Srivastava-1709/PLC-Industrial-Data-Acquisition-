@@ -24,6 +24,7 @@
             <conv:EnumDescriptionConverter x:Key="EnumDesc" />
             <conv:UtcToLocalConverter x:Key="UtcToLocal" />
             <conv:CountToVisibilityConverter x:Key="CountToVis" />
+            <conv:BoolToOpacityConverter x:Key="BoolToOpacity" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>
