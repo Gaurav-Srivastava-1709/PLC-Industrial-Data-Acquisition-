@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
 using WTT.Domain.Enums;
 
 namespace WTT.UI.Controls;
@@ -21,8 +22,9 @@ public readonly record struct TrendPoint(DateTime Time, double Value, TagQuality
 
 /// <summary>
 /// Data and visual styling for a single trend pen (line).
+/// Observable so the legend chip dims immediately on hide/show.
 /// </summary>
-public class PenSeriesModel
+public partial class PenSeriesModel : ObservableObject
 {
     public int DeviceId { get; set; }
     public string DeviceName { get; set; } = string.Empty;
@@ -32,7 +34,7 @@ public class PenSeriesModel
     public Color Color { get; set; } = Colors.Cyan;
     public SolidColorBrush StrokeBrush { get; set; } = Brushes.Cyan;
     public Pen LinePen { get; set; } = new(Brushes.Cyan, 2.0);
-    public bool IsVisible { get; set; } = true;
+    [ObservableProperty] private bool _isVisible = true;
     public double? MinAlarm { get; set; }
     public double? MaxAlarm { get; set; }
     public TagDataType DataType { get; set; } = TagDataType.Float32;
@@ -337,12 +339,16 @@ public class ScadaTrendPlot : FrameworkElement
 
         var activeSeries = Series?.Where(s => s.IsVisible && s.Points.Count > 0).ToList();
         var visiblePenCount = Series?.Count(s => s.IsVisible) ?? 0;
+        var totalPenCount = Series?.Count() ?? 0;
 
         if (activeSeries == null || activeSeries.Count == 0)
         {
-            // Two cases: (a) no pen selected, (b) pens selected but no data in window.
+            // Three cases: (a) no pen selected, (b) pens exist but all hidden,
+            // (c) pens selected but no data in window.
             string msg = visiblePenCount == 0
-                ? "Waiting for PLC tag data... Check at least one Tag from the list to display trend."
+                ? (totalPenCount > 0
+                    ? "All pens hidden — click a legend chip to show it again."
+                    : "Waiting for PLC tag data... Check at least one Tag from the list to display trend.")
                 : $"Pens selected ({visiblePenCount}) but no points in this time window. If live streaming is ON, the line appears in 1-2 sec; otherwise try a larger window (15m/1h).";
             var hintText = new FormattedText(
                 msg,
