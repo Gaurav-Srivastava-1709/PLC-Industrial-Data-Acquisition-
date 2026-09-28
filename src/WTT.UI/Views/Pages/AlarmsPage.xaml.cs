@@ -4,8 +4,8 @@ using WTT.UI.ViewModels;
 
 namespace WTT.UI.Views.Pages;
 
-// INavigationAware lagana zaroori hai — iske bina OnNavigatedToAsync kabhi call nahi hota
-// aur page pe data load nahi hota (isliye Refresh dabane pe data aata tha)
+// INavigationAware is required — without it OnNavigatedToAsync is never called
+// and no data is loaded on the page (which is why data appeared only on Refresh)
 public partial class AlarmsPage : Page, INavigableView<AlarmsViewModel>, INavigationAware
 {
     public AlarmsViewModel ViewModel { get; }
@@ -17,8 +17,8 @@ public partial class AlarmsPage : Page, INavigableView<AlarmsViewModel>, INaviga
         InitializeComponent();
     }
 
-    // Jab user Alarms page pe aaye, turant data load ho — bina Refresh ke
+    // When the user arrives at the Alarms page, data loads immediately — without needing Refresh
     public Task OnNavigatedToAsync() => ViewModel.OnNavigatedToAsync();
-    // Jab user doosre page pe jaaye, auto-refresh timer band ho
+    // When the user navigates to another page, the auto-refresh timer stops
     public Task OnNavigatedFromAsync() => ViewModel.OnNavigatedFromAsync();
 }

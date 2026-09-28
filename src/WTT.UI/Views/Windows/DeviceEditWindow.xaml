@@ -110,7 +110,7 @@
 
                 <CheckBox Content="Device enabled" IsChecked="{Binding IsEnabled}" Margin="0,16,0,0" />
 
-                <!-- Auto Tag Provisioning — sirf new device pe dikhega -->
+                <!-- Auto Tag Provisioning — shown only for new devices -->
                 <Border Margin="0,16,0,0" Padding="12" CornerRadius="8"
                         Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"

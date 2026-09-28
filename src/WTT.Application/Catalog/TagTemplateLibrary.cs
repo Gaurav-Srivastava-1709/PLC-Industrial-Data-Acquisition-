@@ -4,30 +4,30 @@ using WTT.Domain.Enums;
 namespace WTT.Application.Catalog;
 
 /// <summary>
-/// Har DeviceModel ke liye pre-defined default tags ka collection.
-/// Industry pattern: Template Seeding — naya device add hone pe
-/// protocol ke hisab se sensible starter tags auto-create ho jayein.
+/// Pre-defined default tag collection for each DeviceModel.
+/// Industry pattern: Template Seeding — auto-create sensible starter tags
+/// based on the protocol when a new device is added.
 ///
-/// RULE: Address format = raw register number (1-based ya 0-based per model).
-///       "HR:40001" format mat likho — driver khud OneBasedAddressing handle karta hai.
+/// RULE: Address format = raw register number (1-based or 0-based per model).
+///       Do not use "HR:40001" format — the driver handles OneBasedAddressing itself.
 ///       Example: ADAM ZeroBasedIndex=true → address "0","1","2"...
 ///                MW100 OneBasedIndex → address "1","3","5"... (2 regs per Float32)
 /// </summary>
 public static class TagTemplateLibrary
 {
     /// <summary>
-    /// Diye gaye model ke liye default DeviceTag list return karta hai.
-    /// DeviceId = 0 rakha hai — caller seedha set karega save se pehle.
+    /// Returns the default DeviceTag list for the given model.
+    /// DeviceId is left as 0 — the caller sets it directly before saving.
     /// </summary>
     public static IReadOnlyList<DeviceTag> GetTemplateFor(DeviceModel model) => model switch
     {
-        // ── Allen-Bradley (Browse-capable models ke liye bhi starter tags hain
-        //    agar browse fail ho jaye ya offline add kiya jaye) ──────────────
+        // ── Allen-Bradley (starter tags also exist for browse-capable models
+        //    in case browsing fails or the device is added offline) ──────────────
         DeviceModel.ControlLogix or DeviceModel.CompactLogix => LogixStarterTags(),
         DeviceModel.Plc5 or DeviceModel.Slc500               => Plc5StarterTags(),
         DeviceModel.MicroLogix or DeviceModel.Micro800        => MicroLogixStarterTags(),
 
-        // ── Siemens S7 — Browse NAHI hota (S7comm mein symbol table nahi hoti)
+        // ── Siemens S7 — browsing is not supported (S7comm has no symbol table)
         //    SiemensS7Driver.cs:35 CanBrowseTags=false
         //    SiemensS7Driver.cs:157 throw NotSupportedException ──────────────
         DeviceModel.S7_300 or DeviceModel.S7_400
@@ -79,8 +79,8 @@ public static class TagTemplateLibrary
     ];
 
     // ──────────────────────────────────────────────────────────────────────────
-    // Siemens S7 — DB address format. Browse nahi hota isliye starter tags.
-    // User baad mein TIA Portal se real addresses enter karega.
+    // Siemens S7 — DB address format. Browsing is unsupported, hence starter tags.
+    // The user enters the real addresses from TIA Portal later.
     // ──────────────────────────────────────────────────────────────────────────
     private static IReadOnlyList<DeviceTag> SiemensS7StarterTags() =>
     [
@@ -115,15 +115,15 @@ public static class TagTemplateLibrary
 
     // ──────────────────────────────────────────────────────────────────────────
     // Yokogawa GM10 — 10 channels with bank layout
-    // PlcModelCatalog.Gm10ChannelRegisterOffset() ka exact same logic use hota hai.
-    // DeviceAddressService.cs:125-127 bhi yahi karta hai.
+    // Uses the exact same logic as PlcModelCatalog.Gm10ChannelRegisterOffset().
+    // DeviceAddressService.cs:125-127 does the same.
     // ──────────────────────────────────────────────────────────────────────────
     private static IReadOnlyList<DeviceTag> Gm10Tags()
     {
         var tags = new List<DeviceTag>(10);
         for (var i = 0; i < 10; i++)
         {
-            // GM10 bank offset: channel i+1 ka offset
+            // GM10 bank offset: offset for channel i+1
             var offset = PlcModelCatalog.Gm10ChannelRegisterOffset(i + 1);
             var reg = 1 + offset; // 1-based start address
             tags.Add(MakeModbusTag(
@@ -206,7 +206,7 @@ public static class TagTemplateLibrary
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
-    /// <summary>EtherNet/IP / S7 symbolic-address tag banana.</summary>
+    /// <summary>Creates an EtherNet/IP / S7 symbolic-address tag.</summary>
     private static DeviceTag MakePlcTag(string name, string plcAddress, TagDataType dataType) =>
         new()
         {
@@ -215,11 +215,11 @@ public static class TagTemplateLibrary
             Kind = TagKind.Plc,
             DataType = dataType,
             ElementCount = 1,
-            // ByteCount caller set karega (DefaultByteSize)
+            // ByteCount is set by the caller (DefaultByteSize)
             IsSelected = true,
         };
 
-    /// <summary>Modbus tag banana — register type aur decimal places ke saath.</summary>
+    /// <summary>Modbus tag helper — register type and decimal places.</summary>
     private static DeviceTag MakeModbusTag(
         string name, string address, TagDataType dataType,
         ModbusRegisterType registerType, int? decimalPlaces, string unit) =>

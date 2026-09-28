@@ -56,7 +56,7 @@ public sealed class DataTransferIntegrationTests : IAsyncLifetime
             db.DeviceServers.Add(new DeviceServer { DeviceId = device.Id, ServerName = ".", DatabaseName = _database.DatabaseName, TableName = table, UseIntegratedSecurity = true, Encrypt = true, TrustServerCertificate = true, IsEnabled = true });
             db.TagReadings.AddRange(
                 new TagReading { DeviceId = device.Id, DeviceName = device.Name, TagName = "Temperature-°C", Value = "42.5", Timestamp = DateTime.Now, TimestampUtc = DateTime.UtcNow, Quality = TagQuality.Good, ScanId = Guid.NewGuid() },
-                new TagReading { DeviceId = device.Id, DeviceName = device.Name, TagName = "Recipe", Value = "नमूना", Timestamp = DateTime.Now, TimestampUtc = DateTime.UtcNow, Quality = TagQuality.Good, ScanId = Guid.NewGuid() });
+                new TagReading { DeviceId = device.Id, DeviceName = device.Name, TagName = "Recipe", Value = "SAMPLE", Timestamp = DateTime.Now, TimestampUtc = DateTime.UtcNow, Quality = TagQuality.Good, ScanId = Guid.NewGuid() });
             await db.SaveChangesAsync();
         }
 
@@ -68,7 +68,7 @@ public sealed class DataTransferIntegrationTests : IAsyncLifetime
         await using var connection = new SqlConnection(_database.ConnectionString);
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
-        command.CommandText = $"SELECT COUNT_BIG(*), COUNT(DISTINCT SourceId), MAX(CASE WHEN TagValue=N'नमूना' THEN 1 ELSE 0 END) FROM dbo.[{table}]";
+        command.CommandText = $"SELECT COUNT_BIG(*), COUNT(DISTINCT SourceId), MAX(CASE WHEN TagValue=N'SAMPLE' THEN 1 ELSE 0 END) FROM dbo.[{table}]";
         await using var reader = await command.ExecuteReaderAsync();
         (await reader.ReadAsync()).Should().BeTrue();
         reader.GetInt64(0).Should().Be(2);

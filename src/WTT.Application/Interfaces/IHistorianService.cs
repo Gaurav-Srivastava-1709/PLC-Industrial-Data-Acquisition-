@@ -3,7 +3,7 @@ using WTT.Domain.Enums;
 namespace WTT.Application.Interfaces;
 
 /// <summary>
-/// Ek single trend data point (Graph ke ek dot ki jaankari: samay, value, aur quality).
+/// A single trend data point (timestamp, value, and quality for one graph point).
 /// </summary>
 public record HistorianDataPoint(
     DateTime TimestampUtc,
@@ -12,7 +12,7 @@ public record HistorianDataPoint(
 );
 
 /// <summary>
-/// Ek poore tag ki time-series line (Pen) ki complete details.
+/// Complete details of one tag's time-series line (pen).
 /// </summary>
 public record TagTrendSeries(
     string TagName,
@@ -23,24 +23,24 @@ public record TagTrendSeries(
     WTT.Domain.Enums.TagDataType DataType = WTT.Domain.Enums.TagDataType.Float32
 )
 {
-    /// <summary>Digital (Bool) tags step-chart se render hote hain, analog diagonal se nahi.</summary>
+    /// <summary>Digital (Bool) tags render as step charts, analog tags as diagonal lines.</summary>
     public bool IsDigital => DataType == WTT.Domain.Enums.TagDataType.Bool;
 }
 
 /// <summary>
-/// Industrial SCADA Historian Service Interface:
-/// TagReadings table se live aur historical process data fetch karta hai.
+/// Industrial SCADA historian service interface:
+/// Fetches live and historical process data from the TagReadings table.
 /// </summary>
 public interface IHistorianService
 {
     /// <summary>
-    /// Kisi device ke chune hue tags ka historical time-series data nikalna.
+    /// Retrieves historical time-series data for a device's selected tags.
     /// </summary>
-    /// <param name="deviceId">PLC Machine ki ID</param>
-    /// <param name="tagNames">Jin-jin tags ka graph dekhna hai unke naam</param>
-    /// <param name="fromUtc">Kab se data dekhna hai (start time)</param>
-    /// <param name="toUtc">Kab tak ka data dekhna hai (end time)</param>
-    /// <param name="maxPoints">Screen par max kitne points render karne hain</param>
+    /// <param name="deviceId">PLC machine ID</param>
+    /// <param name="tagNames">Names of the tags to plot</param>
+    /// <param name="fromUtc">Start time of the data range</param>
+    /// <param name="toUtc">End time of the data range</param>
+    /// <param name="maxPoints">Maximum points to render on screen</param>
     Task<IReadOnlyList<TagTrendSeries>> GetTrendsAsync(
         int deviceId,
         IEnumerable<string> tagNames,

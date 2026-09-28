@@ -79,7 +79,7 @@ public sealed record LiveTagValue(
     TagQuality Quality,
     DateTime TimestampUtc);
 
-/// <summary>Message jo AlarmService publish karega aur UI subscribe karega</summary>
+/// <summary>Message that AlarmService will publish and UI will subscribe to</summary>
 public sealed record AlarmTriggeredMessage(
     long AlarmEventId,
     string DeviceName,

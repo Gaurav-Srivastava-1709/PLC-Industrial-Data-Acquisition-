@@ -23,8 +23,8 @@ public class AlarmEvent
     public AlarmPriority Priority { get; set; }
     
     // Values at the time of alarm
-    public double TriggerValue { get; set; }         // Actual value jo thi
-    public double ThresholdValue { get; set; }       // Limit jo cross hui
+    public double TriggerValue { get; set; }         // Actual value at the time
+    public double ThresholdValue { get; set; }       // Limit that was crossed
     public string? EngineeringUnit { get; set; }
     
     // Timestamps (ISA-18.2 requires full audit)

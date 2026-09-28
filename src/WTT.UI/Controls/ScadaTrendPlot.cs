@@ -6,21 +6,21 @@ using WTT.Domain.Enums;
 
 namespace WTT.UI.Controls;
 
-/// <summary>Y-axis mode: Shared raw values vs Normalized 0-100% (mixed units ke liye).</summary>
+/// <summary>Y-axis mode: Shared raw values vs Normalized 0-100% (for mixed units).</summary>
 public enum TrendYScaleMode
 {
     Shared = 0,
     Normalized = 1,
 }
 
-/// <summary>Ek chart point: time + value + quality (gap detection ke liye).</summary>
+/// <summary>A single chart point: time + value + quality (for gap detection).</summary>
 public readonly record struct TrendPoint(DateTime Time, double Value, TagQuality Quality)
 {
     public bool IsGap => Quality is TagQuality.Bad or TagQuality.NotConnected or TagQuality.ConfigError;
 }
 
 /// <summary>
-/// Ek single trend pen (line) ka data aur visual styling.
+/// Data and visual styling for a single trend pen (line).
 /// </summary>
 public class PenSeriesModel
 {
@@ -125,7 +125,7 @@ public class ScadaTrendPlot : FrameworkElement
         set => SetValue(YScaleModeProperty, value);
     }
 
-    /// <summary>ViewModel isko sunta hai taaki pan/zoom par Live-follow auto-pause ho.</summary>
+    /// <summary>The ViewModel listens to this so Live-follow auto-pauses on pan/zoom.</summary>
     public event EventHandler? UserTookManualControl;
 
     private static readonly SolidColorBrush BgBrush = new(Color.FromRgb(22, 27, 34));
@@ -210,7 +210,7 @@ public class ScadaTrendPlot : FrameworkElement
                 ResetView();
                 return;
             }
-            // Pan shuru: current view ko manual me freeze karo
+            // Pan start: freeze the current view into manual mode
             EnsureManualTime();
             _panStart = e.GetPosition(this);
             _panMin0 = _manualMinTime!.Value;
@@ -244,7 +244,7 @@ public class ScadaTrendPlot : FrameworkElement
                     if (range <= 0) return;
                     double factor = e.Delta > 0 ? 0.8 : 1.25;
                     double centerFrac = 0.5;
-                    // Cursor ke Y par zoom (optional: center). Simple center zoom.
+                    // Zoom on cursor Y (optional: center). Simple center zoom.
                     double mid = (_manualMinY.Value + _manualMaxY.Value) / 2;
                     double newRange = Math.Max(1e-9, range * factor);
                     _manualMinY = mid - newRange * centerFrac;
@@ -273,7 +273,7 @@ public class ScadaTrendPlot : FrameworkElement
         };
     }
 
-    /// <summary>Live-follow par wapas (pan/zoom reset).</summary>
+    /// <summary>Return to Live-follow (pan/zoom reset).</summary>
     public void ResetView()
     {
         _manualMinTime = null;
@@ -294,7 +294,7 @@ public class ScadaTrendPlot : FrameworkElement
     private void EnsureManualY()
     {
         if (_manualMinY.HasValue && _manualMaxY.HasValue) return;
-        // Caller OnRender ke baad set karega; yaha default 0-100 taaki crash na ho
+        // Caller sets this after OnRender; default 0-100 here to avoid a crash
         _manualMinY = 0;
         _manualMaxY = 100;
         _pendingYInit = true;
@@ -327,10 +327,10 @@ public class ScadaTrendPlot : FrameworkElement
 
         if (activeSeries == null || activeSeries.Count == 0)
         {
-            // Do message alag: (a) koi pen select hi nahi, (b) pen select hai par window me data nahi.
+            // Two cases: (a) no pen selected, (b) pens selected but no data in window.
             string msg = visiblePenCount == 0
                 ? "Waiting for PLC tag data... Check at least one Tag from the list to display trend."
-                : $"Pens selected ({visiblePenCount}) but no points in this time window. Live streaming ON hai to 1-2 sec me line aayegi, ya bada window (15m/1h) try karo.";
+                : $"Pens selected ({visiblePenCount}) but no points in this time window. If live streaming is ON, the line appears in 1-2 sec; otherwise try a larger window (15m/1h).";
             var hintText = new FormattedText(
                 msg,
                 CultureInfo.CurrentCulture,
@@ -366,13 +366,13 @@ public class ScadaTrendPlot : FrameworkElement
         double totalTicks = (maxTime - minTime).Ticks;
 
         // 2. Analog/Digital lane split (industry standard):
-        // Bool (ON/OFF) pens neeche alag lane me — warna 0/1 vs 100 wali shared Y
-        // analog lines ko daba deti hai (screenshot me CaptureOn wali problem).
+        // Bool (ON/OFF) pens go in a separate lane below — otherwise a 0/1 vs 100 shared Y
+        // would squash the analog lines (CaptureOn overlap issue).
         var analogSeries = activeSeries.Where(s => !s.IsDigital).ToList();
         var digitalSeries = activeSeries.Where(s => s.IsDigital).ToList();
         bool hasDigital = digitalSeries.Count > 0;
         bool hasAnalog = analogSeries.Count > 0;
-        // Sirf digital pens hon to poora plot unko do; warna 72% analog / 28% digital.
+        // If only digital pens exist, give them the full plot; otherwise 72% analog / 28% digital.
         double analogH = !hasAnalog ? 0 : !hasDigital ? plotH : plotH * 0.72;
         double laneGap = hasAnalog && hasDigital ? 8 : 0;
         double digitalH = hasDigital ? plotH - analogH - laneGap : 0;
@@ -383,7 +383,7 @@ public class ScadaTrendPlot : FrameworkElement
         if (hasDigital)
             dc.DrawRectangle(PlotAreaBrush, BorderPen, digitalRect);
 
-        // 2b. Value limits (ANALOG only — digital 0/1 ko Y me mat gino)
+        // 2b. Value limits (ANALOG only — exclude digital 0/1 from Y)
         double minY, maxY;
         if (normalized)
         {
@@ -444,8 +444,8 @@ public class ScadaTrendPlot : FrameworkElement
             return (v - sMin) / sRange * 100.0;
         }
 
-        // 3. Y grid + labels (ANALOG lane me; digital lane me 0/1 labels)
-        double yBase = marginTop + analogH; // analog lane ka bottom
+        // 3. Y grid + labels (in ANALOG lane; 0/1 labels in digital lane)
+        double yBase = marginTop + analogH; // analog lane bottom
         int yDivisions = 5;
         for (int i = 0; i <= yDivisions; i++)
         {
@@ -507,7 +507,7 @@ public class ScadaTrendPlot : FrameworkElement
         // 5. Alarm thresholds (ANALOG lane, shared mode only)
         foreach (var s in analogSeries)
         {
-            if (normalized) continue; // normalized me alarm % me meaningless — legend me dikhta hai
+            if (normalized) continue; // Skipped in normalized mode (alarms are meaningless in %); shown in legend
             if (s.MaxAlarm.HasValue && s.MaxAlarm.Value >= minY && s.MaxAlarm.Value <= maxY)
             {
                 double aY = yBase - ((s.MaxAlarm.Value - minY) / yRange * analogH);
@@ -528,7 +528,7 @@ public class ScadaTrendPlot : FrameworkElement
 
         foreach (var s in analogSeries)
         {
-            // Time-window filter (binary-search friendly: Points time-sorted hain)
+            // Time-window filter (binary-search friendly: points are time-sorted)
             int lo = LowerBound(s.Points, minTime);
             int hi = UpperBound(s.Points, maxTime);
             if (lo >= hi) continue;
@@ -551,7 +551,7 @@ public class ScadaTrendPlot : FrameworkElement
                 var p = s.Points[i];
                 if (p.IsGap)
                 {
-                    // Gap: stroke todo, red X marker dikhao (analog lane center me)
+                    // Gap: break stroke, draw red X marker (analog lane center)
                     FlushStroke();
                     double xFrac = (p.Time.Ticks - minTime.Ticks) / totalTicks;
                     double px = marginLeft + xFrac * plotW;
@@ -590,7 +590,7 @@ public class ScadaTrendPlot : FrameworkElement
         dc.Pop();
         } // end analog lane
 
-        // 6b. Digital lane (step-chart, 0 neeche / 1 upar)
+        // 6b. Digital lane (step-chart, 0 at bottom / 1 at top)
         if (hasDigital)
         {
         dc.PushClip(new RectangleGeometry(digitalRect));
@@ -610,7 +610,7 @@ public class ScadaTrendPlot : FrameworkElement
             double DigiY(double v)
             {
                 double clamped = Math.Clamp(v, 0, 1);
-                // 1 = upar (15%), 0 = neeche (85%)
+                // 1 = top (15%), 0 = bottom (85%)
                 return digitalRect.Top + digitalH * (0.85 - clamped * 0.7);
             }
 
@@ -648,7 +648,7 @@ public class ScadaTrendPlot : FrameworkElement
                 }
                 else
                 {
-                    // Step: pehle horizontal, phir vertical
+                    // Step: horizontal first, then vertical
                     ctx!.LineTo(new Point(cur.X, lastPt.Y), true, false);
                     ctx.LineTo(cur, true, false);
                 }

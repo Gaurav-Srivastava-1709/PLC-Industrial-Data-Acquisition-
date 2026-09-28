@@ -171,7 +171,7 @@ public partial class DashboardViewModel : ViewModelBase
         _navigation.Navigate(typeof(Views.Pages.LiveDataPage));
     }
 
-    // Full Historian Trends page par direct jump karne ke liye
+    // Jump directly to the full Historian Trends page
     [RelayCommand]
     private void OpenTrends()
     {

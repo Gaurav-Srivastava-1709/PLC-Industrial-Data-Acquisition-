@@ -33,7 +33,7 @@
                     <ui:Button Content="Save Retention" Appearance="Secondary" Command="{Binding UpdateRetentionCommand}" Margin="0,0,12,0"/>
                     <ui:Button Content="Delete Now" Appearance="Danger" Command="{Binding PurgeNowCommand}" Margin="0,0,12,0"/>
                     <CheckBox Content="Beep" IsChecked="{Binding IsBeepEnabled}" VerticalAlignment="Center" ToolTip="Beep ON/Silent for Critical/High"/>
-                    <TextBlock Text="Email Ready (extensible)" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontStyle="Italic"/>
+                    <!-- <TextBlock Text="Email Ready (extensible)" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontStyle="Italic"/> -->
                 </StackPanel>
             </Border>
         </StackPanel>

@@ -34,7 +34,7 @@ public sealed class CsvExportService
                     await writer.WriteLineAsync(string.Join(',', values.Select(Escape)));
                 }
                 await writer.FlushAsync(ct);
-            } // Writer yahi close hoga taaki .tmp file ka lock chhoote, uske baad hi Move karenge.
+            } // Writer closes here to release the .tmp file lock before Move.
             // Antivirus / cloud-sync can briefly lock the fresh file. Retry before giving up.
             Exception? moveError = null;
             for (var attempt = 0; attempt < 3; attempt++)

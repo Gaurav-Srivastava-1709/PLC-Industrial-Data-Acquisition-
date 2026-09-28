@@ -12,8 +12,8 @@ public partial class SettingsPage : INavigableView<SettingsViewModel>, INavigati
         ViewModel = viewModel;
         DataContext = viewModel;
         InitializeComponent();
-        // NumberBox/Toggle jaise controls mouse-wheel kha jate hain,
-        // isliye wheel ko parent ScrollViewer ko forward karo taaki About tak scroll ho sake.
+        // Controls like NumberBox/Toggle consume the mouse wheel,
+        // so forward the wheel to the parent ScrollViewer to allow scrolling to the About section.
         SettingsScrollViewer.PreviewMouseWheel += (_, e) =>
         {
             SettingsScrollViewer.ScrollToVerticalOffset(SettingsScrollViewer.VerticalOffset - e.Delta);

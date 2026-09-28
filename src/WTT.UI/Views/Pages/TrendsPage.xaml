@@ -48,25 +48,25 @@
                 <!-- Y-mode: Shared vs Normalized (mixed units) -->
                 <ui:Button Content="{Binding YModeLabel}"
                            Icon="{ui:SymbolIcon DataHistogram24}"
-                           ToolTip="Toggle Shared Y / Normalized 0-100% (mixed units ke liye)"
+                           ToolTip="Toggle Shared Y / Normalized 0-100% (for mixed units)"
                            Command="{Binding ToggleYModeCommand}"
                            Appearance="Secondary" Margin="0,0,8,6" />
 
                 <!-- Reset pan/zoom -->
                 <ui:Button Content="Reset View"
                            Icon="{ui:SymbolIcon ArrowReset24}"
-                           ToolTip="Pan/Zoom reset — double-click chart par bhi hota hai"
+                           ToolTip="Pan/Zoom reset — also works by double-clicking the chart"
                            Command="{Binding ResetViewCommand}"
                            Margin="0,0,8,6" />
 
                 <!-- Export CSV -->
                 <ui:Button Content="Export CSV" Icon="{ui:SymbolIcon ArrowDownload24}" ToolTip="Full-resolution CSV (10k points)" Command="{Binding ExportCsvCommand}" Margin="0,0,8,6" />
 
-                <!-- Export PNG (poora card: legend + chart + hint — industry report jaisa) -->
-                <ui:Button Content="Export PNG" Icon="{ui:SymbolIcon Image24}"
-                           ToolTip="Chart ka screenshot PNG me save karo"
+                <!-- Export PNG (full card: legend + chart + hint — like an industry report) -->
+                <!-- <ui:Button Content="Export PNG" Icon="{ui:SymbolIcon Image24}"
+                           ToolTip="Save chart screenshot as PNG"
                            Command="{Binding ExportPngCommand}" CommandParameter="{Binding ElementName=TrendCard}"
-                           Margin="0,0,8,6" />
+                           Margin="0,0,8,6" /> -->
 
                 <!-- Refresh -->
                 <ui:Button Icon="{ui:SymbolIcon ArrowClockwise24}" ToolTip="Refresh Window" Command="{Binding RefreshCommand}" Margin="0,0,8,6" />

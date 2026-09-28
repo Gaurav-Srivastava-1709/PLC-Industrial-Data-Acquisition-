@@ -48,16 +48,16 @@ public interface ITagService
 }
 
 /// <summary>
-/// Jab naya device create ho, protocol/model ke hisab se default tags
-/// automatically seed karta hai. Browse-capable devices ke liye PLC se live
-/// import attempt karta hai; baaki sabhi ke liye template-based starter tags.
+/// Seeds default tags when a new device is created, based on protocol/model.
+/// Attempts a live import from the PLC for browse-capable devices;
+/// uses template-based starter tags for all others.
 /// </summary>
 public interface ITagProvisioningService
 {
     /// <summary>
-    /// Device ke liye default tags provision karo.
-    /// <paramref name="seedTags"/> = false ⇒ kuch nahi karta (admin ne checkbox OFF kiya).
-    /// Returns: number of tags actually created (0 se lekar unlimited).
+    /// Provisions default tags for a device.
+    /// <paramref name="seedTags"/> = false ⇒ does nothing (admin turned the checkbox off).
+    /// Returns: number of tags actually created (0 or more).
     /// </summary>
     Task<int> ProvisionAsync(Device device, bool seedTags, CancellationToken ct = default);
 }

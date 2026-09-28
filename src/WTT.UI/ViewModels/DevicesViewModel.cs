@@ -230,7 +230,7 @@ public partial class DeviceEditViewModel : ViewModelBase
     [ObservableProperty] private string? _testResult;
     [ObservableProperty] private bool _testSucceeded;
 
-    // Auto Tag Provisioning — sirf new device ke liye dikhega
+    // Auto Tag Provisioning — shown only for new devices
     [ObservableProperty] private bool _autoSeedTags = true;
     [ObservableProperty] private string _autoSeedHint = string.Empty;
 
@@ -242,7 +242,7 @@ public partial class DeviceEditViewModel : ViewModelBase
     public bool ShowCipPath => Protocol == ProtocolType.EthernetIp;
     public string AddressHint => Model?.AddressHint ?? string.Empty;
 
-    /// <summary>Auto-seed checkbox sirf new device add karte waqt dikhega, edit pe nahi.</summary>
+    /// <summary>The auto-seed checkbox is shown only when adding a new device, not on edit.</summary>
     public bool ShowAutoSeed => _original is null;
 
     public void Initialize(Device? device)
@@ -305,7 +305,7 @@ public partial class DeviceEditViewModel : ViewModelBase
         OnPropertyChanged(nameof(ShowSlot)); OnPropertyChanged(nameof(ShowRack)); OnPropertyChanged(nameof(ShowConnectionSize));
         OnPropertyChanged(nameof(ShowUnitId)); OnPropertyChanged(nameof(ShowWordOrder)); OnPropertyChanged(nameof(AddressHint));
 
-        // Auto-seed hint: model ke hisab se batao kitne tags banengi
+        // Auto-seed hint: show how many tags will be created for this model
         if (value is not null && _original is null)
         {
             var templateTags = Application.Catalog.TagTemplateLibrary.GetTemplateFor(value.Model);
@@ -345,8 +345,8 @@ public partial class DeviceEditViewModel : ViewModelBase
         var ok = await RunAsync(async () =>
         {
             var d = Build();
-            // Naya device: seedTags parameter pass karo (checkbox se)
-            // Edit: seedTags=false (existing device pe provisioning nahi)
+            // New device: pass the seedTags parameter (from checkbox)
+            // Edit: seedTags=false (no provisioning on existing devices)
             if (_original is null)
                 await _devices.CreateAsync(d, seedTags: AutoSeedTags);
             else

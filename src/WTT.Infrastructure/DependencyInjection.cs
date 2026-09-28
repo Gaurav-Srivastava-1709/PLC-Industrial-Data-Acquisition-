@@ -69,7 +69,7 @@ public static class DependencyInjection
         services.AddSingleton<ITagProvisioningService, TagProvisioningService>();
         services.AddSingleton<IDeviceAddressService, DeviceAddressService>();
         services.AddSingleton<ITagService, TagService>();
-        // SCADA Historian Service: process data trends nikalne ke liye
+        // SCADA Historian Service: for extracting process data trends
         services.AddSingleton<IHistorianService, HistorianService>();
         services.AddSingleton<ITriggerService, TriggerService>();
         services.AddSingleton<IDeviceServerService, DeviceServerService>();

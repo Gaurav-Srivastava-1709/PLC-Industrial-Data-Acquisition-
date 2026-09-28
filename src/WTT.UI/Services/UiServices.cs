@@ -117,11 +117,11 @@ public sealed class ThemeManager
         await _settings.SetAsync(AppSettingKeys.Theme, theme.ToString());
     }
 
-    // WindowBackdropType.None kyunki saari windows explicitly None use karti hain.
-    // Startup sequence ensure karta hai ki pehli baar ye call hone par koi FluentWindow
-    // open nahi hoti — sirf plain StartupWindow hota hai jo theme change se affect nahi hota.
-    // NOTE: Apply hamesha UI thread par hona chahiye, nahi to khuli hui MainWindow
-    // Light mode me blank/safed dikh sakti hai (DynamicResource refresh UI thread par hota hai).
+    // WindowBackdropType.None because all windows explicitly use None.
+    // The startup sequence ensures no FluentWindow is open on the first call —
+    // only the plain StartupWindow, which is unaffected by theme changes.
+    // NOTE: Apply must always run on the UI thread, otherwise an open MainWindow
+    // may render blank/white in Light mode (DynamicResource refresh runs on the UI thread).
     private static void Apply(AppTheme theme)
     {
         var appTheme = theme == AppTheme.Dark ? ApplicationTheme.Dark : ApplicationTheme.Light;
@@ -218,10 +218,10 @@ public sealed class ShellNavigator
     {
         var login = _services.GetRequiredService<Views.Windows.LoginWindow>();
         if (message is not null) login.ViewModel.InfoMessage = message;
-        // Startup ke baad har baar naya LoginWindow banta hai (transient).
-        // CanSignIn default false hai taaki DB ready hone se pehle click na ho,
-        // lekin logout ke baad wali window me ise turant true karna zaroori hai,
-        // nahi to Sign in button hamesha grey rahega.
+        // A fresh LoginWindow is created after every startup (transient).
+        // CanSignIn defaults to false so it cannot be clicked before the DB is ready,
+        // but the post-logout window needs it set to true immediately,
+        // otherwise the Sign in button stays grey.
         login.ViewModel.CanSignIn = true;
         login.Show();
         CloseAllExcept(login);

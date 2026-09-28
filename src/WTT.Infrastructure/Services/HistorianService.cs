@@ -10,8 +10,8 @@ namespace WTT.Infrastructure.Services;
 
 /// <summary>
 /// Industrial SCADA Historian Service:
-/// TagReadings table se fast, indexed query karke tags ka time-series data nikalta hai
-/// aur UI ke liye chart-ready series points generate karta hai.
+/// Runs fast, indexed queries against the TagReadings table to retrieve tag time-series data
+/// and generates chart-ready series points for the UI.
 /// </summary>
 public sealed class HistorianService : IHistorianService
 {
@@ -38,16 +38,16 @@ public sealed class HistorianService : IHistorianService
 
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
 
-        // 1. Tags ki metadata (Engineering Units, Alarm Limits, DataType) load karo
+        // 1. Load tag metadata (Engineering Units, Alarm Limits, DataType)
         var tagMeta = await db.DeviceTags
             .AsNoTracking()
             .Where(t => t.DeviceId == deviceId && tagList.Contains(t.Name))
             .Select(t => new { t.Name, t.EngineeringUnit, t.AlarmMinThreshold, t.AlarmMaxThreshold, t.DataType })
             .ToDictionaryAsync(t => t.Name, StringComparer.OrdinalIgnoreCase, ct);
 
-        // 2. TagReadings table se time window ke hisab se raw data nikalna.
-        // Industry-grade guard: pehle COUNT karo taaki 10 lakh rows RAM me na aaye.
-        // Composite index (DeviceId, TagName, TimestampUtc) hona chahiye — migration AddHistorianTrendIndex dekho.
+        // 2. Fetch raw data from the TagReadings table for the requested time window.
+        // Industry-grade guard: run COUNT first so up to 1M rows are never loaded into RAM.
+        // Requires composite index (DeviceId, TagName, TimestampUtc) — see migration AddHistorianTrendIndex.
         const int HardFetchCap = 20000;
         var totalCount = await db.TagReadings
             .AsNoTracking()
@@ -60,7 +60,7 @@ public sealed class HistorianService : IHistorianService
         List<(string TagName, string Value, TagQuality Quality, DateTime TimestampUtc)> rawReadings;
         if (totalCount <= HardFetchCap)
         {
-            // Small window: saara data lao, order me.
+            // Small window: fetch all data in order.
             rawReadings = await db.TagReadings
                 .AsNoTracking()
                 .Where(r => r.DeviceId == deviceId
@@ -74,7 +74,7 @@ public sealed class HistorianService : IHistorianService
         else
         {
             // Large window: server-side stride sampling (SQL ROW_NUMBER % stride).
-            // Har tag ka data evenly lao bina 20k se zyada laaye.
+            // Fetch each tag's data evenly without exceeding 20k rows.
             var stride = Math.Max(1, totalCount / HardFetchCap);
             rawReadings = await db.TagReadings
                 .AsNoTracking()
@@ -86,11 +86,11 @@ public sealed class HistorianService : IHistorianService
                 .Select(r => new ValueTuple<string, string, TagQuality, DateTime>(r.TagName, r.Value, r.Quality, r.TimestampUtc))
                 .ToListAsync(ct);
 
-            // Client-side stride (SQL me modulo likhne se plan unstable hota; count-based stride deterministic hai)
+            // Client-side stride (modulo in SQL makes the plan unstable; count-based stride is deterministic)
             var strided = new List<(string TagName, string Value, TagQuality Quality, DateTime TimestampUtc)>(HardFetchCap);
             for (var i = 0; i < rawReadings.Count; i += stride)
                 strided.Add(rawReadings[i]);
-            // Hamesha last point rakho taaki live edge kate nahi
+            // Always keep the last point so the live edge is not clipped
             if (strided.Count == 0 || strided[^1] != rawReadings[^1])
                 strided.Add(rawReadings[^1]);
             rawReadings = strided;
@@ -100,9 +100,9 @@ public sealed class HistorianService : IHistorianService
 
         var result = new List<TagTrendSeries>();
 
-        // 3. Har tag ke data ko group karke number me parse karna
-        // NOTE: Bad/NotConnected points ko DROP nahi karte — unhe Quality ke saath rakhte hain
-        // taaki chart me gap dikhe (industry-standard data integrity).
+        // 3. Group each tag's data and parse values to numbers.
+        // NOTE: Bad/NotConnected points are not dropped — they are retained with their Quality
+        // so the chart shows a gap (industry-standard data integrity).
         foreach (var tagName in tagList)
         {
             var readingsForTag = rawReadings
@@ -114,8 +114,8 @@ public sealed class HistorianService : IHistorianService
             var validPoints = new List<HistorianDataPoint>(readingsForTag.Count);
             foreach (var r in readingsForTag)
             {
-                // Number parse karna (Invariant culture ensure karta hai ki decimal dot '.' sahi rahe)
-                // Bool "1"/"0" bhi double me parse ho jata hai (step-chart ke liye).
+                // Parse numbers (Invariant culture ensures the decimal dot '.' is handled correctly)
+                // Bool "1"/"0" also parses to double (for step charts).
                 if (double.TryParse(r.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedValue))
                 {
                     validPoints.Add(new HistorianDataPoint(r.TimestampUtc, parsedValue, r.Quality));
@@ -126,8 +126,8 @@ public sealed class HistorianService : IHistorianService
                 }
             }
 
-            // 4. Downsampling: LTTB (Largest-Triangle-Three-Buckets) — shape preserve karta hai.
-            // Purana even-sampling peaks (alarm spike) ko kha jata tha; LTTB visual fidelity rakhta hai.
+            // 4. Downsampling: LTTB (Largest-Triangle-Three-Buckets) — preserves shape.
+            // Legacy even-sampling swallowed peaks (alarm spikes); LTTB retains visual fidelity.
             IReadOnlyList<HistorianDataPoint> finalPoints;
             if (validPoints.Count > maxPoints && maxPoints > 10)
             {
@@ -152,9 +152,9 @@ public sealed class HistorianService : IHistorianService
     }
 
     /// <summary>
-    /// LTTB downsampling: visual shape (peaks/valleys) preserve karta hai.
-    /// Even-sampling se behtar — alarm spike kabhi miss nahi hota.
-    /// Bad-quality points ko bucket boundary par preserve kiya jata hai taaki gap dikhe.
+    /// LTTB downsampling: preserves visual shape (peaks/valleys).
+    /// Better than even-sampling — alarm spikes are never missed.
+    /// Bad-quality points are preserved at bucket boundaries so gaps remain visible.
     /// </summary>
     private static IReadOnlyList<HistorianDataPoint> DownsampleLttb(List<HistorianDataPoint> source, int targetCount)
     {
@@ -171,7 +171,7 @@ public sealed class HistorianService : IHistorianService
             int rangeEnd = Math.Min((int)Math.Floor((i + 2) * bucketSize) + 1, source.Count);
             if (rangeEnd <= rangeStart) rangeEnd = Math.Min(rangeStart + 1, source.Count);
 
-            // Next bucket ka average (triangle ka teesra vertex)
+            // Average of the next bucket (third vertex of the triangle)
             double avgX = 0, avgY = 0;
             int avgCount = 0;
             for (var j = rangeStart; j < rangeEnd; j++)
@@ -183,7 +183,7 @@ public sealed class HistorianService : IHistorianService
             if (avgCount > 0) { avgX /= avgCount; avgY /= avgCount; }
             else { avgX = source[rangeStart].TimestampUtc.Ticks; avgY = source[rangeStart].Value; }
 
-            // Current bucket me sabse bada triangle area wala point chuno
+            // Select the point with the largest triangle area in the current bucket
             int bucketStart = (int)Math.Floor(i * bucketSize) + 1;
             int bucketEnd = Math.Min((int)Math.Floor((i + 1) * bucketSize) + 1, source.Count);
             double maxArea = -1;
@@ -192,7 +192,7 @@ public sealed class HistorianService : IHistorianService
             for (var j = bucketStart; j < bucketEnd; j++)
             {
                 double area = Math.Abs((ax - avgX) * (source[j].Value - ay) - (ax - source[j].TimestampUtc.Ticks) * (avgY - ay)) * 0.5;
-                // Bad-quality point ko thoda boost taaki gap preserve ho
+                // Slightly boost bad-quality points so gaps are preserved
                 if (source[j].Quality is TagQuality.Bad or TagQuality.NotConnected or TagQuality.ConfigError)
                     area += (avgY - ay) * 0.001 + 1e-9;
                 if (area > maxArea) { maxArea = area; nextA = j; }
@@ -205,8 +205,8 @@ public sealed class HistorianService : IHistorianService
     }
 
     /// <summary>
-    /// Agar 10,000 points aa jayein to unme se evenly spaced samples lena
-    /// taaki graph 60 FPS par smooth chale aur CPU freeze na ho.
+    /// Takes evenly spaced samples when up to 10,000 points arrive
+    /// so the graph renders smoothly at 60 FPS without freezing the CPU.
     /// </summary>
     private static IReadOnlyList<HistorianDataPoint> DownsampleEven(List<HistorianDataPoint> source, int targetCount)
     {

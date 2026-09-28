@@ -32,17 +32,17 @@ public partial class AlarmsViewModel : ViewModelBase
 
     [ObservableProperty] private int _selectedTabIndex;
 
-    // Tab switch hone par turant fresh data load karo (Active ya History)
+    // Load fresh data immediately on tab switch (Active or History)
     partial void OnSelectedTabIndexChanged(int value)
     {
         if (value == 1)
         {
-            // Alarm History tab open hua — background me latest audit history load karo
+            // Alarm History tab opened — load the latest audit history in the background
             _ = RefreshHistoryQuietAsync();
         }
         else if (value == 0)
         {
-            // Active Alarms tab open hua — live active alarms sync karo
+            // Active Alarms tab opened — sync the live active alarms
             _ = RefreshActiveFromDbAsync();
         }
     }
@@ -134,31 +134,31 @@ public partial class AlarmsViewModel : ViewModelBase
         return Task.CompletedTask;
     }
 
-    // Industrial SCADA: Har 2 second me background sync chalti hai
+    // Industrial SCADA: background sync runs every 2 seconds
     private async Task AutoRefreshAsync()
     {
         if (System.Threading.Interlocked.Exchange(ref _autoRefreshing, 1) == 1) return;
         try
         {
-            // Cross-process DB changes ko pehle sync karo
+            // Sync cross-process DB changes first
             try { await _alarmService.SyncCrossProcessAlarmsAsync(CancellationToken.None); } catch { }
             
-            // Current selected tab ke hisab se data auto-refresh karo
+            // Auto-refresh data according to the currently selected tab
             if (SelectedTabIndex == 0)
             {
-                // Active Alarms tab open hai toh active list refresh karo
+                // Active Alarms tab is open, so refresh the active list
                 await RefreshActiveFromDbAsync();
             }
             else if (SelectedTabIndex == 1)
             {
-                // Alarm History tab open hai toh history audit log ko background me update rakho
+                // Alarm History tab is open, so keep the history audit log updated in the background
                 await RefreshHistoryQuietAsync();
             }
         }
         finally { System.Threading.Interlocked.Exchange(ref _autoRefreshing, 0); }
     }
 
-    // Active Alarms ko bina screen flicker ke diff karke update karta hai
+    // Update Active Alarms via diff without screen flicker
     private async Task RefreshActiveFromDbAsync()
     {
         try
@@ -168,7 +168,7 @@ public partial class AlarmsViewModel : ViewModelBase
             {
                 var activeMap = active.ToDictionary(a => a.Id);
                 
-                // 1. Jo alarms ab active nahi rahe (cleared ho chuke hain), unhe list se hatao
+                // 1. Remove alarms that are no longer active (already cleared) from the list
                 for (int i = ActiveAlarms.Count - 1; i >= 0; i--)
                 {
                     if (!activeMap.ContainsKey(ActiveAlarms[i].Id))
@@ -177,7 +177,7 @@ public partial class AlarmsViewModel : ViewModelBase
                     }
                 }
 
-                // 2. Jo alarms pehle se list me hain, unka State (Active vs Acknowledged) aur AckBy sync karo
+                // 2. For alarms already in the list, sync their State (Active vs Acknowledged) and AckBy
                 for (int i = 0; i < ActiveAlarms.Count; i++)
                 {
                     var existing = ActiveAlarms[i];
@@ -185,13 +185,13 @@ public partial class AlarmsViewModel : ViewModelBase
                     {
                         if (existing.State != fresh.State || existing.AcknowledgedBy != fresh.AcknowledgedBy)
                         {
-                            // Item replace karne se DataGrid row turant updated status render karti hai
+                            // Replacing the item makes the DataGrid row render the updated status immediately
                             ActiveAlarms[i] = fresh;
                         }
                     }
                 }
 
-                // 3. Jo bilkul naye alarms trigger hue hain, unhe list me jodo
+                // 3. Add newly triggered alarms to the list
                 var existingIds = ActiveAlarms.Select(a => a.Id).ToHashSet();
                 foreach (var a in active)
                 {
@@ -205,7 +205,7 @@ public partial class AlarmsViewModel : ViewModelBase
         catch { }
     }
 
-    // History filter ka reusable object generate karta hai
+    // Generate a reusable object for the history filter
     private AlarmHistoryFilter CreateCurrentHistoryFilter()
     {
         return new AlarmHistoryFilter(
@@ -219,7 +219,7 @@ public partial class AlarmsViewModel : ViewModelBase
         );
     }
 
-    // Background me bina full-screen spinner ke Alarm History ko DB ke sath 100% sync rakhta hai
+    // Keep Alarm History fully in sync with the DB in the background without a full-screen spinner
     private async Task RefreshHistoryQuietAsync()
     {
         try
@@ -229,7 +229,7 @@ public partial class AlarmsViewModel : ViewModelBase
             
             OnUi(() =>
             {
-                // Agar item count alag hai ya list empty thi, toh fresh reload karo
+                // If the item count differs or the list was empty, do a fresh reload
                 if (HistoryAlarms.Count != items.Count)
                 {
                     HistoryAlarms.Clear();
@@ -237,7 +237,7 @@ public partial class AlarmsViewModel : ViewModelBase
                 }
                 else
                 {
-                    // Item-by-item check karo taki scroll position ya selection jump na kare
+                    // Check item-by-item so the scroll position or selection does not jump
                     for (int i = 0; i < items.Count; i++)
                     {
                         var cur = HistoryAlarms[i];
@@ -248,7 +248,7 @@ public partial class AlarmsViewModel : ViewModelBase
                             cur.AcknowledgedBy != fresh.AcknowledgedBy || 
                             cur.ClearedAtUtc != fresh.ClearedAtUtc)
                         {
-                            // Status change (e.g. Active -> Acknowledged) turant UI pe reflect ho
+                            // Status change (e.g. Active -> Acknowledged) reflects immediately in the UI
                             HistoryAlarms[i] = fresh;
                         }
                     }
@@ -270,7 +270,7 @@ public partial class AlarmsViewModel : ViewModelBase
                 ActiveAlarms.Clear();
                 foreach (var a in active) ActiveAlarms.Add(a);
             });
-            // Active load hone ke sath history bhi background me ready rakho
+            // While active loads, also prepare history in the background
             await RefreshHistoryQuietAsync();
         });
     }
@@ -298,13 +298,13 @@ public partial class AlarmsViewModel : ViewModelBase
         if (alarm == null) return;
         await RunAsync(async () =>
         {
-            // DB me acknowledge save karo (operator username ke sath)
+            // Save acknowledgment to DB (with operator username)
             await _alarmService.AcknowledgeAsync(alarm.Id, _currentUser.Username ?? "Unknown", CancellationToken.None);
             
-            // 1. Active alarms ko update karo (button disable aur opacity update ho jayegi)
+            // 1. Update active alarms (button disable and opacity will update)
             await RefreshActiveFromDbAsync();
 
-            // 2. ISA-18.2 Standard: History log ko turant update karo taaki audit trail me 'Acknowledged' aur 'admin' bina delay ke dikhe
+            // 2. ISA-18.2 Standard: Update history log immediately so 'Acknowledged' and 'admin' appear in the audit trail without delay
             await RefreshHistoryQuietAsync();
         });
     }
@@ -314,10 +314,10 @@ public partial class AlarmsViewModel : ViewModelBase
     {
         await RunAsync(async () =>
         {
-            // Saare active alarms ko ek sath acknowledge karo
+            // Acknowledge all active alarms at once
             await _alarmService.AcknowledgeAllAsync(_currentUser.Username ?? "Unknown", CancellationToken.None);
             
-            // Active aur History dono grids ko turant update karo
+            // Immediately update both Active and History grids
             await RefreshActiveFromDbAsync();
             await RefreshHistoryQuietAsync();
         });

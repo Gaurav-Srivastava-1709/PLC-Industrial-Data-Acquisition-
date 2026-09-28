@@ -6,10 +6,10 @@ namespace WTT.Application.Interfaces;
 
 public interface IAlarmService
 {
-    /// <summary>Ek tag ki value check karo threshold ke against (Called by CaptureWorker)</summary>
+    /// <summary>Checks one tag value against its thresholds (Called by CaptureWorker)</summary>
     Task EvaluateAsync(Device device, DeviceTag tag, double currentValue, CancellationToken ct);
 
-    /// <summary>Active alarms ka count (badge ke liye)</summary>
+    /// <summary>Active alarm count (for the badge)</summary>
     Task<int> GetActiveAlarmCountAsync(CancellationToken ct);
 
     /// <summary>Active alarms list</summary>
@@ -19,7 +19,7 @@ public interface IAlarmService
     Task<(IReadOnlyList<AlarmEvent> Items, int TotalCount)> GetAlarmHistoryAsync(
         AlarmHistoryFilter filter, int page, int pageSize, CancellationToken ct);
 
-    /// <summary>Operator acknowledge kare</summary>
+    /// <summary>Operator acknowledges an alarm</summary>
     Task AcknowledgeAsync(long alarmEventId, string acknowledgedBy, CancellationToken ct);
 
     /// <summary>Bulk acknowledge</summary>

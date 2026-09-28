@@ -16,7 +16,7 @@ using WTT.UI.Services;
 namespace WTT.UI.ViewModels;
 
 /// <summary>
-/// Tag selection checkbox item (Operator kaunse tags dekhna chahta hai).
+/// Tag selection checkbox item (which tags the operator wants to view).
 /// </summary>
 public partial class TagTrendItem : ObservableObject
 {
@@ -41,7 +41,7 @@ public partial class TagTrendItem : ObservableObject
 
 /// <summary>
 /// Industrial SCADA Historian Trends ViewModel:
-/// Multi-device, multi-pen real-time aur historical tag process data ko manage karta hai.
+/// Multi-device, multi-pen real-time and historical tag process data.
 /// </summary>
 public partial class TrendsViewModel : ViewModelBase
 {
@@ -116,9 +116,9 @@ public partial class TrendsViewModel : ViewModelBase
 
     public override async Task OnNavigatedToAsync()
     {
-        // BUG FIX: devices RunAsync ke andar load karo, SelectedDevice BAHAR set karo.
-        // Pehle dono andar the to inner RunAsync(LoadDeviceTagsAsync) IsBusy dekh ke
-        // skip ho jata tha — pehli visit par tag list khali rehti thi.
+        // BUG FIX: load devices inside RunAsync, set SelectedDevice OUTSIDE.
+        // Both were inside before, so the inner RunAsync(LoadDeviceTagsAsync) was
+        // skipped while busy — the tag list stayed empty on first visit.
         Device? target = null;
         await RunAsync(async () =>
         {
@@ -146,9 +146,9 @@ public partial class TrendsViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Device badalane par uske saare tags load karna.
-    /// Doosre devices ke pens untouched rehte hain (multi-device trend);
-    /// wapas aane par pichli selection restore hoti hai.
+    /// Load all tags when the device changes.
+    /// Other devices' pens stay untouched (multi-device trend);
+    /// the previous selection is restored when returning.
     /// </summary>
     private bool _bulkUpdate;
     private async Task LoadDeviceTagsAsync()
@@ -179,7 +179,7 @@ public partial class TrendsViewModel : ViewModelBase
                     }
                 };
                 AllTags.Add(item);
-                // Pichli visit ki selection restore karo (series pehle se ActiveSeries me hai)
+                // Restore the previous visit's selection (series already in ActiveSeries)
                 if (ActiveSeries.Any(s => s.DeviceId == t.DeviceId && string.Equals(s.TagName, t.Name, StringComparison.OrdinalIgnoreCase)))
                     item.IsSelected = true;
                 colorIdx++;
@@ -187,8 +187,8 @@ public partial class TrendsViewModel : ViewModelBase
 
             ApplyFilter();
 
-            // Industry Standard: Auto-select hata diya. 
-            // Operator khud chuse karega ki usse kya dekhna hai.
+            // Industry standard: auto-select removed.
+            // The operator chooses what to view.
             if (!ActiveSeries.Any(s => s.DeviceId == SelectedDevice.Id))
             {
                 _ = ReloadHistoryAsync();
@@ -212,12 +212,12 @@ public partial class TrendsViewModel : ViewModelBase
     {
         if (item.IsSelected)
         {
-            // String tags (LineName/CurrentBatch) ki line nahi ban sakti — ye text context hain.
-            // Inhe pen banane se Pens count + Y-scale dono bigadte hain (screenshot me Pens:8 confusion).
+            // String tags (LineName/CurrentBatch) cannot form a line — they are text context.
+            // Making them pens corrupts both pen count and Y-scale.
             if (item.Tag.DataType == WTT.Domain.Enums.TagDataType.String)
             {
                 item.IsSelected = false;
-                Dialogs.Toast("Trends", $"'{item.Name}' text value hai — iski line nahi ban sakti. Value left list me dekho.", ToastKind.Info);
+                Dialogs.Toast("Trends", $"'{item.Name}' is a text value — it cannot be plotted as a line. See the value in the left list.", ToastKind.Info);
                 return;
             }
             // Production guard: too many pens kills readability and render perf.
@@ -229,10 +229,10 @@ public partial class TrendsViewModel : ViewModelBase
                 Dialogs.Toast("Trends", $"Max {MaxActivePens} pens at once — remove one first.", ToastKind.Warning);
                 return;
             }
-            // Series add karo agar already nahi hai (identity = device + tag, taaki do devices ke same naam wale tags alag pens banein)
+            // Add the series if not already present (identity = device + tag, so same-named tags on two devices become separate pens)
             if (!ActiveSeries.Any(s => s.DeviceId == item.Tag.DeviceId && string.Equals(s.TagName, item.Name, StringComparison.OrdinalIgnoreCase)))
             {
-                // Pehle se use ho raha color dobara mat do (multi-device me confusion hota hai)
+                // Do not reuse a color already in use (causes confusion in multi-device view)
                 var color = NextFreeColor();
                 item.Color = color;
                 var brush = new SolidColorBrush(color);
@@ -267,8 +267,8 @@ public partial class TrendsViewModel : ViewModelBase
 
         ActivePenCount = ActiveSeries.Count;
         BumpRevision();
-        // Backfill sirf pen ADD pe chahiye; remove pe repaint kaafi hai (extra DB round-trip bachta hai).
-        // Bulk restore (device switch) me reload caller karta hai — yahan skip taaki N reloads na fire hon.
+        // Backfill is only needed on pen ADD; repaint is enough on remove (saves an extra DB round-trip).
+        // On bulk restore (device switch) the caller reloads — skip here so N reloads do not fire.
         if (item.IsSelected && !_bulkUpdate) _ = ReloadHistoryAsync();
         UpdateUnitsState();
     }
@@ -310,11 +310,11 @@ public partial class TrendsViewModel : ViewModelBase
     private void BumpRevision() => OnUi(() => TrendRevision++);
 
     /// <summary>
-    /// Database se chune hue time window ka data load karna (har device ke liye alag query).
+    /// Load data for the selected time window from the database (separate query per device).
     /// </summary>
     private async Task LoadHistoricalWindowAsync()
     {
-        // Purane string-pens (LineName/CurrentBatch) ko nikalo — ye kabhi line nahi banate.
+        // Remove legacy string pens (LineName/CurrentBatch) — they never form lines.
         for (var i = ActiveSeries.Count - 1; i >= 0; i--)
         {
             var s = ActiveSeries[i];
@@ -352,7 +352,7 @@ public partial class TrendsViewModel : ViewModelBase
                     series.Points = t.Points.Select(p => new TrendPoint(p.TimestampUtc, p.Value, p.Quality)).ToList();
                 }
 
-                // Tag list me latest value update karo (sirf current device ki list me milega)
+                // Update the latest value in the tag list (only found in the current device list)
                 var tagItem = AllTags.FirstOrDefault(ti => ti.Tag.DeviceId == g.Key && string.Equals(ti.Name, t.TagName, StringComparison.OrdinalIgnoreCase));
                 if (tagItem != null && t.Points.Count > 0)
                 {
@@ -367,10 +367,10 @@ public partial class TrendsViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Har 1 second me live points add karna (Smooth real-time scrolling).
-    /// Active pens wale HAR device se values aati hain — sirf selected device se nahi.
-    /// Industry fix: PLC ka asli timestamp (CurrentValueAtUtc) use karo, UI ka Now nahi.
-    /// Duplicate timestamp skip karo taaki flat-line par points pile-up na ho.
+    /// Add live points every 1 second (smooth real-time scrolling).
+    /// Values arrive from EVERY device with active pens — not just the selected device.
+    /// Industry fix: use the real PLC timestamp (CurrentValueAtUtc), not UI Now.
+    /// Skip duplicate timestamps so points do not pile up on a flat line.
     /// </summary>
     private async Task OnLivePollAsync()
     {
@@ -379,15 +379,15 @@ public partial class TrendsViewModel : ViewModelBase
         try
         {
             var now = DateTime.UtcNow;
-            // Manual pan/zoom view me plot purani range dikhata hai; agar buffer
-            // sirf TimeWindow+2min tak rakhen to frozen view ka data trim ho ke
-            // "graph apne-aap mit raha hai" lagega. Isliye chhote window par
-            // bhi kam se kam 15 min ka margin rakho taaki piche pan karne par
-            // data dikhe. (Reset View / double-click se live-follow wapas.)
+            // In manual pan/zoom view the plot shows an old range; if the buffer
+            // is kept only to TimeWindow+2min, the frozen view's data gets trimmed and
+            // it looks like the graph is erasing itself. So keep at least a 15-min margin
+            // even on small windows so panning back still shows data.
+            // (Reset View / double-click returns to live-follow.)
             var retainMargin = TimeSpan.FromMinutes(Math.Max(15, TimeWindow.TotalMinutes + 2));
             var cutoff = now - retainMargin;
 
-            // Har active device se ek batch query (N tags ke liye N queries nahi)
+            // One batch query per active device (not N queries for N tags)
             foreach (var devId in ActiveSeries.Select(s => s.DeviceId).Distinct().ToList())
             {
                 List<DeviceTag> tags;
@@ -402,24 +402,24 @@ public partial class TrendsViewModel : ViewModelBase
                     if (double.TryParse(t.CurrentValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var val)
                         || (bool.TryParse(t.CurrentValue, out var bv) && double.TryParse(bv ? "1" : "0", out val)))
                     {
-                        // Asli PLC timestamp; null ya stale ho to UI time fallback.
-                        // Stale guard zaroori hai: agar capture ruka ho ya Flush 5s piche ho,
-                        // to purana ts window se bahar hoga aur chart hamesha khali lagega.
+                        // Real PLC timestamp; fall back to UI time when null or stale.
+                        // The stale guard is required: if capture stalls or Flush lags 5s,
+                        // the old ts falls outside the window and the chart looks permanently empty.
                         var ts = t.CurrentValueAtUtc ?? now;
                         if (ts > now.AddSeconds(30)) ts = now; // future-clock guard
-                        if (ts < cutoff) ts = now; // stale-timestamp guard: live edge par dikhao
+                        if (ts < cutoff) ts = now; // stale-timestamp guard: show at the live edge
                         if (tagItem != null)
                         {
                             tagItem.LatestValue = $"{val:F2} {t.EngineeringUnit}";
                         }
 
-                        // Duplicate timestamp skip (same scan dobara mat jodo)
+                        // Skip duplicate timestamps (do not append the same scan twice)
                         if (series.Points.Count > 0 && series.Points[^1].Time == ts)
                             continue;
 
                         series.Points.Add(new TrendPoint(ts, val, t.CurrentQuality));
-                        // Purane points trim karo taaki memory clean rahe.
-                        // Count-cap bhi rakho taaki 1h window par list badi na ho.
+                        // Trim old points to keep memory clean.
+                        // Also keep a count cap so the list stays bounded on a 1h window.
                         series.Points.RemoveAll(p => p.Time < cutoff);
                         const int MaxLivePoints = 10000;
                         if (series.Points.Count > MaxLivePoints)
@@ -429,7 +429,7 @@ public partial class TrendsViewModel : ViewModelBase
                         or WTT.Domain.Enums.TagQuality.NotConnected
                         or WTT.Domain.Enums.TagQuality.ConfigError)
                     {
-                        // Non-numeric + bad quality = gap marker dalo (last value repeat mat karo)
+                        // Non-numeric + bad quality = insert a gap marker (do not repeat the last value)
                         var ts = t.CurrentValueAtUtc ?? now;
                         if (series.Points.Count == 0 || series.Points[^1].Time != ts)
                             series.Points.Add(new TrendPoint(ts, 0, t.CurrentQuality));
@@ -489,9 +489,9 @@ public partial class TrendsViewModel : ViewModelBase
                 _ => $"{mins}m"
             };
 
-            // Time-range badalte hi manual pan/zoom reset karo — warna plot
-            // purani manual range (screenshot me 1-hr) par atka rehta hai aur
-            // nayi 1-min wali line dikhti hi nahi. (WinCC standard behavior.)
+            // Reset manual pan/zoom as soon as the time range changes — otherwise the plot
+            // stays stuck on the old manual range and the new short-window line never appears.
+            // (WinCC standard behavior.)
             ResetViewRequested?.Invoke(this, EventArgs.Empty);
             await RunAsync(async () => { await LoadHistoricalWindowAsync(); BumpRevision(); });
         }
@@ -517,7 +517,7 @@ public partial class TrendsViewModel : ViewModelBase
 
         try
         {
-            // Full-resolution re-query (screen par sirf 400 pts hote hain; export me 10k tak)
+            // Full-resolution re-query (screen shows only 400 pts; export up to 10k)
             var toUtc = DateTime.UtcNow;
             var fromUtc = toUtc - TimeWindow;
             var fullData = new Dictionary<(int, string), List<WTT.Application.Interfaces.HistorianDataPoint>>();
@@ -571,7 +571,7 @@ public partial class TrendsViewModel : ViewModelBase
         BumpRevision();
     }
 
-    /// <summary>View isko sunke plot.ResetView() call karega.</summary>
+    /// <summary>The view listens to this and calls plot.ResetView().</summary>
     public event EventHandler? ResetViewRequested;
 
     [RelayCommand]
@@ -581,13 +581,13 @@ public partial class TrendsViewModel : ViewModelBase
         BumpRevision();
     }
 
-    /// <summary>Plot se aaya: user ne pan/zoom kiya. Live-follow ab manual hai — toast ek baar.</summary>
+    /// <summary>Raised from the plot: the user panned/zoomed. Live-follow is now manual — toast once.</summary>
     private bool _manualToastShown;
     public void OnUserManualControl()
     {
         if (_manualToastShown) return;
         _manualToastShown = true;
-        Dialogs.Toast("Trends", "Manual view: double-click ya Reset View se live par wapas.", ToastKind.Info);
+        Dialogs.Toast("Trends", "Manual view: double-click or Reset View to return to live.", ToastKind.Info);
     }
 
     [RelayCommand]
@@ -595,7 +595,7 @@ public partial class TrendsViewModel : ViewModelBase
     {
         if (param is not System.Windows.FrameworkElement visual || visual.ActualWidth < 10)
         {
-            Dialogs.Toast("Export", "Chart abhi ready nahi hai.", ToastKind.Warning);
+            Dialogs.Toast("Export", "Chart is not ready yet.", ToastKind.Warning);
             return;
         }
         var sfd = new SaveFileDialog
@@ -609,8 +609,8 @@ public partial class TrendsViewModel : ViewModelBase
         {
             await ViewModelBase.OnUiAsync(async () =>
             {
-                // DPI-aware: 125%/150% scaling par hardcoded 96dpi bitmap
-                // neeche se kat jata tha (X-labels + digital 0-row gayab).
+                // DPI-aware: at 125%/150% scaling a hardcoded 96dpi bitmap
+                // was clipped at the bottom (X-labels + digital 0-row missing).
                 visual.UpdateLayout();
                 var source = System.Windows.PresentationSource.FromVisual(visual);
                 double dx = 1.0, dy = 1.0;
@@ -654,8 +654,8 @@ public partial class TrendsViewModel : ViewModelBase
                 .Where(s => s.IsVisible)
                 .Select(s => string.IsNullOrWhiteSpace(s.EngineeringUnit) ? $"no-unit ({s.TagName})" : s.EngineeringUnit)
                 .Distinct());
-            UnitsWarning = $"Mixed units ({label}) — Shared Y misleading ho sakta hai. Normalized % try karo.";
-            // Auto-switch nahi karte (operator ki choice), sirf warn karte hain.
+            UnitsWarning = $"Mixed units ({label}) — Shared Y may be misleading. Try Normalized %.";
+            // Do not auto-switch (operator's choice), only warn.
         }
         else
         {

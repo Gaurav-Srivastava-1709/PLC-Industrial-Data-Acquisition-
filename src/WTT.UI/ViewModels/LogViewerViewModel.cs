@@ -32,9 +32,9 @@ public partial class LogViewerViewModel : ViewModelBase
 
     public string LogDirectory => _logs.LogDirectory;
 
-    // Page turant dikhna chahiye — data piche se aayega (progress bar chalegi).
-    // Pehle navigation poora refresh ka wait karta tha, isliye 20 sec tak
-    // khaali table par app freeze lagta tha.
+    // The page should appear immediately — data loads in the background (progress bar runs).
+    // Navigation used to wait for the full refresh, so the app looked frozen
+    // on an empty table for up to 20 sec.
     public override Task OnNavigatedToAsync()
     {
         _ = RefreshAsync();
@@ -49,8 +49,8 @@ public partial class LogViewerViewModel : ViewModelBase
         {
             await RunAsync(async () =>
             {
-                // File aur database ko sath-sath padho (pehle ek-ek karke padhte the,
-                // isliye slow DB par page 20 sec tak khaali lagta tha).
+                // Read file and database in parallel (previously sequential,
+                // so the page looked empty for up to 20 sec on a slow DB).
                 var logTask = _logs.ReadRecentAsync(MaxLines, MinimumLevel, string.IsNullOrWhiteSpace(Contains) ? null : Contains);
                 var auditTask = _audit.GetRecentAsync(200);
                 await Task.WhenAll(logTask, auditTask);

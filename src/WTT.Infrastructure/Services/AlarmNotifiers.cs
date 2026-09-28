@@ -33,8 +33,8 @@ public sealed class InAppAlarmNotifier : IAlarmNotifier
         try { beep = await _alarmService.GetBeepEnabledAsync(ct); } catch { }
         if (beep && (msg.Priority == AlarmPriority.Critical || msg.Priority == AlarmPriority.High))
         {
-            // Industry standard: 3-burst beep pattern taaki factory ke shor me bhi sunai de
-            // Background thread pe chalega taaki alarm engine block na ho
+            // Industry standard: 3-burst beep pattern so it is audible even in factory noise
+            // Runs on a background thread so the alarm engine is not blocked
             _ = Task.Run(() =>
             {
                 try

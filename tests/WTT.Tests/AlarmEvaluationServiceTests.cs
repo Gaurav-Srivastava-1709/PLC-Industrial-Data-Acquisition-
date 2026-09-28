@@ -339,7 +339,7 @@ public sealed class AlarmEvaluationServiceTests : IDisposable
             DeviceId = 1,
             Name = "PRESS001",
             Kind = TagKind.Plc,
-            // DataType enum ka sahi naam TagDataType hai
+            // DataType enum's correct name is TagDataType
             DataType = TagDataType.Float32,
             IsAlarmEnabled = true,
             AlarmMaxThreshold = 10.0,
@@ -412,7 +412,7 @@ public sealed class AlarmEvaluationServiceTests : IDisposable
         _dbContext.Dispose();
     }
 
-    // Helper classes ko 'sealed' banaya gaya hai performance aur analyzer warning (CA1852) ke liye
+    // Helper classes are sealed for performance and to avoid analyzer warning (CA1852)
     private sealed class TestDbContextFactory : IDbContextFactory<AppDbContext>
     {
         private readonly DbContextOptions<AppDbContext> _options;
@@ -421,10 +421,10 @@ public sealed class AlarmEvaluationServiceTests : IDisposable
         public Task<AppDbContext> CreateDbContextAsync(CancellationToken ct = default) => Task.FromResult(new AppDbContext(_options));
     }
 
-    // Current user ka mock implementation test ke liye
+    // Mock implementation of current user for testing
     private sealed class TestCurrentUserService : Application.Interfaces.ICurrentUserService
     {
-        // UserDto record constructor me LockoutEndUtc: null pass kiya
+        // LockoutEndUtc: null is passed in the UserDto record constructor
         public UserDto? User => new UserDto(
             Id: 1,
             Username: "TestUser",

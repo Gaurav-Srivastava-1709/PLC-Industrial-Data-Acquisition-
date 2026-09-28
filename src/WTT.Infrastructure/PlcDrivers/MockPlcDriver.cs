@@ -23,11 +23,11 @@ public sealed class MockPlcDriver : IPlcDriver
     private static readonly string StateFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "WTT", "WTT_MockPlcState.json");
     private static readonly DateTime Epoch = DateTime.UtcNow;
 
-    // Named Mutex — cross-process lock. Dono processes (UI + Service) me ek hi naam ka Mutex hota hai.
-    // Jab ek process iske andar hai, doosra wait karega. Ye TOCTOU race ko 100% prevent karta hai.
+    // Named Mutex — cross-process lock. Both processes (UI + Service) share the same named Mutex.
+    // While one process holds it, the other waits. This fully prevents the TOCTOU race.
     private static readonly Mutex StateMutex = new(false, @"Global\WTT_MockPlcStateMutex");
 
-    // Read karta hai JSON file se — Mutex ke andar call hota hai (seedha call mat karo)
+    // Reads from the JSON file — must be called while holding the Mutex (do not call directly)
     private static Dictionary<string, string> ReadSharedStateUnsafe()
     {
         try
@@ -47,12 +47,12 @@ public sealed class MockPlcDriver : IPlcDriver
         return new Dictionary<string, string>();
     }
 
-    // Ye safe wrapper hai — Mutex acquire karke Read karta hai
+    // Safe wrapper — acquires the Mutex before reading
     private static Dictionary<string, string> ReadSharedState()
     {
         try
         {
-            // 500ms tak Mutex ka wait karega, uske baad skip kar dega (deadlock prevention)
+            // Waits up to 500ms for the Mutex, then gives up (deadlock prevention)
             if (!StateMutex.WaitOne(500)) return new Dictionary<string, string>();
             try
             {
@@ -65,34 +65,34 @@ public sealed class MockPlcDriver : IPlcDriver
         }
         catch (AbandonedMutexException)
         {
-            // Agar doosra process crash hua tha to Mutex "abandoned" milta hai — par usable rehta hai
+            // If the other process crashed, the Mutex is "abandoned" — but remains usable
             return ReadSharedStateUnsafe();
         }
     }
 
-    // Write karta hai — Pura Read → Modify → Write cycle ek hi Mutex lock ke andar hota hai
-    // Isse 2 processes kabhi bhi ek doosre ki write overwrite nahi kar sakte
+    // Writes state — the full Read → Modify → Write cycle runs under a single Mutex lock.
+    // This prevents the two processes from ever overwriting each other's writes.
     private static void WriteSharedState(string key, string value)
     {
         try
         {
-            if (!StateMutex.WaitOne(500)) return; // Deadlock prevention — 500ms se zyada wait nahi karega
+            if (!StateMutex.WaitOne(500)) return; // Deadlock prevention — never waits longer than 500ms
             try
             {
-                // Step 1: Purana data padho
+                // Step 1: Read existing data
                 var state = ReadSharedStateUnsafe();
-                // Step 2: Naya key-value add/update karo
+                // Step 2: Add/update the key-value entry
                 state[key] = value;
                 var json = JsonSerializer.Serialize(state);
 
-                // Step 3: Directory bana lo agar nahi hai
+                // Step 3: Create the directory if missing
                 var dir = Path.GetDirectoryName(StateFilePath);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                 {
                     Directory.CreateDirectory(dir);
                 }
 
-                // Step 4: File me atomically likh do (FileShare.None = exclusive lock)
+                // Step 4: Write to the file atomically (FileShare.None = exclusive lock)
                 using var fs = new FileStream(StateFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
                 using var sw = new StreamWriter(fs);
                 sw.Write(json);
@@ -190,7 +190,7 @@ public sealed class MockPlcDriver : IPlcDriver
     public Task WriteAsync(TagWriteRequest request, CancellationToken cancellationToken)
     {
         var typed = TagValueFormatter.ParseForWrite(request.Tag.DataType, request.Value); // throws FormatException on bad input
-        // UI se aayi value ko 15 second ke expiry ke sath save karte hain (Force Timeout)
+        // Save the value from the UI with a 15-second expiry (Force Timeout)
         var valStr = Convert.ToString(typed, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty;
         var expiryTicks = DateTime.UtcNow.AddSeconds(15).Ticks;
         WriteSharedState(Key(request.Tag), $"{valStr}|{expiryTicks}");

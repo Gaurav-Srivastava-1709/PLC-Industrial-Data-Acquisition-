@@ -74,7 +74,7 @@ public partial class App : System.Windows.Application
                 services.AddTransient<DeviceConfigViewModel>();
                 services.AddTransient<LiveDataPage>();
                 services.AddTransient<LiveDataViewModel>();
-                // SCADA Historian Trends (Singleton taaki navigate karne par pens/state lose na ho)
+                // SCADA Historian Trends (Singleton so pens/state survive navigation)
                 services.AddSingleton<TrendsPage>();
                 services.AddSingleton<TrendsViewModel>();
                 services.AddTransient<DataTransferPage>();
@@ -123,8 +123,8 @@ public partial class App : System.Windows.Application
                 typeof(App).Assembly.GetName().Version, Environment.OSVersion, Environment.UserName);
             logger.LogInformation("Startup milestone SurfaceVisible at {ElapsedMs} ms", startup.ElapsedMilliseconds);
 
-            // PEHLE: DB + Theme init karo jab sirf StartupWindow (plain Window) dikha raha hai.
-            // Koi FluentWindow open nahi hai, toh ApplicationThemeManager.Apply safely run hoga.
+            // First: init DB + theme while only StartupWindow (plain Window) is shown.
+            // No FluentWindow is open yet, so ApplicationThemeManager.Apply runs safely.
             var databaseTask = _host.Services.GetRequiredService<DatabaseInitializer>().VerifySchemaCurrentAsync();
             var themeTask = _host.Services.GetRequiredService<ThemeManager>().LoadAsync();
             await Task.WhenAll(databaseTask, themeTask);
@@ -132,7 +132,7 @@ public partial class App : System.Windows.Application
             var appliedTheme = _host.Services.GetRequiredService<ThemeManager>().Current;
             logger.LogInformation("Startup milestone DatabaseAndThemeReady at {ElapsedMs} ms (Theme={Theme})", startup.ElapsedMilliseconds, appliedTheme);
 
-            // Admin enrollment check (agar first-run hai toh StartupWindow band karke enrollment dikhao)
+            // Admin enrollment check (on first run, close StartupWindow and show enrollment)
             if (!hasUsers)
             {
                 var setup = _host.Services.GetRequiredService<AdminEnrollmentWindow>();
@@ -143,7 +143,7 @@ public partial class App : System.Windows.Application
             // Background services (capture / transfer supervisors).
             await _host.StartAsync();
 
-            // AB: LoginWindow dikhao — theme PEHLE se apply hai, FluentWindow safe rahega.
+            // Now show LoginWindow — theme is already applied, so FluentWindow is safe.
             var shell = _host.Services.GetRequiredService<ShellNavigator>();
             var login = shell.ShowLogin();
             startupWindow.Close();

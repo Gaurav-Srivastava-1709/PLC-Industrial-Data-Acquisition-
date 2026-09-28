@@ -291,7 +291,7 @@ public sealed class DeviceCaptureWorker : IAsyncDisposable
                 PublishLive(t, t.SetValue, q, scanUtc);
         }
 
-        // Alarm threshold evaluation — sirf numeric tags ke liye
+        // Alarm threshold evaluation — only for numeric tags
         if (_alarmService is not null)
         {
             foreach (var (name, (value, quality)) in current)

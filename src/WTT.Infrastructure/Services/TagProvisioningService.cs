@@ -10,24 +10,24 @@ using WTT.Infrastructure.Persistence;
 namespace WTT.Infrastructure.Services;
 
 /// <summary>
-/// Jab naya device create ho, protocol/model ke hisab se default tags seed karta hai.
+/// Seeds default tags for a newly created device based on protocol/model.
 ///
 /// Strategy:
-///   1. Browse-capable devices (ControlLogix, CompactLogix): PLC se live browse karke
-///      tags import karta hai. Agar browse fail ho ya offline ho, Template pe fallback.
-///   2. Baaki sabhi (S7, Modbus, PLC-5, etc.): TagTemplateLibrary se starter tags daalta hai.
+///   1. Browse-capable devices (ControlLogix, CompactLogix): imports tags via live PLC browse.
+///      Falls back to the template if browse fails or the device is offline.
+///   2. All others (S7, Modbus, PLC-5, etc.): inserts starter tags from TagTemplateLibrary.
 ///
 /// Transaction Safety:
-///   Is service ko DeviceService.CreateAsync() ke BAAD call kiya jata hai — device
-///   already saved hoti hai aur uska Id available hota hai. Tags ek alag
-///   DbContext factory call mein save hote hain. Partial failure (tags fail) ek
-///   warning log karega — device usable rahegi par bina tags ke.
+///   This service is called AFTER DeviceService.CreateAsync() — the device is
+///   already saved and its Id is available. Tags are saved in a separate
+///   DbContext factory call. Partial failure (tags fail) logs a
+///   warning — the device remains usable but without tags.
 ///
-/// DI Lifetime: Singleton (IDbContextFactory inject karta hai, not DbContext directly).
+/// DI Lifetime: Singleton (injects IDbContextFactory, not DbContext directly).
 /// </summary>
 public sealed class TagProvisioningService : ITagProvisioningService
 {
-    // Browse ke liye maximum wait time — UI hang nahi hona chahiye
+    // Maximum wait time for browse — the UI must not hang
     private static readonly TimeSpan BrowseTimeout = TimeSpan.FromSeconds(15);
 
     private readonly IDbContextFactory<AppDbContext> _factory;
@@ -51,15 +51,15 @@ public sealed class TagProvisioningService : ITagProvisioningService
     }
 
     /// <summary>
-    /// Device ke liye tags provision karta hai.
-    /// seedTags=false hone pe kuch nahi karta (admin ne checkbox uncheck kiya).
+    /// Provisions tags for a device.
+    /// Does nothing when seedTags=false (admin unchecked the checkbox).
     /// </summary>
     public async Task<int> ProvisionAsync(Device device, bool seedTags, CancellationToken ct = default)
     {
-        // Admin ne "Auto-create tags" OFF kiya — kuch mat karo
+        // Admin turned "Auto-create tags" OFF — do nothing
         if (!seedTags) return 0;
 
-        // Sirf Admin/Operator jo ManageTags permission rakhte hain
+        // Only Admin/Operator roles holding the ManageTags permission
         if (!_currentUser.HasPermission(Permission.ManageTags))
         {
             _logger.LogWarning("Tag provisioning skipped — user lacks ManageTags permission.");
@@ -72,9 +72,9 @@ public sealed class TagProvisioningService : ITagProvisioningService
 
         try
         {
-            // Driver ki Capabilities check karo — CanBrowseTags?
-            // Note: PlcDriverFactory se naya driver banate hain sirf capability check ke liye
-            // (actual connect nahi karte provision mein)
+            // Check driver capabilities — CanBrowseTags?
+            // Note: creates a fresh driver via PlcDriverFactory for capability check only
+            // (does not actually connect during provisioning)
             var canBrowse = CanBrowse(device);
 
             int count;
@@ -103,7 +103,7 @@ public sealed class TagProvisioningService : ITagProvisioningService
         }
         catch (Exception ex)
         {
-            // Provisioning fail hone pe device delete nahi karte — warning log karo
+            // Never delete the device when provisioning fails — log a warning
             _logger.LogWarning(ex,
                 "Tag provisioning failed for device {Device}. Device is saved but has no tags.",
                 device.Name);
@@ -120,7 +120,7 @@ public sealed class TagProvisioningService : ITagProvisioningService
 
         try
         {
-            // 15 second timeout — UI hang nahi hona chahiye
+            // 15-second timeout — the UI must not hang
             using var browseCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             browseCts.CancelAfter(BrowseTimeout);
 
@@ -132,8 +132,8 @@ public sealed class TagProvisioningService : ITagProvisioningService
                 return await ProvisionViaTemplateAsync(device, ct);
             }
 
-            // ImportDiscoveredAsync existing code use karta hai — duplicate check + ByteCount
-            // Lekin yahan hum seedha DB mein daalenge (same Singleton pattern)
+            // Reuses ImportDiscoveredAsync semantics — duplicate check + ByteCount
+            // but inserts directly into the DB here (same Singleton pattern)
             return await SaveDiscoveredTagsAsync(device, discovered, ct);
         }
         catch (OperationCanceledException)
@@ -159,7 +159,7 @@ public sealed class TagProvisioningService : ITagProvisioningService
 
         await using var db = await _factory.CreateDbContextAsync(ct);
 
-        // Existing tags check karo — idempotent (agar already tags hain toh skip)
+        // Check existing tags — idempotent (skip when tags already exist)
         var existingNames = await db.DeviceTags
             .Where(t => t.DeviceId == device.Id)
             .Select(t => t.Name)
@@ -181,7 +181,7 @@ public sealed class TagProvisioningService : ITagProvisioningService
                 PlcAddress   = template.PlcAddress,
                 RegisterType = template.RegisterType,
                 ElementCount = template.ElementCount,
-                // ByteCount: TagValueFormatter.DefaultByteSize se calculate karo
+                // ByteCount: calculated via TagValueFormatter.DefaultByteSize
                 ByteCount    = TagValueFormatter.DefaultByteSize(template.DataType, template.ElementCount),
                 IsSelected   = true,
                 DecimalPlaces    = template.DecimalPlaces,
@@ -198,7 +198,7 @@ public sealed class TagProvisioningService : ITagProvisioningService
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Browse se mile tags DB mein save karo
+    // Persist browse-discovered tags to the DB
     // ─────────────────────────────────────────────────────────────────────────
     private async Task<int> SaveDiscoveredTagsAsync(
         Device device,
@@ -246,8 +246,8 @@ public sealed class TagProvisioningService : ITagProvisioningService
     // ─────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Device model ke liye browse support check karo.
-    /// AllenBradleyDriver.cs:31-32 se: sirf ControlLogix + CompactLogix = true.
+    /// Checks browse support for a device model.
+    /// Per AllenBradleyDriver.cs:31-32: only ControlLogix + CompactLogix return true.
     /// </summary>
     private static bool CanBrowse(Device device) =>
         device.Model is WTT.Domain.Enums.DeviceModel.ControlLogix
