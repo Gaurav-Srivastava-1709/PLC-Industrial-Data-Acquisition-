@@ -59,3 +59,9 @@ public sealed class BusinessRuleException : WttException
 {
     public BusinessRuleException(string message) : base(message) { }
 }
+
+/// <summary>Historian (trend) query failures. Message is user-safe; details go to logs.</summary>
+public sealed class HistorianException : WttException
+{
+    public HistorianException(string message, Exception? inner = null) : base(message, inner) { }
+}

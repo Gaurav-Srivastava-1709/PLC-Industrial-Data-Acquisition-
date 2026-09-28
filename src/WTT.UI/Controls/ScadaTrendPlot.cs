@@ -143,6 +143,19 @@ public class ScadaTrendPlot : FrameworkElement
     private static readonly Typeface AxisTypeface = new("Segoe UI");
 
     private Point? _hoverPoint;
+    private long _lastHoverRenderTicks;
+    // Hover redraw at most ~30fps: every MouseMove pixel doing a full multi-pen
+    // redraw pegs the CPU (fan noise) with zero visual benefit past 30fps.
+    private const long HoverThrottleTicks = TimeSpan.TicksPerSecond / 30;
+
+    private void RequestHoverRender(Point p)
+    {
+        _hoverPoint = p;
+        var now = DateTime.UtcNow.Ticks;
+        if (now - _lastHoverRenderTicks < HoverThrottleTicks) return;
+        _lastHoverRenderTicks = now;
+        InvalidateVisual();
+    }
     // Manual view state (pan/zoom). Null = live-follow.
     private DateTime? _manualMinTime;
     private DateTime? _manualMaxTime;
@@ -187,13 +200,13 @@ public class ScadaTrendPlot : FrameworkElement
                     var shift = TimeSpan.FromTicks((long)(-dx / plotW * span.Ticks));
                     _manualMinTime = _panMin0 + shift;
                     _manualMaxTime = _panMax0 + shift;
+                    _lastHoverRenderTicks = DateTime.UtcNow.Ticks;
                     InvalidateVisual();
                 }
                 _hoverPoint = cur;
                 return;
             }
-            _hoverPoint = e.GetPosition(this);
-            InvalidateVisual();
+            RequestHoverRender(e.GetPosition(this));
         };
 
         MouseLeave += (_, _) =>
@@ -444,14 +457,18 @@ public class ScadaTrendPlot : FrameworkElement
             return (v - sMin) / sRange * 100.0;
         }
 
-        // 3. Y grid + labels (in ANALOG lane; 0/1 labels in digital lane)
+        // 3. Y grid + labels (in ANALOG lane; 0/1 labels in digital lane).
+        // Digital-only view: numeric 0.00-1.00 labels would stack on each other,
+        // so skip them — the digital lane already draws clean 0/1 labels.
         double yBase = marginTop + analogH; // analog lane bottom
+        if (hasAnalog)
+        {
         int yDivisions = 5;
         for (int i = 0; i <= yDivisions; i++)
         {
             double frac = (double)i / yDivisions;
             double yVal = minY + frac * yRange;
-            double yPos = hasAnalog ? yBase - (frac * analogH) : marginTop + plotH - (frac * plotH);
+            double yPos = yBase - (frac * analogH);
             if (i > 0 && i < yDivisions)
                 dc.DrawLine(GridPen, new Point(marginLeft, yPos), new Point(marginLeft + plotW, yPos));
 
@@ -461,6 +478,14 @@ public class ScadaTrendPlot : FrameworkElement
             var yText = new FormattedText(label, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
                 AxisTypeface, 10, TextBrush, VisualTreeHelper.GetDpi(this).PixelsPerDip);
             dc.DrawText(yText, new Point(marginLeft - yText.Width - 8, yPos - yText.Height / 2));
+        }
+        }
+        else
+        {
+            var digTitle = new FormattedText("Digital (ON/OFF)",
+                CultureInfo.CurrentCulture, FlowDirection.LeftToRight, AxisTypeface, 10,
+                TextBrush, VisualTreeHelper.GetDpi(this).PixelsPerDip);
+            dc.DrawText(digTitle, new Point(marginLeft - digTitle.Width - 8, marginTop));
         }
 
         // 4. X grid + labels (date-aware)

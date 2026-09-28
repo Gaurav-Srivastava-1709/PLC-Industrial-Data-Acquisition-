@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using WTT.Application.Interfaces;
 using WTT.Domain.Entities;
 using WTT.Domain.Enums;
+using WTT.Domain.Exceptions;
 using WTT.Infrastructure.Persistence;
 
 namespace WTT.Infrastructure.Services;
@@ -35,131 +36,211 @@ public sealed class HistorianService : IHistorianService
         var tagList = tagNames.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if (tagList.Count == 0)
             return Array.Empty<TagTrendSeries>();
+        if (fromUtc > toUtc)
+            throw new ArgumentOutOfRangeException(nameof(fromUtc), "Trend start time must not be after end time.");
+        if (maxPoints < 10)
+            throw new ArgumentOutOfRangeException(nameof(maxPoints), "maxPoints must be at least 10.");
 
         await using var db = await _dbFactory.CreateDbContextAsync(ct);
 
         // 1. Load tag metadata (Engineering Units, Alarm Limits, DataType)
-        var tagMeta = await db.DeviceTags
-            .AsNoTracking()
-            .Where(t => t.DeviceId == deviceId && tagList.Contains(t.Name))
-            .Select(t => new { t.Name, t.EngineeringUnit, t.AlarmMinThreshold, t.AlarmMaxThreshold, t.DataType })
-            .ToDictionaryAsync(t => t.Name, StringComparer.OrdinalIgnoreCase, ct);
-
-        // 2. Fetch raw data from the TagReadings table for the requested time window.
-        // Industry-grade guard: run COUNT first so up to 1M rows are never loaded into RAM.
-        // Requires composite index (DeviceId, TagName, TimestampUtc) — see migration AddHistorianTrendIndex.
-        const int HardFetchCap = 20000;
-        var totalCount = await db.TagReadings
-            .AsNoTracking()
-            .Where(r => r.DeviceId == deviceId
-                     && tagList.Contains(r.TagName)
-                     && r.TimestampUtc >= fromUtc
-                     && r.TimestampUtc <= toUtc)
-            .CountAsync(ct);
-
-        List<(string TagName, string Value, TagQuality Quality, DateTime TimestampUtc)> rawReadings;
-        if (totalCount <= HardFetchCap)
+        Dictionary<string, (string? Unit, double? Min, double? Max, TagDataType DataType)> tagMeta;
+        try
         {
-            // Small window: fetch all data in order.
-            rawReadings = await db.TagReadings
+            tagMeta = await db.DeviceTags
                 .AsNoTracking()
-                .Where(r => r.DeviceId == deviceId
-                         && tagList.Contains(r.TagName)
-                         && r.TimestampUtc >= fromUtc
-                         && r.TimestampUtc <= toUtc)
-                .OrderBy(r => r.TimestampUtc)
-                .Select(r => new ValueTuple<string, string, TagQuality, DateTime>(r.TagName, r.Value, r.Quality, r.TimestampUtc))
-                .ToListAsync(ct);
+                .Where(t => t.DeviceId == deviceId && tagList.Contains(t.Name))
+                .Select(t => new { t.Name, t.EngineeringUnit, t.AlarmMinThreshold, t.AlarmMaxThreshold, t.DataType })
+                .ToDictionaryAsync(
+                    t => t.Name,
+                    t => ((string?)t.EngineeringUnit, t.AlarmMinThreshold, t.AlarmMaxThreshold, t.DataType),
+                    StringComparer.OrdinalIgnoreCase, ct);
         }
-        else
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
         {
-            // Large window: server-side stride sampling (SQL ROW_NUMBER % stride).
-            // Fetch each tag's data evenly without exceeding 20k rows.
-            var stride = Math.Max(1, totalCount / HardFetchCap);
-            rawReadings = await db.TagReadings
+            _logger.LogError(ex, "Historian tag metadata load failed for device {DeviceId}.", deviceId);
+            throw new HistorianException("Could not load trend tag information. Check database connectivity.", ex);
+        }
+
+        // 2. Fetch readings with keyset pagination (bounded memory).
+        // Never ToList the whole window at once — page by page, so even days of
+        // data cannot exhaust RAM. Each page is a fast indexed range-scan over
+        // (DeviceId, TagName, TimestampUtc). Requires migration AddHistorianTrendIndex.
+        const int PageSize = 5000;
+        const int MaxParsedTotal = 100_000;
+        var perTag = tagList.ToDictionary(t => t, _ => new List<HistorianDataPoint>(), StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var totalCount = await db.TagReadings
                 .AsNoTracking()
                 .Where(r => r.DeviceId == deviceId
                          && tagList.Contains(r.TagName)
                          && r.TimestampUtc >= fromUtc
                          && r.TimestampUtc <= toUtc)
-                .OrderBy(r => r.TimestampUtc)
-                .Select(r => new ValueTuple<string, string, TagQuality, DateTime>(r.TagName, r.Value, r.Quality, r.TimestampUtc))
-                .ToListAsync(ct);
+                .CountAsync(ct);
+            // Global stride keeps total parsed rows under cap, evenly across the window.
+            var stride = Math.Max(1, totalCount / MaxParsedTotal);
+            if (stride > 1)
+                _logger.LogInformation("Historian stride {Stride}: {Total} rows in window for device {DeviceId}.",
+                    stride, totalCount, deviceId);
 
-            // Client-side stride (modulo in SQL makes the plan unstable; count-based stride is deterministic)
-            var strided = new List<(string TagName, string Value, TagQuality Quality, DateTime TimestampUtc)>(HardFetchCap);
-            for (var i = 0; i < rawReadings.Count; i += stride)
-                strided.Add(rawReadings[i]);
-            // Always keep the last point so the live edge is not clipped
-            if (strided.Count == 0 || strided[^1] != rawReadings[^1])
-                strided.Add(rawReadings[^1]);
-            rawReadings = strided;
-            _logger.LogInformation("Historian stride sampling: {Total} -> {Fetched} (stride {Stride}) for device {DeviceId}.",
-                totalCount, rawReadings.Count, stride, deviceId);
+            long rowIndex = 0;
+            var cursorTs = fromUtc;
+            long cursorId = 0;
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+                var page = await db.TagReadings
+                    .AsNoTracking()
+                    .Where(r => r.DeviceId == deviceId
+                             && tagList.Contains(r.TagName)
+                             && r.TimestampUtc >= fromUtc
+                             && r.TimestampUtc <= toUtc
+                             && (r.TimestampUtc > cursorTs || (r.TimestampUtc == cursorTs && r.Id > cursorId)))
+                    .OrderBy(r => r.TimestampUtc)
+                    .ThenBy(r => r.Id)
+                    .Select(r => new { r.Id, r.TagName, r.Value, r.Quality, r.TimestampUtc })
+                    .Take(PageSize)
+                    .ToListAsync(ct);
+                if (page.Count == 0) break;
+
+                foreach (var r in page)
+                {
+                    cursorTs = r.TimestampUtc;
+                    cursorId = r.Id;
+                    if ((rowIndex++ % stride) != 0) continue;
+                    if (!perTag.TryGetValue(r.TagName, out var list)) continue;
+                    // Parse numbers (Invariant culture ensures the decimal dot '.' is handled correctly)
+                    // Bool "1"/"0" also parses to double (for step charts).
+                    if (double.TryParse(r.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedValue))
+                        list.Add(new HistorianDataPoint(r.TimestampUtc, parsedValue, r.Quality));
+                    else if (bool.TryParse(r.Value, out var b))
+                        list.Add(new HistorianDataPoint(r.TimestampUtc, b ? 1.0 : 0.0, r.Quality));
+                    // Non-numeric strings (LineName/Batch) are skipped — they have no line.
+                }
+
+                if (page.Count < PageSize) break;
+            }
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (HistorianException) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Historian readings fetch failed for device {DeviceId} window {From:u}-{To:u}.",
+                deviceId, fromUtc, toUtc);
+            throw new HistorianException("Could not load trend history. Check database connectivity and retry.", ex);
         }
 
         var result = new List<TagTrendSeries>();
 
-        // 3. Group each tag's data and parse values to numbers.
-        // NOTE: Bad/NotConnected points are not dropped — they are retained with their Quality
-        // so the chart shows a gap (industry-standard data integrity).
+        // 3. Per tag: split good-segments by quality gaps, then normalized LTTB per segment.
+        // Bad/NotConnected points are NOT dropped — one marker per gap-run is kept so the
+        // chart breaks the line and shows the red X (industry-standard data integrity).
         foreach (var tagName in tagList)
         {
-            var readingsForTag = rawReadings
-                .Where(r => string.Equals(r.TagName, tagName, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
             tagMeta.TryGetValue(tagName, out var meta);
+            var parsed = perTag[tagName];
 
-            var validPoints = new List<HistorianDataPoint>(readingsForTag.Count);
-            foreach (var r in readingsForTag)
-            {
-                // Parse numbers (Invariant culture ensures the decimal dot '.' is handled correctly)
-                // Bool "1"/"0" also parses to double (for step charts).
-                if (double.TryParse(r.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedValue))
-                {
-                    validPoints.Add(new HistorianDataPoint(r.TimestampUtc, parsedValue, r.Quality));
-                }
-                else if (bool.TryParse(r.Value, out var b))
-                {
-                    validPoints.Add(new HistorianDataPoint(r.TimestampUtc, b ? 1.0 : 0.0, r.Quality));
-                }
-            }
-
-            // 4. Downsampling: LTTB (Largest-Triangle-Three-Buckets) — preserves shape.
-            // Legacy even-sampling swallowed peaks (alarm spikes); LTTB retains visual fidelity.
-            IReadOnlyList<HistorianDataPoint> finalPoints;
-            if (validPoints.Count > maxPoints && maxPoints > 10)
-            {
-                finalPoints = DownsampleLttb(validPoints, maxPoints);
-            }
-            else
-            {
-                finalPoints = validPoints;
-            }
+            var finalPoints = DownsampleWithGaps(parsed, maxPoints);
 
             result.Add(new TagTrendSeries(
                 TagName: tagName,
-                EngineeringUnit: meta?.EngineeringUnit,
-                MinAlarm: meta?.AlarmMinThreshold,
-                MaxAlarm: meta?.AlarmMaxThreshold,
+                EngineeringUnit: meta.Unit,
+                MinAlarm: meta.Min,
+                MaxAlarm: meta.Max,
                 Points: finalPoints,
-                DataType: meta?.DataType ?? WTT.Domain.Enums.TagDataType.Float32
+                DataType: meta.DataType == 0 ? TagDataType.Float32 : meta.DataType
             ));
         }
 
         return result;
     }
 
+    private static bool IsGapPoint(HistorianDataPoint p) =>
+        p.Quality is TagQuality.Bad or TagQuality.NotConnected or TagQuality.ConfigError;
+
     /// <summary>
-    /// LTTB downsampling: preserves visual shape (peaks/valleys).
-    /// Better than even-sampling — alarm spikes are never missed.
-    /// Bad-quality points are preserved at bucket boundaries so gaps remain visible.
+    /// Gap-aware downsampling: good runs get normalized-LTTB with proportional budget,
+    /// each gap-run contributes exactly one marker (its first point).
     /// </summary>
-    private static IReadOnlyList<HistorianDataPoint> DownsampleLttb(List<HistorianDataPoint> source, int targetCount)
+    private static IReadOnlyList<HistorianDataPoint> DownsampleWithGaps(List<HistorianDataPoint> source, int targetCount)
+    {
+        if (source.Count == 0) return source;
+        if (source.Count <= targetCount) return source;
+
+        // Split into good runs + one marker per gap-run (time order preserved).
+        var goodRuns = new List<List<HistorianDataPoint>>();
+        var gapMarkers = new List<HistorianDataPoint>();
+        List<HistorianDataPoint>? current = null;
+        var lastGapTs = DateTime.MinValue;
+        foreach (var p in source)
+        {
+            if (IsGapPoint(p))
+            {
+                if (current is { Count: > 0 }) { goodRuns.Add(current); current = null; }
+                if (p.TimestampUtc != lastGapTs)
+                {
+                    gapMarkers.Add(p);
+                    lastGapTs = p.TimestampUtc;
+                }
+            }
+            else
+            {
+                current ??= new List<HistorianDataPoint>();
+                current.Add(p);
+            }
+        }
+        if (current is { Count: > 0 }) goodRuns.Add(current);
+        if (goodRuns.Count == 0) return gapMarkers.Take(targetCount).ToList();
+
+        // Proportional point budget per good run (rounding slack is at most a few points).
+        var totalGood = goodRuns.Sum(r => r.Count);
+        var goodBudget = Math.Max(0, targetCount - gapMarkers.Count);
+        var sampled = new List<HistorianDataPoint>(targetCount);
+        foreach (var run in goodRuns)
+        {
+            var budget = Math.Max(2, (int)((long)run.Count * goodBudget / Math.Max(1, totalGood)));
+            sampled.AddRange(DownsampleLttbNormalized(run, budget));
+        }
+
+        // Merge markers back in time order; trim good points first if over budget.
+        sampled.AddRange(gapMarkers);
+        sampled.Sort(static (a, b) => a.TimestampUtc.CompareTo(b.TimestampUtc));
+        if (sampled.Count > targetCount)
+        {
+            var keepGaps = Math.Min(gapMarkers.Count, targetCount / 4);
+            var goods = sampled.Where(static p => !IsGapPoint(p)).ToList();
+            var trimmed = DownsampleLttbNormalized(goods, Math.Max(2, targetCount - keepGaps));
+            sampled = trimmed.Concat(gapMarkers.Take(keepGaps)).ToList();
+            sampled.Sort(static (a, b) => a.TimestampUtc.CompareTo(b.TimestampUtc));
+        }
+        return sampled;
+    }
+
+    /// <summary>
+    /// Normalized LTTB downsampling: preserves visual shape (peaks/valleys).
+    /// X (time) and Y (value) are both scaled to 0-1 first — otherwise raw Ticks
+    /// (~1e17) drown out the value axis and peaks get picked almost at random.
+    /// Input must be a gap-free run (use <see cref="DownsampleWithGaps"/> for mixed data).
+    /// </summary>
+    private static IReadOnlyList<HistorianDataPoint> DownsampleLttbNormalized(List<HistorianDataPoint> source, int targetCount)
     {
         if (source.Count <= targetCount) return source;
         if (targetCount < 3) return DownsampleEven(source, targetCount);
+
+        double xMin = source[0].TimestampUtc.Ticks;
+        double xMax = source[^1].TimestampUtc.Ticks;
+        double xRange = Math.Max(1.0, xMax - xMin);
+        double yMin = double.MaxValue, yMax = double.MinValue;
+        foreach (var p in source)
+        {
+            if (p.Value < yMin) yMin = p.Value;
+            if (p.Value > yMax) yMax = p.Value;
+        }
+        double yRange = Math.Max(1e-9, yMax - yMin);
+        static double Nx(HistorianDataPoint p, double xMin, double xRange) => (p.TimestampUtc.Ticks - xMin) / xRange;
+        static double Ny(HistorianDataPoint p, double yMin, double yRange) => (p.Value - yMin) / yRange;
 
         var sampled = new List<HistorianDataPoint>(targetCount) { source[0] };
         double bucketSize = (double)(source.Count - 2) / (targetCount - 2);
@@ -171,30 +252,28 @@ public sealed class HistorianService : IHistorianService
             int rangeEnd = Math.Min((int)Math.Floor((i + 2) * bucketSize) + 1, source.Count);
             if (rangeEnd <= rangeStart) rangeEnd = Math.Min(rangeStart + 1, source.Count);
 
-            // Average of the next bucket (third vertex of the triangle)
+            // Average of the next bucket (third vertex of the triangle), normalized space.
             double avgX = 0, avgY = 0;
             int avgCount = 0;
             for (var j = rangeStart; j < rangeEnd; j++)
             {
-                avgX += source[j].TimestampUtc.Ticks;
-                avgY += source[j].Value;
+                avgX += Nx(source[j], xMin, xRange);
+                avgY += Ny(source[j], yMin, yRange);
                 avgCount++;
             }
             if (avgCount > 0) { avgX /= avgCount; avgY /= avgCount; }
-            else { avgX = source[rangeStart].TimestampUtc.Ticks; avgY = source[rangeStart].Value; }
+            else { avgX = Nx(source[rangeStart], xMin, xRange); avgY = Ny(source[rangeStart], yMin, yRange); }
 
-            // Select the point with the largest triangle area in the current bucket
+            // Select the point with the largest triangle area in the current bucket.
             int bucketStart = (int)Math.Floor(i * bucketSize) + 1;
             int bucketEnd = Math.Min((int)Math.Floor((i + 1) * bucketSize) + 1, source.Count);
             double maxArea = -1;
             int nextA = bucketStart;
-            double ax = source[a].TimestampUtc.Ticks, ay = source[a].Value;
+            double ax = Nx(source[a], xMin, xRange), ay = Ny(source[a], yMin, yRange);
             for (var j = bucketStart; j < bucketEnd; j++)
             {
-                double area = Math.Abs((ax - avgX) * (source[j].Value - ay) - (ax - source[j].TimestampUtc.Ticks) * (avgY - ay)) * 0.5;
-                // Slightly boost bad-quality points so gaps are preserved
-                if (source[j].Quality is TagQuality.Bad or TagQuality.NotConnected or TagQuality.ConfigError)
-                    area += (avgY - ay) * 0.001 + 1e-9;
+                double area = Math.Abs((ax - avgX) * (Ny(source[j], yMin, yRange) - ay)
+                    - (ax - Nx(source[j], xMin, xRange)) * (avgY - ay)) * 0.5;
                 if (area > maxArea) { maxArea = area; nextA = j; }
             }
             sampled.Add(source[nextA]);
