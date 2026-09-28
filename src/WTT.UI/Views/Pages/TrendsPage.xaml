@@ -39,11 +39,25 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Live Stream Toggle -->
-                <ui:Button Content="{Binding LiveStatusText}"
-                           Icon="{ui:SymbolIcon Play24}"
+                <!-- Live status (state, not a button): green dot + LIVE / grey + PAUSED -->
+                <Border Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="4" Padding="8,4" Margin="0,0,8,6" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="8" Height="8" Fill="{Binding IsLive, Converter={StaticResource BoolToBrush}}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding LiveStatusText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Live action button: shows what CLICKING will do (Pause when live, Go Live when paused) -->
+                <ui:Button Content="Pause" Icon="{ui:SymbolIcon Pause24}"
+                           ToolTip="Freeze the live trend (history stays)"
                            Command="{Binding ToggleLiveCommand}"
-                           Appearance="Secondary" Margin="0,0,8,6" />
+                           Appearance="Secondary" Margin="0,0,8,6"
+                           Visibility="{Binding IsLive, Converter={StaticResource BoolToVis}}" />
+                <ui:Button Content="Go Live" Icon="{ui:SymbolIcon Play24}"
+                           ToolTip="Resume live streaming"
+                           Command="{Binding ToggleLiveCommand}"
+                           Appearance="Primary" Margin="0,0,8,6"
+                           Visibility="{Binding IsLive, Converter={StaticResource InverseBoolToVis}}" />
 
                 <!-- Y-mode: Shared vs Normalized (mixed units) -->
                 <ui:Button Content="{Binding YModeLabel}"
