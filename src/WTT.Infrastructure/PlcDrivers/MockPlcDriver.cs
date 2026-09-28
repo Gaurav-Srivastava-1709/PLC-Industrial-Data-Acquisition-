@@ -1,3 +1,36 @@
+// =============================================================================
+// FILE      : src/WTT.Infrastructure/PlcDrivers/MockPlcDriver.cs
+// LAYER     : Infrastructure - deterministic PLC simulator (no hardware required)
+// PURPOSE   : Exercises capture, triggers, alarms, trends and transfer end to end with
+//             no PLC. Each tag produces a smooth signal DERIVED FROM ITS ADDRESS, so
+//             runs are reproducible and a regression is a changed value, not noise.
+// DI        : Per-device instance - returned by PlcDriverFactory when
+//             Simulation:UseMockPlc is set; one per DeviceCaptureWorker.
+// THREADING : Sequential by contract (IPlcDriver). State is shared CROSS-PROCESS, not
+//             in memory: a JSON file under C:\ProgramData\WTT guarded by a named
+//             Global Mutex (500 ms timeout, AbandonedMutexException tolerated) and
+//             opened FileShare.None, so WTT.Service (Session 0) and WTT.UI (Session 1)
+//             cannot interleave a read-modify-write or collide on the file.
+// DEPENDS ON: System.Text.Json, WTT.Domain (StableHash, TagValueFormatter, TagReadResult)
+// USED BY   : PlcDriverFactory, WTT.UI write/browse screens, simulation test harnesses.
+// KEY RULES :
+//   * State lives in C:\ProgramData\WTT\WTT_MockPlcState.json - NOT a static
+//     dictionary. A UI write must be visible to the service process and two
+//     processes never share heap memory. Do not "optimise" this into a static dict.
+//   * A written value overrides the simulation until it expires (15 s after the
+//     write), then the signal resumes: a Force-Tag nudge, not a latch, which is what
+//     keeps trigger and alarm testing repeatable. A legacy single-part value expires
+//     at once, so an old file can never leave a tag stuck.
+//   * Signal shape is a pure function of PlcAddress (stable hash -> phase, period,
+//     amplitude) plus name keywords (temp/press/level, count, trig, batch). Never
+//     introduce Random or DateTime.Now - failures would become unreproducible.
+//   * An empty PlcAddress is a ConfigError, never a silent zero; an unparseable
+//     written value falls back to simulation instead of failing the whole scan.
+//   * BrowseTagsAsync returns a small fixed sample for the tag-import flow only; it
+//     is not a real tag list and must not be presented as one.
+//   * Reachable ONLY via Simulation:UseMockPlc - see PlcDriverFactory, which refuses
+//     unknown devices rather than degrading to it.
+// =============================================================================
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;

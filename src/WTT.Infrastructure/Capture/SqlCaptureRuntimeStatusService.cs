@@ -1,3 +1,31 @@
+// =============================================================================
+// FILE      : src/WTT.Infrastructure/Capture/SqlCaptureRuntimeStatusService.cs
+// LAYER     : Infrastructure - the cross-process health bridge for the capture pipeline
+// PURPOSE   : Mirrors the supervisor's in-memory health into SQL Server so WTT.UI (a
+//             separate process) can show connection status, counters and last errors,
+//             and so both processes can answer "is the service actually running?".
+// DI        : Singleton - the writer (WTT.Service, from the supervisor) and the
+//             reader (WTT.UI) resolve the same registration.
+// THREADING : Stateless, no mutable fields. Every call opens its own short-lived
+//             DbContext via IDbContextFactory, so the supervisor loop and UI request
+//             handlers can call it concurrently without coordination.
+// DEPENDS ON: IDbContextFactory<AppDbContext>, ServiceRuntimeState + DeviceRuntimeState
+// USED BY   : DataCaptureBackgroundService (Begin/Publish/EndSession), UI dashboard, ICaptureRuntimeStatusReader.GetSnapshotAsync.
+// KEY RULES :
+//   * Row layout: ServiceRuntimeStates has exactly ONE row, Id = 1, holding the
+//     InstanceId and heartbeat; DeviceRuntimeStates has one row per device keyed by
+//     DeviceId, each stamped with the owning InstanceId.
+//   * The UI must read THIS table for connection status - never LiveValueCache. The
+//     UI process has its own empty cache and would report every device as offline.
+//   * Heartbeat staleness (StaleAfter = 60 s) separates "running" from "crashed": a
+//     clean stop sets StoppedAtUtc, a crash leaves a stale HeartbeatAtUtc. Both read
+//     as not-alive.
+//   * InstanceId fencing rejects writes once the stored InstanceId no longer matches,
+//     so a process that lost its session cannot resurrect stale rows.
+//   * LastError is truncated to 2000 chars (the column is bounded) on both tables.
+//   * GetSnapshotAsync swallows its exceptions and returns a failed snapshot - a
+//     health display must never itself throw.
+// =============================================================================
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using WTT.Application.Interfaces;

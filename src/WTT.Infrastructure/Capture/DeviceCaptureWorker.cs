@@ -1,3 +1,33 @@
+// =============================================================================
+// FILE      : src/WTT.Infrastructure/Capture/DeviceCaptureWorker.cs
+// LAYER     : Infrastructure - the per-device polling engine of the capture pipeline
+// PURPOSE   : Polls one device: owns the IPlcDriver connection, evaluates the capture
+//             mode, refreshes external context on the trigger's rising edge,
+//             historises triggered scans, keeps live values current, evaluates alarms.
+// DI        : Per-device instance - built by DataCaptureBackgroundService, never from
+//             DI. One worker per enabled device, recreated when the fingerprint changes.
+// THREADING : Deliberately NOT thread-safe. IPlcDriver is only required to be
+//             sequentially callable, so one loop owns the driver. `Status` and the
+//             counters are read lock-free from other threads - assign, never mutate a
+//             collection. `_dirtyCurrentValues` is the one lock-guarded member.
+// DEPENDS ON: IPlcDriverFactory, IDbContextFactory<AppDbContext>, IExternalQueryService, LiveValueCache, IAlarmService, CaptureOptions, TriggerEvaluator
+// USED BY   : DataCaptureBackgroundService (construction/Start/DisposeAsync), capture dashboard.
+// KEY RULES :
+//   * The poll loop must never die on a transient error: reconnect backs off
+//     exponentially with jitter from ReconnectInitialDelaySeconds (2 s) to
+//     ReconnectMaxDelaySeconds (60 s). A PlcConfigurationException is a config bug,
+//     so it idles rather than hammering.
+//   * Live values reach LiveValueCache EVERY poll but are only FLUSHED to
+//     DeviceTags.CurrentValue every Capture:CurrentValueFlushSeconds (5 s) - which
+//     is why live trend resolution is ~5 s, not one poll interval.
+//   * CaptureMode decides whether a scan is historised (Manual always, the other two
+//     only on a true trigger); external context refreshes only on the rising edge.
+//   * Only good-quality values are historised or alarm-evaluated; a bad read updates
+//     cache quality but never writes a TagReading.
+//   * Current-value flushes run inside the EF retrying execution strategy (a
+//     user-initiated transaction would defeat it) and requeue their snapshot on
+//     failure rather than dropping values.
+// =============================================================================
 using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

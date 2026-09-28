@@ -1,3 +1,25 @@
+// =============================================================================
+// FILE      : src/WTT.Infrastructure/Capture/AlarmRetentionWorker.cs
+// LAYER     : Infrastructure - daily retention housekeeping for the alarm history
+// PURPOSE   : Purges AlarmEvents older than the configured retention window so the
+//             alarm table cannot grow without bound. Runs at startup, then every 24 h.
+// DI        : HostedService (singleton) - one instance per WTT.Service process.
+// THREADING : One async loop owns the schedule. Each run opens its own DI scope, so
+//             the DbContext is never captured for the service lifetime - that is what
+//             keeps a purge from running concurrently with itself across instances.
+// DEPENDS ON: IServiceProvider (per-run scope), IOptionsMonitor<AlarmOptions>, IDbContextFactory<AppDbContext> (from that scope)
+// USED BY   : Registered as a hosted service in DependencyInjection; nothing calls it.
+// KEY RULES :
+//   * RetentionDays <= 0 means "keep forever" - return without touching the table.
+//     Zero is a legitimate configuration, not unbounded retention by accident.
+//   * The runtime `AppSettings["Alarm.RetentionDays"]` override wins over the bound
+//     option, because IAlarmService.UpdateRetentionAsync writes it there.
+//   * The cutoff uses TriggeredAtUtc (UTC), not the local timestamp, so a timezone
+//     change cannot shift which rows are deleted.
+//   * Deletion is one ExecuteDeleteAsync, never a read-then-delete loop.
+//   * Failures are logged and swallowed so the loop survives; the 24 h delay runs
+//     from the END of a purge, so a slow run delays the next rather than stacking.
+// =============================================================================
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

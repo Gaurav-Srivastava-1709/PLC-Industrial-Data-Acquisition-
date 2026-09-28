@@ -1,3 +1,43 @@
+// =============================================================================
+// FILE      : src/WTT.Infrastructure/PlcDrivers/AllenBradley/AllenBradleyDriver.cs
+// LAYER     : Infrastructure — EtherNet/IP driver for Allen-Bradley PLCs (libplctag)
+// PURPOSE   : Talks to ControlLogix, CompactLogix, Micro800, PLC-5, SLC-500 and
+//             MicroLogix. Owns a set of cached libplctag tag handles; reads are issued
+//             concurrently and libplctag packs them into as few CIP packets as the
+//             connection size allows. Handles Logix symbolic names and PCCC file
+//             addresses, and can browse the Logix tag list.
+// DI        : Per-device instance — created by PlcDriverFactory, owned by one
+//             DeviceCaptureWorker for the life of its connection.
+// THREADING : The driver is entered sequentially by one worker but issues many tag
+//             reads CONCURRENTLY on purpose, then awaits them. The shared `_tags`
+//             handle cache is written only from that single scan path and read
+//             afterwards, so no lock is needed; each libplctag.Tag handle is itself
+//             safe to await concurrently.
+// DEPENDS ON: libplctag (.NET binding), AllenBradleyAddress (same folder), WTT.Domain (TagValueFormatter, PlcConnectionException/PlcWriteException, TagQuality)
+// USED BY   : PlcDriverFactory (EthernetIp + AllenBradley), DeviceCaptureWorker, PlcOperationsService.
+// KEY RULES :
+//   * libplctag keeps ONE CIP session per gateway path and packs requests up to the
+//     connection size. This replaces the legacy hand-rolled "CIPConnectionSize - 53"
+//     batching — do not reintroduce manual chunking.
+//   * The gateway path comes from Device.CipPath (or "1,Slot" for Logix). Handles are
+//     created once and CACHED for the connection lifetime; a renamed tag or a config
+//     error drops just that handle (DropHandle), not the whole connection.
+//   * TCP reachability is PROBED on connect so the worker gets one clear
+//     "unreachable" instead of N per-tag timeouts; libplctag opens the CIP session
+//     lazily on first tag use.
+//   * The port must be the standard 44818 — a non-standard gateway port is rejected as
+//     PlcConfigurationException because libplctag cannot use one.
+//   * libplctag exposes Status only in the exception MESSAGE, so StatusOf() parses it
+//     back. "Config" statuses (bad param, not found, unsupported, out-of-bounds, ...)
+//     map to TagQuality.ConfigError so the UI shows a fixable problem, not a fault.
+//   * If EVERY attempted read times out the link is dead: PlcConnectionException
+//     triggers reconnect. Partial timeouts are per-tag bad values only.
+//   * CanBrowseTags is true ONLY for Logix; other models need manual addresses. The
+//     @tags list is walked per program scope, expanding small arrays element-wise.
+//   * Logix uses symbolic names, PCCC (PLC-5/SLC/MicroLogix) uses file addresses
+//     (N7:0, F8:3, B3:0/4, ST10:2); decoding branches on the file prefix, so keep
+//     AllenBradleyAddress.Parse as the single normaliser for those forms.
+// =============================================================================
 using System.Net.Sockets;
 using System.Text;
 using libplctag;

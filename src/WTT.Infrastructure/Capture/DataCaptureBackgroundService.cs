@@ -1,3 +1,27 @@
+// =============================================================================
+// FILE      : src/WTT.Infrastructure/Capture/DataCaptureBackgroundService.cs
+// LAYER     : Infrastructure - hosted-service supervisor of the capture pipeline
+// PURPOSE   : Owns exactly one DeviceCaptureWorker per enabled device, restarts a
+//             worker when its configuration fingerprint changes, and runs retention
+//             cleanup. Also the IDataCaptureController the app services call into.
+// DI        : HostedService (singleton) - one supervisor per WTT.Service process.
+// THREADING : One async loop. `_workers`/`_lastStatus` are each lock-guarded (worker
+//             status callbacks arrive on worker threads and must take that lock);
+//             `_reconcileLock` uses WaitAsync(0) so a slow reconcile drops the next.
+// DEPENDS ON: IDbContextFactory<AppDbContext>, IPlcDriverFactory, IExternalQueryService, IRuntimeSettings, LiveValueCache, IAlarmService, ICaptureRuntimeStatusWriter
+// USED BY   : IDataCaptureController (services + UI dashboard); DeviceCaptureWorker.
+// KEY RULES :
+//   * A changed SHA-256 `Fingerprint()` restarts a worker. Anything the worker
+//     snapshots at construction MUST be in that hash or the edit is silently lost.
+//   * `_wakeup` is bounded (capacity 1, DropWrite): a burst of config changes
+//     coalesces into one reconcile instead of queueing N of them.
+//   * Publishes ServiceRuntimeState (Id = 1) + DeviceRuntimeState rows because
+//     WTT.UI is a separate process and cannot see this memory.
+//   * Pause/Resume demand Permission.ControlCapture; they gate worker scanning only -
+//     reconcile and retention keep running.
+//   * No exception may escape the loop: one bad device row must not stop capture
+//     for every other device.
+// =============================================================================
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Channels;

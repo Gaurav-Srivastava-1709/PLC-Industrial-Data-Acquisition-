@@ -1,3 +1,37 @@
+// =============================================================================
+// FILE      : src/WTT.Infrastructure/PlcDrivers/Siemens/SiemensS7Driver.cs
+// LAYER     : Infrastructure - Siemens S7-300/400/1200/1500 driver over S7comm
+// PURPOSE   : Opens an S7comm connection (rack/slot, CPU type from Device.Model),
+//             batches the device's tags into multi-variable read requests sized for
+//             the CPU PDU, and decodes by TagDataType so a REAL arrives as a float
+//             rather than a raw DWORD. Supports single-value writes.
+// DI        : Per-device instance - created by PlcDriverFactory, owned by one
+//             DeviceCaptureWorker for the life of its connection.
+// THREADING : Sequential by contract. The S7.Net Plc object wraps one S7 session and
+//             is not thread-safe, so one scan at a time; each chunk is fully awaited
+//             before the next starts.
+// DEPENDS ON: S7.Net + S7.Net.Types, WTT.Domain (TagValueFormatter, PlcConnectionException/PlcWriteException/PlcConfigurationException, TagQuality)
+// USED BY   : PlcDriverFactory (SiemensS7), DeviceCaptureWorker, PlcOperationsService.
+// KEY RULES :
+//   * Chunks are bounded by BOTH MaxItemsPerRequest (19) and MaxPayloadPerRequest
+//     (200 bytes - the PDU is 240 minus headers). Overshooting the CPU PDU makes the
+//     PLC reject the whole request, so EstimateSize/Chunk must stay conservative.
+//   * Decoding is driven by the TAG's TagDataType, not the address: BuildDataItem
+//     forces VarType (REAL, DINT, LREAL, S7String, ...). A REAL read as a DWord
+//     returns a meaningless integer that still looks like data.
+//   * 64-bit INTEGER tags are rejected at configuration time with a clear message
+//     (use LREAL/Float64 or split into two DWords). Do not "fix" this by casting.
+//   * A bad ADDRESS in one chunk must not poison the rest: a PlcException that is not
+//     a link error triggers a per-item retry, so only the offending tag is bad.
+//   * Link failures (ConnectionError/WriteData/ReadData, Socket, IO, disposed) are
+//     rethrown as PlcConnectionException for the worker's backoff; everything else is
+//     a per-tag data failure.
+//   * CanBrowseTags = false and BrowseTagsAsync throws: S7comm exposes no symbol
+//     table here, so DB numbers/offsets must be entered manually.
+//   * Rack/slot come from the device and the port defaults to 102. MapCpu() is the
+//     one place a DeviceModel becomes a CpuType; an unmapped model deliberately
+//     defaults to S7-1200, so verify the mapping rather than assuming it works.
+// =============================================================================
 using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using S7.Net;

@@ -1,3 +1,36 @@
+// =============================================================================
+// FILE      : src/WTT.Infrastructure/Transfer/DataTransferBackgroundService.cs
+// LAYER     : Infrastructure - store-and-forward shipping of captured readings
+// PURPOSE   : Ships buffered TagReadings to each device's central SQL Server with
+//             SqlBulkCopy, records every batch, and book-keeps the local store.
+//             Implements IDataTransferController for pause / resume / force-run.
+// DI        : HostedService (singleton) - one instance per WTT.Service process.
+// THREADING : One async loop. `_cycleLock` stops overlapping cycles: unattended runs
+//             use WaitAsync(0) and skip quietly, manual TransferNowAsync waits 10 s
+//             then fails loudly. Per-server Polly pipelines and schema-verify stamps
+//             are ConcurrentDictionary entries, so devices never contend.
+// DEPENDS ON: IDbContextFactory<AppDbContext>, SqlConnectionStringFactory, IRuntimeSettings, IInstallationIdentity, ICurrentUserService, TransferOptions
+// USED BY   : IDataTransferController (services + UI transfer page); hosted service registration.
+// KEY RULES :
+//   * IDEMPOTENCY IS THE CORRECTNESS INVARIANT. The destination has a unique index on
+//     (SourceId, SourceReadingId) plus a NOT EXISTS merge, so a retry after an
+//     ambiguous failure can never double-insert. SourceId comes from
+//     IInstallationIdentity - never a per-process value.
+//   * Mark IsTransferred only AFTER the remote commit. The reverse order loses data;
+//     the current order at worst re-sends, which the index absorbs.
+//   * Polly v8 retry + circuit breaker are PER SERVER ("ServerName|DatabaseName"), so
+//     one dead central server can never stall the others or trip their breakers.
+//   * `MaxBatchesPerDevicePerCycle` bounds how often a device re-enters the queue so
+//     one backlogged device cannot monopolise a cycle and starve the rest.
+//   * The local marks a contiguous id RANGE, not the exact batch ids, because rows
+//     are appended in id order while a batch is in flight. Do not tighten it to the
+//     batch list without proving no new row can land inside the range.
+//   * The filtered index UX_*_SourceId needs SET QUOTED_IDENTIFIER ON / ARITHABORT ON
+//     on every session (pooled connections carry other clients' defaults) - do not
+//     remove it. Destination DDL is verified at most once per hour per server/table.
+//   * Pause/Resume and TransferNowAsync demand Permission.ControlCapture, and no
+//     failure may terminate the host.
+// =============================================================================
 using System.Collections.Concurrent;
 using System.Data;
 using System.Diagnostics;

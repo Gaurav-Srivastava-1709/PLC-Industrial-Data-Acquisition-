@@ -1,3 +1,36 @@
+// =============================================================================
+// FILE      : src/WTT.Infrastructure/PlcDrivers/Modbus/ModbusTcpDriver.cs
+// LAYER     : Infrastructure - Modbus/TCP driver (NModbus)
+// PURPOSE   : Talks to Yokogawa MW100/GM10, Advantech ADAM, Walchem and generic
+//             Modbus slaves. Resolves tag addresses, groups them into contiguous
+//             register blocks so a 60-channel device costs a few requests rather than
+//             60, reads each block, and decodes the registers into values.
+// DI        : Per-device instance - created by PlcDriverFactory, owned by one
+//             DeviceCaptureWorker for the life of its connection.
+// THREADING : Sequential by contract. TcpClient + IModbusMaster are per-instance and
+//             the read path is one scan at a time; Modbus is request/response on one
+//             socket, so a read must never overlap a write.
+// DEPENDS ON: NModbus, ModbusCodec + ModbusAddressParser (same folder), WTT.Domain (TagValueFormatter, PlcConnectionException/PlcWriteException, TagQuality)
+// USED BY   : PlcDriverFactory (ModbusTcp), DeviceCaptureWorker, PlcOperationsService.
+// KEY RULES :
+//   * The register base address is PER DEVICE (Device.OneBasedAddressing). Never
+//     hardcode HR:40001 or assume 0-based - the same tag text means different wire
+//     offsets on different instruments, and the UI must accept what the instrument shows.
+//   * Addresses resolve via ModbusAddressParser with a fallback register type; an
+//     unparseable address becomes a per-tag ConfigError and never aborts the scan, so
+//     one bad tag cannot lose the other 59 channels.
+//   * SlaveException (e.g. ILLEGAL ADDRESS) is a DATA problem, not a link problem -
+//     mark that block bad and continue. Socket / IO / timeout / disposed errors
+//     become PlcConnectionException so the worker backs off and reconnects.
+//   * Blocks stay under the protocol limits (120 registers, 1900 coils; 123 on a
+//     write) and gaps of <= MaxGapRegisters (8) are merged so near-contiguous maps
+//     still collapse into a single request.
+//   * CanBrowseTags = false and BrowseTagsAsync throws: Modbus exposes no tag list.
+//     RequiresAddressBlocks = true, so the UI must collect address blocks instead.
+//   * Only Coils and HoldingRegisters are writable; the input tables are read-only.
+//     Parse and device errors surface as PlcWriteException, never as a raw
+//     FormatException escaping to the UI.
+// =============================================================================
 using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using NModbus;

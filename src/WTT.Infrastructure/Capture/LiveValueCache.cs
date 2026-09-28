@@ -1,3 +1,29 @@
+// =============================================================================
+// FILE      : src/WTT.Infrastructure/Capture/LiveValueCache.cs
+// LAYER     : Infrastructure - in-process live-value store shared by capture + UI
+// PURPOSE   : Holds the newest value/quality/timestamp per (device, tag) so live
+//             screens need not hit the database on every poll. A cache, not truth.
+// DI        : Singleton - one instance per process, shared by the capture workers
+//             and the WPF views hosted in that same process.
+// THREADING : Lock-free. Nested ConcurrentDictionary<deviceId, ConcurrentDictionary<
+//             tagId, LiveTagValue>> so reads never block and a write to one device
+//             never disturbs another. Values are immutable records, so Set/overwrite
+//             is the only mutation and needs no extra synchronisation.
+// DEPENDS ON: WTT.Domain.ValueObjects.LiveTagValue (immutable)
+// USED BY   : DeviceCaptureWorker (Set), DataCaptureBackgroundService (GetAll/ClearDevice), live views, plc operations screens.
+// KEY RULES :
+//   * IN-PROCESS ONLY. WTT.Service and WTT.UI are separate OS processes with
+//     SEPARATE, non-shared instances. Anything the UI must see has to be persisted.
+//   * Use DeviceRuntimeState / DeviceTags.CurrentValue in the DB for cross-process
+//     state (connection status, last scan, last good read). Reading this cache from
+//     WTT.UI always looks like "no data".
+//   * Never treat a value here as durable: it is lost on restart and is only as
+//     fresh as the last CurrentValueFlushSeconds window (5 s).
+//   * Entries are never trimmed by age. ClearDevice(deviceId) is called by the
+//     supervisor when a worker stops so a removed device's values do not linger.
+//   * GetAll() materialises a sorted list per call - fine for one device's tags, not
+//     for a tight loop across every device.
+// =============================================================================
 using System.Collections.Concurrent;
 using WTT.Domain.ValueObjects;
 

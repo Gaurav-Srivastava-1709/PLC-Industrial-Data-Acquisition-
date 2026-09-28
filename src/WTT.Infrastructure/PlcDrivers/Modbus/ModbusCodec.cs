@@ -1,3 +1,33 @@
+// =============================================================================
+// FILE      : src/WTT.Infrastructure/PlcDrivers/Modbus/ModbusCodec.cs
+// LAYER     : Infrastructure - pure Modbus register <-> CLR value conversions
+// PURPOSE   : Side-effect-free translation between 16-bit Modbus registers and CLR
+//             values, plus ModbusAddressParser, which turns user text ("100",
+//             "HR:100", "4x100") into a register type and a 0-based wire address.
+// DI        : Static - pure functions over spans; no instance, no state, no I/O.
+// THREADING : Fully thread-safe. All locals are stack- or array-scoped and nothing is
+//             cached, so any number of Decode/Encode calls may run concurrently.
+// DEPENDS ON: System.Buffers.Binary, WTT.Domain.Enums (TagDataType, WordOrder)
+// USED BY   : ModbusTcpDriver (register sizing, block slicing, decode/encode); address import screens.
+// KEY RULES :
+//   * Modbus registers are 16-bit and BIG-ENDIAN within a register. Multi-register
+//     32/64-bit values additionally depend on the device's WordOrder: HighLow is
+//     natural order, LowLow/LowHigh reverse the register order. Getting this wrong
+//     yields plausible but wrong numbers, so never assume a default here.
+//   * RegisterCount must stay the single source of truth for registers-per-type
+//     (1/2/4); it drives block sizing, span slicing and write limits, and a mismatch
+//     against Encode causes silent corruption.
+//   * Strings cost ONE REGISTER PER TWO CHARACTERS (ElementCount chars + the length
+//     byte), are ASCII high-byte-first, NUL-padded, and truncate at the first NUL.
+//   * This layer returns RAW, unscaled values. ScaleFactor, ScaleOffset and
+//     DecimalPlaces are applied afterwards by TagValueFormatter - folding scaling in
+//     here would double-apply it.
+//   * Decode throws when the span is shorter than the type needs, so an under-sized
+//     block fails loudly instead of returning garbage.
+//   * The second type here, ModbusAddressParser, is text -> (register type, wire
+//     address) and applies the device's one-based flag. Unknown prefixes throw
+//     FormatException, which the driver turns into a per-tag ConfigError.
+// =============================================================================
 using System.Buffers.Binary;
 using System.Text;
 using WTT.Domain.Enums;

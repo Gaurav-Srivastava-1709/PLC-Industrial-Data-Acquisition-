@@ -1,3 +1,39 @@
+// =============================================================================
+// FILE      : src/WTT.Infrastructure/PlcDrivers/AllenBradley/AllenBradleyAddress.cs
+// LAYER     : Infrastructure — pure Allen-Bradley address parsing / normalisation
+// PURPOSE   : Turns a user-typed AB address into the (TagName, bit, element count,
+//             file prefix) tuple the driver needs, and best-guesses a data type from
+//             a PCCC file prefix. Two dialects: PCCC file addresses and Logix
+//             symbolic names. No I/O and no libplctag — the driver calls in and gets
+//             a plain record back.
+// DI        : Static — pure functions over strings; no instance, no state.
+// THREADING : Fully thread-safe. The regexes are [GeneratedRegex] source-generated
+//             (no per-call compile, no shared mutable state), so any number of
+//             parses may run concurrently.
+// DEPENDS ON: System.Text.RegularExpressions, WTT.Domain.Enums (TagDataType, DeviceModel)
+// USED BY   : AllenBradleyDriver (GetOrCreate / Decode), device & tag config screens, AB address block builder.
+// KEY RULES :
+//   * PCCC forms accepted: "N7:0", "F8:3", "B3:0/4", "ST10:2", "A9:0-10", "T4:0.ACC".
+//     A range "A9:0-10" becomes element 0 with ElementCount = 11 (ranges are
+//     INCLUSIVE, not a count); a bit "/4" is stripped into BitIndex and the whole
+//     word is still read.
+//   * Logix symbolic names pass through essentially unchanged, but an array index
+//     "Data[3]" or program scope "Program:Main.Speed" is exactly what libplctag
+//     expects, so never case-fold or strip the scope.
+//   * `Parsed.TagName` is the ONLY string handed to libplctag and must be the
+//     NORMALISED form (ranges/bits collapsed to a base element), never the raw user
+//     text, or the controller will not resolve the tag.
+//   * `FilePrefix` tells the driver it is PCCC (decode as ASCII words / bit offsets)
+//     rather than Logix; null means symbolic name.
+//   * InferDataType is a HEURISTIC for PCCC prefixes only (B bit file read as a word
+//     unless /bit is given, F=Float32, N=Int16, ST/A=String, ...) and returns null
+//     for Logix names — the tag's configured DataType always wins.
+//   * Malformed input throws FormatException, which the driver converts to a
+//     per-tag ConfigError. Never swallow it and return a default, or a mistyped
+//     address will look like a successful read of the wrong tag.
+//   * IsPccc(model) is the model-based dialect test; keep it in sync with MapPlcType
+//     in AllenBradleyDriver when adding a controller family.
+// =============================================================================
 using System.Text.RegularExpressions;
 using WTT.Domain.Enums;
 
