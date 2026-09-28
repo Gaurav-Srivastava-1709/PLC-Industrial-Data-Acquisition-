@@ -102,6 +102,10 @@ public partial class TrendsViewModel : ViewModelBase
     private int _pollBusy;
     private int _historyBusy;
     private int _historyPending;
+    // Value older than this means the device/capture has effectively stopped:
+    // draw an honest gap instead of a fabricated flat "live" line. Normal Flush
+    // lag is only ~5s, so 60s is safely beyond it.
+    private static readonly TimeSpan StaleGapThreshold = TimeSpan.FromSeconds(60);
 
     partial void OnSelectedDeviceChanged(Device? value)
     {
@@ -407,10 +411,20 @@ public partial class TrendsViewModel : ViewModelBase
                         // the old ts falls outside the window and the chart looks permanently empty.
                         var ts = t.CurrentValueAtUtc ?? now;
                         if (ts > now.AddSeconds(30)) ts = now; // future-clock guard
-                        if (ts < cutoff) ts = now; // stale-timestamp guard: show at the live edge
+                        if (ts < cutoff && now - (t.CurrentValueAtUtc ?? now) <= StaleGapThreshold)
+                            ts = now; // small-stale guard: show at the live edge
                         if (tagItem != null)
                         {
                             tagItem.LatestValue = $"{val:F2} {t.EngineeringUnit}";
+                        }
+
+                        // Stopped device: gap marker, never a fabricated flat line.
+                        if (t.CurrentValueAtUtc.HasValue && now - t.CurrentValueAtUtc.Value > StaleGapThreshold)
+                        {
+                            if (series.Points.Count == 0 || series.Points[^1].Quality is not (WTT.Domain.Enums.TagQuality.Bad or WTT.Domain.Enums.TagQuality.NotConnected or WTT.Domain.Enums.TagQuality.ConfigError))
+                                series.Points.Add(new TrendPoint(now, 0, WTT.Domain.Enums.TagQuality.NotConnected));
+                            series.Points.RemoveAll(p => p.Time < cutoff);
+                            continue;
                         }
 
                         // Skip duplicate timestamps (do not append the same scan twice)
