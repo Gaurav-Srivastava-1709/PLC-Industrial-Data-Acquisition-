@@ -168,6 +168,12 @@ public partial class MainViewModel : ViewModelBase
     private void OpenDashboard() => _navigation.Navigate(typeof(Views.Pages.DashboardPage));
 
     [RelayCommand]
+    private void OpenSettings() => _navigation.Navigate(typeof(Views.Pages.SettingsPage));
+
+    [RelayCommand]
+    private void OpenProfile() => _navigation.Navigate(typeof(Views.Pages.ProfilePage));
+
+    [RelayCommand]
     private void ChangePassword()
     {
         var vm = _changePasswordFactory();

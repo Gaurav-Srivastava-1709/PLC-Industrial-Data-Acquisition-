@@ -12,6 +12,40 @@
             <TextBlock Text="Settings" Style="{StaticResource PageTitle}" />
             <TextBlock Text="Runtime settings are stored in the local database and apply immediately — no restart needed." Style="{StaticResource PageSubtitle}" />
 
+            <!-- My Account — moved here from the top bar so the header stays clean.
+                 Visible to every role (Viewer/Operator/Admin). -->
+            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Width="48" Height="48" CornerRadius="999" Margin="0,0,14,0"
+                            Background="{DynamicResource SystemAccentColorPrimaryBrush}"
+                            VerticalAlignment="Center" HorizontalAlignment="Center">
+                        <ui:SymbolIcon Symbol="PersonCircle24" FontSize="24" Foreground="White"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="My Account" Style="{StaticResource SectionTitle}" Margin="0,0,0,2" />
+                        <TextBlock VerticalAlignment="Center">
+                            <Run Text="{Binding DisplayName, Mode=OneWay}" FontWeight="Bold" FontSize="14" />
+                            <Run Text="  ·  " Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                            <Run Text="{Binding RoleName, Mode=OneWay}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </TextBlock>
+                        <TextBlock Text="Signed in on this machine. Change your own password or sign out here."
+                                   Style="{StaticResource Hint}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <ui:Button Content="Change password" Icon="{ui:SymbolIcon Key24}" Appearance="Secondary"
+                                   Command="{Binding ChangePasswordCommand}" Margin="0,0,8,0" />
+                        <ui:Button Content="Sign out" Icon="{ui:SymbolIcon SignOut24}" Appearance="Secondary"
+                                   Command="{Binding LogoutCommand}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
             <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                 <StackPanel>
                     <TextBlock Text="Appearance" Style="{StaticResource SectionTitle}" />
@@ -19,7 +53,8 @@
                 </StackPanel>
             </Border>
 
-            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+            <Border Style="{StaticResource Card}" Margin="0,0,0,12"
+                    Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}">
                 <StackPanel>
                     <TextBlock Text="Simulation" Style="{StaticResource SectionTitle}" />
                     <ui:ToggleSwitch IsChecked="{Binding UseMockPlc}" OnContent="PLC simulator ON — all devices return simulated values" OffContent="PLC simulator OFF — real controllers" />
@@ -28,7 +63,8 @@
                 </StackPanel>
             </Border>
 
-            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+            <Border Style="{StaticResource Card}" Margin="0,0,0,12"
+                    Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}">
                 <StackPanel>
                     <TextBlock Text="Security &amp; retention" Style="{StaticResource SectionTitle}" />
                     <Grid>
@@ -54,7 +90,8 @@
                 </StackPanel>
             </Border>
 
-            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+            <Border Style="{StaticResource Card}" Margin="0,0,0,12"
+                    Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}">
                 <StackPanel>
                     <TextBlock Text="Local database" Style="{StaticResource SectionTitle}" />
                     <TextBlock FontFamily="Consolas" FontSize="12" Text="{Binding DatabaseLocation}" TextWrapping="Wrap" />

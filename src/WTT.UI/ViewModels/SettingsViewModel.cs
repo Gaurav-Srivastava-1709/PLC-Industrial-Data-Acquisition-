@@ -18,11 +18,16 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly ICurrentUserService _currentUser;
     private readonly IAuditService _audit;
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
+    private readonly ShellNavigator _shell;
+    private readonly Func<ChangePasswordViewModel> _changePasswordFactory;
 
     public SettingsViewModel(IAppSettingsService settings, IRuntimeSettings runtime, ThemeManager theme, ICurrentUserService currentUser, IAuditService audit,
-        IDbContextFactory<AppDbContext> dbFactory, IDialogService dialogs, ILogger<SettingsViewModel> logger) : base(dialogs, logger)
+        IDbContextFactory<AppDbContext> dbFactory, ShellNavigator shell, Func<ChangePasswordViewModel> changePasswordFactory, IDialogService dialogs, ILogger<SettingsViewModel> logger) : base(dialogs, logger)
     {
         _settings = settings; _runtime = runtime; _theme = theme; _currentUser = currentUser; _audit = audit; _dbFactory = dbFactory;
+        _shell = shell; _changePasswordFactory = changePasswordFactory;
+        _currentUser.Changed += (_, _) => OnUi(RefreshUser);
+        RefreshUser();
     }
 
     [ObservableProperty] private bool _isDarkMode = true;
@@ -34,20 +39,54 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty] private string _databaseSize = string.Empty;
     [ObservableProperty] private string _databaseEdition = string.Empty;
     [ObservableProperty] private string _version = string.Empty;
+    [ObservableProperty] private string _displayName = string.Empty;
+    [ObservableProperty] private string _roleName = string.Empty;
 
     public bool CanManage => _currentUser.HasPermission(Permission.ManageSettings);
 
+    public event EventHandler<ChangePasswordViewModel>? ChangePasswordRequested;
+
+    private void RefreshUser()
+    {
+        var u = _currentUser.User;
+        DisplayName = u is null ? string.Empty : (string.IsNullOrWhiteSpace(u.FullName) ? u.Username : u.FullName);
+        RoleName = u?.Role.ToString() ?? string.Empty;
+        OnPropertyChanged(nameof(CanManage));
+    }
+
+    [RelayCommand]
+    private void ChangePassword()
+    {
+        if (_currentUser.User is null) return;
+        var vm = _changePasswordFactory();
+        vm.Initialize(_currentUser.User.Id, forced: false);
+        ChangePasswordRequested?.Invoke(this, vm);
+    }
+
+    [RelayCommand]
+    private async Task LogoutAsync()
+    {
+        if (await Dialogs.ConfirmAsync("Sign out", "Do you want to sign out?", "Sign out"))
+            await _shell.LogoutAsync();
+    }
+
     public override async Task OnNavigatedToAsync()
     {
-        _currentUser.Demand(Permission.ManageSettings);
+        RefreshUser();
         await RunAsync(async () =>
         {
             IsDarkMode = _theme.Current == AppTheme.Dark;
-            UseMockPlc = _runtime.UseMockPlc;
-            SessionTimeoutMinutes = _runtime.SessionTimeoutMinutes;
-            TransferredRetentionDays = _runtime.TransferredRetentionDays;
-            TransferIntervalSeconds = _runtime.TransferIntervalSeconds;
-            await LoadDatabaseInfoAsync();
+            // Non-admin users can open Settings for My Account; runtime values load for everyone
+            // but Save is still gated by CanManage in UI + service layer.
+            try
+            {
+                UseMockPlc = _runtime.UseMockPlc;
+                SessionTimeoutMinutes = _runtime.SessionTimeoutMinutes;
+                TransferredRetentionDays = _runtime.TransferredRetentionDays;
+                TransferIntervalSeconds = _runtime.TransferIntervalSeconds;
+            }
+            catch { }
+            try { await LoadDatabaseInfoAsync(); } catch { }
             Version = typeof(App).Assembly.GetName().Version?.ToString(3) ?? "?";
         });
     }
@@ -59,6 +98,7 @@ public partial class SettingsViewModel : ViewModelBase
     {
         var ok = await RunAsync(async () =>
         {
+            _currentUser.Demand(Permission.ManageSettings);
             if (UseMockPlc != _runtime.UseMockPlc && UseMockPlc &&
                 !await Dialogs.ConfirmAsync("Enable simulator?", "ALL devices will read simulated values instead of real controllers while the simulator is on. Data written to the historian during this time is fake.\n\nEnable anyway?", "Enable simulator", destructive: true))
             {

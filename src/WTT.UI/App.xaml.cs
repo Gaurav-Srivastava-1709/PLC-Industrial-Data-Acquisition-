@@ -87,6 +87,8 @@ public partial class App : System.Windows.Application
                 services.AddTransient<AlarmsViewModel>();
                 services.AddTransient<SettingsPage>();
                 services.AddTransient<SettingsViewModel>();
+                services.AddTransient<ProfilePage>();
+                services.AddTransient<ProfileViewModel>();
 
                 // Dialog view models + Func<T> factories so pages can spawn fresh dialog VMs without a service locator
                 AddWithFactory<DeviceEditViewModel>(services);

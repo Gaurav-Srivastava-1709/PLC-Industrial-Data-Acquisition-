@@ -36,8 +36,8 @@
             </ui:NavigationView.MenuItems>
 
             <ui:NavigationView.FooterMenuItems>
-                <ui:NavigationViewItem Content="Settings" Icon="{ui:SymbolIcon Settings24}" TargetPageType="{x:Type pages:SettingsPage}"
-                                       Visibility="{Binding CanManageSettings, Converter={StaticResource BoolToVis}}" />
+                <!-- Visible to all roles: account actions live in Settings (My Account) and My Profile. -->
+                <ui:NavigationViewItem Content="Settings" Icon="{ui:SymbolIcon Settings24}" TargetPageType="{x:Type pages:SettingsPage}" />
             </ui:NavigationView.FooterMenuItems>
 
             <ui:NavigationView.Header>
@@ -58,15 +58,14 @@
                                 </Grid>
                             </ui:Button>
                             <CheckBox IsChecked="{Binding IsBeepEnabled}" Content="Beep" ToolTip="Beep Silent/ON (Critical/High only)" VerticalAlignment="Center" Margin="0,0,12,0" />
-                            <ui:SymbolIcon Symbol="PersonCircle24" FontSize="18" Margin="0,0,6,0" Foreground="{DynamicResource SystemAccentColorPrimaryBrush}" />
-                            <TextBlock VerticalAlignment="Center" Margin="0,0,12,0">
-                                <Run Text="{Binding DisplayName, Mode=OneWay}" FontWeight="SemiBold" />
-                                <Run Text=" · " Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                                <Run Text="{Binding RoleName, Mode=OneWay}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                            </TextBlock>
-                            <ui:Button Icon="{ui:SymbolIcon Key24}" ToolTip="Change my password" Appearance="Secondary" Margin="0,0,6,0"
-                                       Command="{Binding ChangePasswordCommand}" />
-                            <ui:Button Content="Sign out" Icon="{ui:SymbolIcon SignOut24}" Appearance="Secondary" Command="{Binding LogoutCommand}" />
+                            <!-- Compact account entry: full profile opens on its own page. -->
+                            <ui:Button ToolTip="My Profile" Appearance="Secondary"
+                                       Command="{Binding OpenProfileCommand}">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <ui:SymbolIcon Symbol="PersonCircle24" FontSize="16" Margin="0,0,6,0" />
+                                    <TextBlock Text="Account" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </ui:Button>
                         </StackPanel>
                     </Grid>
                 </Border>
