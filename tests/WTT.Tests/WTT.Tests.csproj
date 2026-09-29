@@ -4,7 +4,11 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <NoWarn>$(NoWarn);CA1707;CA2007;xUnit1004</NoWarn>
+    <!-- NOTE: deliberately NOT setting UseWPF. Turning it on changes the SDK's implicit
+         using set and breaks System.IO (Path/Directory) in existing test files. The
+         WindowsDesktop framework reference flows in from the WTT.UI project reference
+         below, which is all the view-model tests need. -->
+    <NoWarn>$(NoWarn);CA1707;CA2007;xUnit1004;CA1848;CA2000</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,6 +25,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\WTT.Infrastructure\WTT.Infrastructure.csproj" />
+    <!-- Referenced for the view-model tests only (LiveDataViewModel loading behaviour).
+         No WPF window is ever created, so these stay fast headless tests. -->
+    <ProjectReference Include="..\..\src\WTT.UI\WTT.UI.csproj" />
   </ItemGroup>
 
 </Project>

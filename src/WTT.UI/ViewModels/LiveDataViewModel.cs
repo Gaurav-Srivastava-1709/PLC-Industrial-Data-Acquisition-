@@ -42,6 +42,17 @@ public partial class LiveDataViewModel : ViewModelBase
     [ObservableProperty] private int _badCount;
     [ObservableProperty] private DateTime? _lastScanUtc;
 
+    /// <summary>
+    /// True only while the very first load of this page instance is in flight, so the
+    /// loading overlay can be shown for the initial open without strobing on the 2 s
+    /// status refresh. A dedicated flag rather than "IsBusy AND Rows.Count == 0"
+    /// because a device with zero selected tags legitimately keeps Rows empty, which
+    /// would make that condition flash the spinner on every refresh forever.
+    /// Cleared in the same step as the load finishing, and the overlay also requires
+    /// IsBusy, so a failed first load cannot leave it spinning.
+    /// </summary>
+    [ObservableProperty] private bool _isInitialLoad;
+
     public bool CanWrite => _currentUser.HasPermission(Permission.WriteToPlc);
     public event EventHandler<WriteTagViewModel>? WriteRequested;
 
@@ -59,8 +70,19 @@ public partial class LiveDataViewModel : ViewModelBase
         {
             Devices.Clear();
             foreach (var d in await _devices.GetAllAsync()) Devices.Add(d);
-            SelectedDevice = Devices.FirstOrDefault(d => d.Id == _navContext.SelectedDeviceId) ?? Devices.FirstOrDefault();
         });
+
+        // SelectedDevice is assigned OUTSIDE the RunAsync block on purpose.
+        // ViewModelBase.RunAsync drops re-entrant calls (if (IsBusy) return false),
+        // so assigning SelectedDevice while the block above was still busy made
+        // OnSelectedDeviceChanged fire RunAsync(LoadTagsAsync) into that guard,
+        // which returned false and threw the load away silently - no exception,
+        // no log. The first data load then only happened on the first status
+        // timer tick, i.e. up to 2 s after the page opened. That was the
+        // "loads late" symptom.
+        IsInitialLoad = Devices.Count > 0;
+        SelectedDevice = Devices.FirstOrDefault(d => d.Id == _navContext.SelectedDeviceId) ?? Devices.FirstOrDefault();
+
         _statusTimer.Start();
     }
 
@@ -87,7 +109,8 @@ public partial class LiveDataViewModel : ViewModelBase
             _rowsByTagId[t.Id] = row;
         }
         ApplyFilter();
-        RefreshStatus();
+        await RefreshStatusAsync();
+        IsInitialLoad = false;
     }
 
     private void ApplyFilter()
@@ -97,7 +120,12 @@ public partial class LiveDataViewModel : ViewModelBase
         foreach (var r in q) Rows.Add(r);
     }
 
-    private async void RefreshStatus()
+    // Was `async void`. That is an unobserved exception sink: on a transient SQL
+    // failure the throw had nowhere to go and surfaced as a Dispatcher-level crash
+    // instead of a handled error, and it also let the status text race the tag
+    // load. Now a normal awaited Task, so the snapshot read is part of the same
+    // guarded operation as the tag read.
+    private async Task RefreshStatusAsync()
     {
         if (SelectedDevice is null) { StatusText = string.Empty; return; }
         var snapshot = await _runtimeStatus.GetSnapshotAsync();

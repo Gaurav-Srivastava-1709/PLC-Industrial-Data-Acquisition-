@@ -34,9 +34,10 @@
             </StackPanel>
         </Border>
 
-        <DataGrid Grid.Row="2" Style="{StaticResource Grid}" ItemsSource="{Binding Rows}"
-                  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1"
-                  CanUserResizeColumns="True" CanUserReorderColumns="False">
+        <Grid Grid.Row="2">
+            <DataGrid Style="{StaticResource Grid}" ItemsSource="{Binding Rows}"
+                      HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1"
+                      CanUserResizeColumns="True" CanUserReorderColumns="False">
             <DataGrid.Resources>
                 <Style TargetType="TextBlock" x:Key="TrimCell">
                     <Setter Property="TextTrimming" Value="CharacterEllipsis" />
@@ -156,6 +157,36 @@
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
             </DataGrid.Columns>
-        </DataGrid>
+            </DataGrid>
+
+            <!-- Loading overlay for the INITIAL open. Driven by IsInitialLoad (a flag that
+                 clears once the first load finishes) AND IsBusy (so a failed first load
+                 cannot leave it spinning). It deliberately does NOT use IsBusy alone or
+                 "Rows.Count == 0": the status timer re-reads every 2 s, and a device with
+                 zero selected tags keeps Rows permanently empty, so either of those would
+                 strobe the spinner on every refresh. -->
+            <Border Background="{DynamicResource ControlFillColorDefaultBrush}"
+                    Visibility="Collapsed">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsInitialLoad}" Value="True" />
+                                    <Condition Binding="{Binding IsBusy}" Value="True" />
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Visibility" Value="Visible" />
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <ui:ProgressRing IsIndeterminate="True" Width="34" Height="34" />
+                    <TextBlock Text="Loading live values…" Margin="0,12,0,0" HorizontalAlignment="Center"
+                               FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </Border>
+        </Grid>
     </Grid>
 </Page>
