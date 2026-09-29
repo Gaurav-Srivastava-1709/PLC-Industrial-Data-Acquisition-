@@ -4,6 +4,79 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:vm="clr-namespace:WTT.UI.ViewModels"
       Title="Dashboard" ScrollViewer.CanContentScroll="False">
+    <!-- Modern colourful KPI cards (Tailwind-admin inspired): fixed pastel
+         gradients + saturated icon circles + bottom accent strips. Colours are
+         FIXED (not theme brushes) so cards stay vibrant and dark text stays
+         readable in both Light and Dark mode - on a dark canvas these glow
+         like an industrial Andon board. Hover = gentle lift + soft shadow. -->
+    <Page.Resources>
+        <LinearGradientBrush x:Key="KpiBlueBg" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#DBEAFE" Offset="0" />
+            <GradientStop Color="#BFDBFE" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="KpiTealBg" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#CCFBF1" Offset="0" />
+            <GradientStop Color="#99F6E0" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="KpiPurpleBg" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#EDE9FE" Offset="0" />
+            <GradientStop Color="#DDD6FE" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="KpiAmberBg" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#FEF3C7" Offset="0" />
+            <GradientStop Color="#FDE68A" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="KpiPinkBg" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#FCE7F3" Offset="0" />
+            <GradientStop Color="#FBCFE8" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="KpiRedBg" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#FEE2E2" Offset="0" />
+            <GradientStop Color="#FECACA" Offset="1" />
+        </LinearGradientBrush>
+
+        <Style x:Key="KpiLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="#475569" />
+            <Setter Property="Margin" Value="0,0,0,2" />
+            <!-- Narrow cards: long captions wrap to 2 lines instead of clipping. -->
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style x:Key="KpiValue" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="26" />
+            <Setter Property="FontWeight" Value="ExtraBold" />
+            <Setter Property="Foreground" Value="#0F172A" />
+        </Style>
+
+        <!-- Shared card shell: rounded pastel body, transparent 1px border
+             (reserves space so hover never shifts layout), hover lifts the
+             card 3px and adds a soft shadow + bright edge. -->
+        <Style x:Key="ModernKpiCard" TargetType="Border">
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#00000000" />
+            <Setter Property="Padding" Value="14,14,14,0" />
+            <Setter Property="Margin" Value="0,0,10,0" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#CCFFFFFF" />
+                    <Setter Property="RenderTransform">
+                        <Setter.Value>
+                            <TranslateTransform Y="-3" />
+                        </Setter.Value>
+                    </Setter>
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect Color="#40000000" BlurRadius="14"
+                                              ShadowDepth="3" Direction="270" Opacity="0.45" />
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Page.Resources>
     <!-- =======================================================================
          DASHBOARD - high-performance HMI layout (ISA-101.01 principles).
 
@@ -27,7 +100,11 @@
          version. Only layout, colour and type differ.
          ======================================================================= -->
     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
-        <Border Style="{StaticResource DashCanvas}">
+        <!-- Transparent canvas: inherits the NavigationView content background,
+             so Dashboard matches every other page (white in Light, dark
+             surface in Dark). A fixed grey canvas is what made only this
+             page look off. Cards carry their own bordered surfaces. -->
+        <Border Background="Transparent">
             <Grid Margin="20,14,20,24">
 
                 <Grid.RowDefinitions>
@@ -88,99 +165,191 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- ==================== KPI STRIP (6 neutral cards) ====================
-                     All six share one neutral surface. Only "Waiting for transfer"
-                     and "Errors" carry a semantic colour, and only when non-zero. -->
+                <!-- ==================== KPI STRIP (6 modern colour cards) ====================
+                     Pastel gradient body + saturated icon circle + darker bottom
+                     strip, like a modern admin template. Bindings unchanged. -->
                 <UniformGrid Grid.Row="1" Columns="6" Margin="0,0,0,16">
-                    <!-- 1 · Devices (neutral) -->
-                    <Border Style="{StaticResource DashKpiCard}" Margin="0,0,10,0">
-                        <StackPanel>
-                            <TextBlock Text="DEVICES" Style="{StaticResource DashKpiLabel}" />
-                            <TextBlock Text="{Binding DevicesTotal, StringFormat={}{0:N0}}"
-                                       Style="{StaticResource DashKpiValue}" />
-                        </StackPanel>
+                    <!-- 1 · Devices (blue) -->
+                    <Border Style="{StaticResource ModernKpiCard}" Background="{StaticResource KpiBlueBg}"
+                            ToolTip="Total configured devices">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0" VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Width="42" Height="42" CornerRadius="21" Background="#2563EB" VerticalAlignment="Center">
+                                    <ui:SymbolIcon Symbol="Server24" Foreground="White" FontSize="19"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="DEVICES" Style="{StaticResource KpiLabel}" />
+                                    <Viewbox Stretch="Uniform" StretchDirection="DownOnly" Height="34" HorizontalAlignment="Left">
+                                        <TextBlock Text="{Binding DevicesTotal, StringFormat={}{0:N0}}"
+                                                   Style="{StaticResource KpiValue}" />
+                                    </Viewbox>
+                                </StackPanel>
+                            </Grid>
+                            <Border Grid.Row="1" Height="5" CornerRadius="0,0,10,10"
+                                    Background="#2563EB" Margin="-14,12,-14,0" />
+                        </Grid>
                     </Border>
 
-                    <!-- 2 · Connected / running (neutral value; ISA-101 forbids
-                         green for a normal state - the state is carried by the
-                         pill and the tile status dots instead) -->
-                    <Border Style="{StaticResource DashKpiCard}" Margin="0,0,10,0">
-                        <StackPanel>
-                            <TextBlock Text="CONNECTED / RUNNING" Style="{StaticResource DashKpiLabel}" />
-                            <TextBlock Style="{StaticResource DashKpiValue}">
-                                <Run Text="{Binding DevicesConnected, Mode=OneWay}" />
-                                <Run Text=" / " FontSize="14"
-                                     Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                                <Run Text="{Binding DevicesRunning, Mode=OneWay}" FontSize="14"
-                                     Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                            </TextBlock>
-                        </StackPanel>
+                    <!-- 2 · Connected / running (teal) -->
+                    <Border Style="{StaticResource ModernKpiCard}" Background="{StaticResource KpiTealBg}"
+                            ToolTip="Connected devices / running capture workers">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0" VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Width="42" Height="42" CornerRadius="21" Background="#0D9488" VerticalAlignment="Center">
+                                    <ui:SymbolIcon Symbol="PlugConnected24" Foreground="White" FontSize="19"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="CONNECTED / RUNNING" Style="{StaticResource KpiLabel}" />
+                                    <Viewbox Stretch="Uniform" StretchDirection="DownOnly" Height="34" HorizontalAlignment="Left">
+                                        <TextBlock Style="{StaticResource KpiValue}">
+                                            <Run Text="{Binding DevicesConnected, Mode=OneWay}" />
+                                            <Run Text=" / " FontSize="14" Foreground="#475569" />
+                                            <Run Text="{Binding DevicesRunning, Mode=OneWay}" FontSize="14" Foreground="#475569" />
+                                        </TextBlock>
+                                    </Viewbox>
+                                </StackPanel>
+                            </Grid>
+                            <Border Grid.Row="1" Height="5" CornerRadius="0,0,10,10"
+                                    Background="#0D9488" Margin="-14,12,-14,0" />
+                        </Grid>
                     </Border>
 
-                    <!-- 3 · Readings today (neutral) -->
-                    <Border Style="{StaticResource DashKpiCard}" Margin="0,0,10,0">
-                        <StackPanel>
-                            <TextBlock Text="READINGS TODAY" Style="{StaticResource DashKpiLabel}" />
-                            <TextBlock Text="{Binding ReadingsToday, StringFormat={}{0:N0}}"
-                                       Style="{StaticResource DashKpiValue}" />
-                        </StackPanel>
+                    <!-- 3 · Readings today (purple) -->
+                    <Border Style="{StaticResource ModernKpiCard}" Background="{StaticResource KpiPurpleBg}"
+                            ToolTip="Readings captured today">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0" VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Width="42" Height="42" CornerRadius="21" Background="#7C3AED" VerticalAlignment="Center">
+                                    <ui:SymbolIcon Symbol="DataHistogram24" Foreground="White" FontSize="19"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="READINGS TODAY" Style="{StaticResource KpiLabel}" />
+                                    <Viewbox Stretch="Uniform" StretchDirection="DownOnly" Height="34" HorizontalAlignment="Left">
+                                        <TextBlock Text="{Binding ReadingsToday, StringFormat={}{0:N0}}"
+                                                   Style="{StaticResource KpiValue}" />
+                                    </Viewbox>
+                                </StackPanel>
+                            </Grid>
+                            <Border Grid.Row="1" Height="5" CornerRadius="0,0,10,10"
+                                    Background="#7C3AED" Margin="-14,12,-14,0" />
+                        </Grid>
                     </Border>
 
-                    <!-- 4 · Waiting for transfer - CAUTION when non-zero.
-                         DataTrigger Value="0" is what makes this "by exception". -->
-                    <Border Style="{StaticResource DashKpiCard}" Margin="0,0,10,0">
-                        <StackPanel>
-                            <TextBlock Text="WAITING FOR TRANSFER" Style="{StaticResource DashKpiLabel}" />
-                            <TextBlock Text="{Binding BufferedReadings, StringFormat={}{0:N0}}">
-                                <TextBlock.Style>
-                                    <!-- Caution when the buffer has rows, muted when empty.
-                                         NOTE: the Style ELEMENT must be the only Style - putting
-                                         Style="{StaticResource DashKpiValue}" on the TextBlock as
-                                         well is a duplicate-property XAML error. BasedOn carries
-                                         the size/weight, this adds the exception colouring. -->
-                                    <Style TargetType="TextBlock" BasedOn="{StaticResource DashKpiValue}">
-                                        <Setter Property="Foreground"
-                                                Value="{DynamicResource SystemFillColorCautionBrush}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding BufferedReadings}" Value="0">
-                                                <Setter Property="Foreground"
-                                                        Value="{DynamicResource TextFillColorPrimaryBrush}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </StackPanel>
+                    <!-- 4 · Waiting for transfer (amber) -->
+                    <Border Style="{StaticResource ModernKpiCard}" Background="{StaticResource KpiAmberBg}"
+                            ToolTip="Buffered readings waiting for central transfer">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0" VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Width="42" Height="42" CornerRadius="21" Background="#D97706" VerticalAlignment="Center">
+                                    <ui:SymbolIcon Symbol="Database24" Foreground="White" FontSize="19"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="WAITING FOR TRANSFER" Style="{StaticResource KpiLabel}" />
+                                    <Viewbox Stretch="Uniform" StretchDirection="DownOnly" Height="34" HorizontalAlignment="Left">
+                                        <TextBlock Text="{Binding BufferedReadings, StringFormat={}{0:N0}}"
+                                                   Style="{StaticResource KpiValue}" />
+                                    </Viewbox>
+                                </StackPanel>
+                            </Grid>
+                            <Border Grid.Row="1" Height="5" CornerRadius="0,0,10,10"
+                                    Background="#D97706" Margin="-14,12,-14,0" />
+                        </Grid>
                     </Border>
 
-                    <!-- 5 · Transferred today (neutral) -->
-                    <Border Style="{StaticResource DashKpiCard}" Margin="0,0,10,0">
-                        <StackPanel>
-                            <TextBlock Text="TRANSFERRED TODAY" Style="{StaticResource DashKpiLabel}" />
-                            <TextBlock Text="{Binding TransferredToday, StringFormat={}{0:N0}}"
-                                       Style="{StaticResource DashKpiValue}" />
-                        </StackPanel>
+                    <!-- 5 · Transferred today (pink) -->
+                    <Border Style="{StaticResource ModernKpiCard}" Background="{StaticResource KpiPinkBg}"
+                            ToolTip="Readings transferred to central today">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0" VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Width="42" Height="42" CornerRadius="21" Background="#DB2777" VerticalAlignment="Center">
+                                    <ui:SymbolIcon Symbol="CheckmarkCircle24" Foreground="White" FontSize="19"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="TRANSFERRED TODAY" Style="{StaticResource KpiLabel}" />
+                                    <Viewbox Stretch="Uniform" StretchDirection="DownOnly" Height="34" HorizontalAlignment="Left">
+                                        <TextBlock Text="{Binding TransferredToday, StringFormat={}{0:N0}}"
+                                                   Style="{StaticResource KpiValue}" />
+                                    </Viewbox>
+                                </StackPanel>
+                            </Grid>
+                            <Border Grid.Row="1" Height="5" CornerRadius="0,0,10,10"
+                                    Background="#DB2777" Margin="-14,12,-14,0" />
+                        </Grid>
                     </Border>
 
-                    <!-- 6 · Errors - CRITICAL when non-zero, muted at zero. -->
-                    <Border Style="{StaticResource DashKpiCard}">
-                        <StackPanel>
-                            <TextBlock Text="ERRORS (SESSION)" Style="{StaticResource DashKpiLabel}" />
-                            <TextBlock Text="{Binding ErrorsToday, StringFormat={}{0:N0}}">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock" BasedOn="{StaticResource DashKpiValue}">
-                                        <Setter Property="Foreground"
-                                                Value="{DynamicResource SystemFillColorCriticalBrush}" />
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding ErrorsToday}" Value="0">
-                                                <Setter Property="Foreground"
-                                                        Value="{DynamicResource TextFillColorPrimaryBrush}" />
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </StackPanel>
+                    <!-- 6 · Errors (red) -->
+                    <Border Style="{StaticResource ModernKpiCard}" Background="{StaticResource KpiRedBg}"
+                            Margin="0" ToolTip="Errors this session">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0" VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Width="42" Height="42" CornerRadius="21" Background="#DC2626" VerticalAlignment="Center">
+                                    <ui:SymbolIcon Symbol="AlertUrgent24" Foreground="White" FontSize="19"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="ERRORS (SESSION)" Style="{StaticResource KpiLabel}" />
+                                    <Viewbox Stretch="Uniform" StretchDirection="DownOnly" Height="34" HorizontalAlignment="Left">
+                                        <TextBlock Text="{Binding ErrorsToday, StringFormat={}{0:N0}}"
+                                                   Style="{StaticResource KpiValue}" />
+                                    </Viewbox>
+                                </StackPanel>
+                            </Grid>
+                            <Border Grid.Row="1" Height="5" CornerRadius="0,0,10,10"
+                                    Background="#DC2626" Margin="-14,12,-14,0" />
+                        </Grid>
                     </Border>
                 </UniformGrid>
 

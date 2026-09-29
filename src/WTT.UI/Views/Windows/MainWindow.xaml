@@ -17,27 +17,76 @@
         </Grid.RowDefinitions>
 
         <ui:NavigationView x:Name="RootNavigation" Grid.Row="1"
-                           PaneDisplayMode="Left" IsBackButtonVisible="Collapsed" IsPaneToggleVisible="True" OpenPaneLength="220">
+                           PaneDisplayMode="Left" IsBackButtonVisible="Collapsed" IsPaneToggleVisible="True" OpenPaneLength="248"
+                           FontFamily="{StaticResource WttNavFontFamily}" FontSize="13.5">
+            <!-- Accent + washes: one industrial sky accent for both themes.
+                 Unknown keys are ignored harmlessly; known WPF-UI keys restyle
+                 the selection indicator bar and item states. -->
+            <ui:NavigationView.Resources>
+                <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="#0EA5E9" />
+                <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#2E0EA5E9" />
+                <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#400EA5E9" />
+                <SolidColorBrush x:Key="NavigationViewItemBackgroundPointerOver" Color="#140EA5E9" />
+            </ui:NavigationView.Resources>
             <ui:NavigationView.MenuItems>
-                <ui:NavigationViewItem Content="Dashboard" Icon="{ui:SymbolIcon Home24}" TargetPageType="{x:Type pages:DashboardPage}" />
-                <ui:NavigationViewItem Content="Devices" Icon="{ui:SymbolIcon Router24}" TargetPageType="{x:Type pages:DevicesPage}"
+                <!-- Brand identity: gradient tile + product name. Non-clickable. -->
+                <ui:NavigationViewItem Style="{StaticResource WttNavBrandStyle}" IsHitTestVisible="False" Focusable="False">
+                    <ui:NavigationViewItem.Content>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Width="38" Height="38" CornerRadius="11">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#0EA5E9" Offset="0" />
+                                        <GradientStop Color="#0369A1" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <ui:SymbolIcon Symbol="Pulse24" Foreground="White" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                                <TextBlock Text="WTT" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <TextBlock Text="INDUSTRIAL DATA ACQUISITION" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </ui:NavigationViewItem.Content>
+                </ui:NavigationViewItem>
+
+                <ui:NavigationViewItem Style="{StaticResource WttNavSectionStyle}" Content="MONITOR" IsHitTestVisible="False" Focusable="False" />
+                <ui:NavigationViewItem Style="{StaticResource WttNavItemStyle}" Content="Dashboard" Icon="{ui:SymbolIcon Grid24}" TargetPageType="{x:Type pages:DashboardPage}" />
+                <ui:NavigationViewItem Style="{StaticResource WttNavItemStyle}" Content="Live Data" Icon="{ui:SymbolIcon Pulse24}" TargetPageType="{x:Type pages:LiveDataPage}"
+                                       Visibility="{Binding CanViewLiveData, Converter={StaticResource BoolToVis}}" />
+                <ui:NavigationViewItem Style="{StaticResource WttNavItemStyle}" Content="Trends" Icon="{ui:SymbolIcon ChartMultiple24}" TargetPageType="{x:Type pages:TrendsPage}"
+                                       Visibility="{Binding CanViewLiveData, Converter={StaticResource BoolToVis}}" />
+                <ui:NavigationViewItem Style="{StaticResource WttNavItemStyle}" Icon="{ui:SymbolIcon AlertUrgent24}" TargetPageType="{x:Type pages:AlarmsPage}">
+                    <ui:NavigationViewItem.Content>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Alarms" VerticalAlignment="Center" />
+                            <Border Grid.Column="1" MinWidth="22" Height="18" CornerRadius="9" Padding="6,0"
+                                    Background="{StaticResource WttAlarmBadgeBrush}" Margin="8,0,4,0"
+                                    Visibility="{Binding HasActiveAlarms, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{Binding ActiveAlarmCount}" FontSize="11" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                        </Grid>
+                    </ui:NavigationViewItem.Content>
+                </ui:NavigationViewItem>
+
+                <ui:NavigationViewItem Style="{StaticResource WttNavSectionStyle}" Content="MANAGE" IsHitTestVisible="False" Focusable="False" />
+                <ui:NavigationViewItem Style="{StaticResource WttNavItemStyle}" Content="Devices" Icon="{ui:SymbolIcon Server24}" TargetPageType="{x:Type pages:DevicesPage}"
                                        Visibility="{Binding CanViewDevices, Converter={StaticResource BoolToVis}}" />
-                <ui:NavigationViewItem Content="Live Data" Icon="{ui:SymbolIcon PulseSquare24}" TargetPageType="{x:Type pages:LiveDataPage}"
-                                       Visibility="{Binding CanViewLiveData, Converter={StaticResource BoolToVis}}" />
-                <ui:NavigationViewItem Content="Trends" Icon="{ui:SymbolIcon DataHistogram24}" TargetPageType="{x:Type pages:TrendsPage}"
-                                       Visibility="{Binding CanViewLiveData, Converter={StaticResource BoolToVis}}" />
-                <ui:NavigationViewItem Content="Data Transfer" Icon="{ui:SymbolIcon ArrowSync24}" TargetPageType="{x:Type pages:DataTransferPage}"
+                <ui:NavigationViewItem Style="{StaticResource WttNavItemStyle}" Content="Data Transfer" Icon="{ui:SymbolIcon ArrowSync24}" TargetPageType="{x:Type pages:DataTransferPage}"
                                        Visibility="{Binding CanViewTransfer, Converter={StaticResource BoolToVis}}" />
-                <ui:NavigationViewItem Content="Users" Icon="{ui:SymbolIcon People24}" TargetPageType="{x:Type pages:UsersPage}"
+                <ui:NavigationViewItem Style="{StaticResource WttNavItemStyle}" Content="Users" Icon="{ui:SymbolIcon PeopleTeam24}" TargetPageType="{x:Type pages:UsersPage}"
                                        Visibility="{Binding CanManageUsers, Converter={StaticResource BoolToVis}}" />
-                <ui:NavigationViewItem Content="Logs" Icon="{ui:SymbolIcon DocumentText24}" TargetPageType="{x:Type pages:LogViewerPage}"
+                <ui:NavigationViewItem Style="{StaticResource WttNavItemStyle}" Content="Logs" Icon="{ui:SymbolIcon DocumentText24}" TargetPageType="{x:Type pages:LogViewerPage}"
                                        Visibility="{Binding CanViewLogs, Converter={StaticResource BoolToVis}}" />
-                <ui:NavigationViewItem Content="Alarms" Icon="{ui:SymbolIcon Alert24}" TargetPageType="{x:Type pages:AlarmsPage}" />
             </ui:NavigationView.MenuItems>
 
             <ui:NavigationView.FooterMenuItems>
                 <!-- Visible to all roles: account actions live in Settings (My Account) and My Profile. -->
-                <ui:NavigationViewItem Content="Settings" Icon="{ui:SymbolIcon Settings24}" TargetPageType="{x:Type pages:SettingsPage}" />
+                <ui:NavigationViewItem Style="{StaticResource WttNavItemStyle}" Content="Settings" Icon="{ui:SymbolIcon Settings24}" TargetPageType="{x:Type pages:SettingsPage}" />
             </ui:NavigationView.FooterMenuItems>
 
             <ui:NavigationView.Header>
