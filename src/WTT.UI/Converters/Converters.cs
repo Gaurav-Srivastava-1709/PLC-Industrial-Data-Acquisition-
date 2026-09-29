@@ -132,3 +132,44 @@ public sealed class BoolToOpacityConverter : IValueConverter
         value is true ? 1.0 : 0.35;
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotSupportedException();
 }
+
+/// <summary>
+/// Presentation-only: turns two already-displayed counters into the pixel width of the
+/// filled part of a fixed-width progress track, i.e. first / (first + second) * track.
+///
+/// This is a LAYOUT calculation, not data: it reads TransferredToday and BufferedReadings
+/// exactly as the KPI cards already show them, stores nothing, and changes no behaviour.
+/// It lives here rather than in a ViewModel so the ViewModels stay free of presentation
+/// maths. Track width comes from ConverterParameter so the track and the fill always agree.
+/// Returns 0 when both counters are 0, which is a legitimately empty bar, not an error.
+/// </summary>
+public sealed class RatioToWidthConverter : IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+    {
+        static double Number(object? v) => v switch
+        {
+            long l => l,
+            int i => i,
+            double d => d,
+            float f => f,
+            decimal m => (double)m,
+            _ => 0d,
+        };
+
+        var first = values.Length > 0 ? Number(values[0]) : 0d;
+        var second = values.Length > 1 ? Number(values[1]) : 0d;
+        var total = first + second;
+        if (total <= 0d) return 0d;
+
+        var track = parameter is string s
+            && double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+                ? parsed
+                : 264d;
+
+        var width = first / total * track;
+        return double.IsNaN(width) ? 0d : Math.Clamp(width, 0d, track);
+    }
+
+    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) => throw new NotSupportedException();
+}

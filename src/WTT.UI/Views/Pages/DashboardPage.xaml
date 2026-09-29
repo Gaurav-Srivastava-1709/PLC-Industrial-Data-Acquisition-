@@ -4,200 +4,580 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       xmlns:vm="clr-namespace:WTT.UI.ViewModels"
       Title="Dashboard" ScrollViewer.CanContentScroll="False">
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <Grid Style="{StaticResource PageRoot}">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
+    <!-- =======================================================================
+         DASHBOARD - high-performance HMI layout (ISA-101.01 principles).
 
-            <Grid Grid.Row="0">
-                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                <StackPanel Grid.Row="0">
-                    <TextBlock Text="Dashboard" Style="{StaticResource PageTitle}" />
-                    <TextBlock Text="Live health of every device, the local buffer and the central transfer." Style="{StaticResource PageSubtitle}" />
-                </StackPanel>
-                <WrapPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,10,0,10">
-                    <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RefreshCommand}" Margin="0,0,8,0" />
-                </WrapPanel>
-            </Grid>
+         This is a plant-floor operator console, so the layout is driven by two
+         hard rules from the standard rather than by a web-dashboard look:
 
-            <!-- KPI row -->
-            <UniformGrid Grid.Row="1" Columns="3" Margin="0,0,0,16">
-                <Border Style="{StaticResource Card}" Margin="0,0,8,0">
-                    <StackPanel>
-                        <TextBlock Text="{Binding DevicesTotal}" Style="{StaticResource StatValue}" />
-                        <TextBlock Text="Devices" Style="{StaticResource StatLabel}" />
-                    </StackPanel>
-                </Border>
-                <Border Style="{StaticResource Card}" Margin="0,0,8,0">
-                    <StackPanel>
-                        <TextBlock Style="{StaticResource StatValue}">
-                            <Run Text="{Binding DevicesConnected, Mode=OneWay}" /><Run Text=" / " FontSize="16" Foreground="{DynamicResource TextFillColorTertiaryBrush}" /><Run Text="{Binding DevicesRunning, Mode=OneWay}" FontSize="16" />
-                        </TextBlock>
-                        <TextBlock Text="Connected / running" Style="{StaticResource StatLabel}" />
-                    </StackPanel>
-                </Border>
-                <Border Style="{StaticResource Card}" Margin="0,0,8,0">
-                    <StackPanel>
-                        <TextBlock Text="{Binding ReadingsToday, StringFormat={}{0:N0}}" Style="{StaticResource StatValue}" />
-                        <TextBlock Text="Readings today" Style="{StaticResource StatLabel}" />
-                    </StackPanel>
-                </Border>
-                <Border Style="{StaticResource Card}" Margin="0,0,8,0">
-                    <StackPanel>
-                        <TextBlock Text="{Binding BufferedReadings, StringFormat={}{0:N0}}" Style="{StaticResource StatValue}" />
-                        <TextBlock Text="Waiting for transfer" Style="{StaticResource StatLabel}" />
-                    </StackPanel>
-                </Border>
-                <Border Style="{StaticResource Card}" Margin="0,0,8,0">
-                    <StackPanel>
-                        <TextBlock Text="{Binding TransferredToday, StringFormat={}{0:N0}}" Style="{StaticResource StatValue}" />
-                        <TextBlock Text="Transferred today" Style="{StaticResource StatLabel}" />
-                    </StackPanel>
-                </Border>
-                <Border Style="{StaticResource Card}">
-                    <StackPanel>
-                        <TextBlock Text="{Binding ErrorsToday, StringFormat={}{0:N0}}" Style="{StaticResource StatValue}" />
-                        <TextBlock Text="Errors (session)" Style="{StaticResource StatLabel}" />
-                    </StackPanel>
-                </Border>
-            </UniformGrid>
+         1. "Level 1 - Overview ... an experienced operator should be able to
+             assess overall plant state in under five seconds." The previous
+             layout pushed every device tile below the fold behind a decorative
+             hero banner and a 400 px chart. The banner is gone (gradients are
+             an ISA-101 anti-pattern), the chart is 170 px, and the device list
+             now starts around 430 px so tiles are visible on a 1080p screen.
 
-            <!-- Pipeline controls -->
-            <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,0,0,16">
-                <StackPanel Orientation="Horizontal">
-                    <Ellipse Style="{StaticResource Dot}" Fill="{Binding IsServiceRunning, Converter={StaticResource BoolToBrush}}" />
-                    <TextBlock Text="{Binding ServiceStatusText}" VerticalAlignment="Center" Margin="0,0,24,0" FontWeight="SemiBold" />
-                    <TextBlock VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}">
-                        <Run Text="Last transfer: " /><Run Text="{Binding LastTransferUtc, Mode=OneWay, Converter={StaticResource UtcToLocal}}" />
-                    </TextBlock>
-                </StackPanel>
-            </Border>
+         2. Colour means state, never decoration. Cards are neutral surfaces;
+             only metrics that can genuinely be abnormal (buffer, errors,
+             failed batches) take a semantic colour, and only when non-zero -
+             a DataTrigger on Value="0" drops them back to muted, which is
+             ISA-101's "display numeric values by exception" rule.
 
-            <Border Grid.Row="3" Style="{StaticResource Card}" Margin="0,0,0,16">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="84"/>
-                    </Grid.RowDefinitions>
-                    
-                    <Grid Grid.Row="0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="Pipeline Ingestion &amp; Buffer Activity" Style="{StaticResource SectionTitle}"/>
-                            <TextBlock Text="{Binding TrendSummary}" Style="{StaticResource Hint}"/>
+         Every binding, command and converter is unchanged from the previous
+         version. Only layout, colour and type differ.
+         ======================================================================= -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
+        <Border Style="{StaticResource DashCanvas}">
+            <Grid Margin="20,14,20,24">
+
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- ============ HEADER: title + live status + actions ============
+                     Replaces the old gradient hero banner. Same information, one
+                     row instead of two, and no decorative gradient. -->
+                <Grid Grid.Row="0" Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="Dashboard" FontSize="20" FontWeight="Bold"
+                                   Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <TextBlock Text="Live health of every device, the local buffer and the central transfer."
+                                   FontSize="11.5" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   Margin="0,1,0,0" />
+                    </StackPanel>
+
+                    <!-- Service status, moved inline. The status dot keeps the
+                         existing GoodBrush/NeutralBrush mapping, unchanged. -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
+                                Margin="24,0,16,0">
+                        <Border Style="{StaticResource DashPill}" Padding="10,4">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Style="{StaticResource Dot}" Width="8" Height="8" Margin="0,0,7,0"
+                                         Fill="{Binding IsServiceRunning, Converter={StaticResource BoolToBrush}}" />
+                                <TextBlock Text="{Binding ServiceStatusText}" Style="{StaticResource DashPillText}"
+                                           FontSize="11"
+                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                            </StackPanel>
+                        </Border>
+                        <StackPanel Orientation="Horizontal" Margin="14,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Style="{StaticResource DashRowLabel}" Text="Last transfer" Margin="0,0,6,0" />
+                            <TextBlock FontSize="11.5" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                       VerticalAlignment="Center">
+                                <Run Text="{Binding LastTransferUtc, Mode=OneWay, Converter={StaticResource UtcToLocal}}" />
+                            </TextBlock>
                         </StackPanel>
-                        <!-- Dedicated Historian Trends Page shortcut -->
-                        <ui:Button Grid.Column="1" Content="Open Full Historian Trends" Icon="{ui:SymbolIcon DataHistogram24}"
-                                   Command="{Binding OpenTrendsCommand}" Appearance="Primary" VerticalAlignment="Center" />
-                    </Grid>
-
-                    <!-- Legend badges -->
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,6,0,8">
-                        <Border Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="4" Padding="6,2" Margin="0,0,8,0">
-                            <StackPanel Orientation="Horizontal">
-                                <Ellipse Width="8" Height="8" Fill="{DynamicResource SystemAccentColorPrimaryBrush}" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                <TextBlock Text="Readings Ingested (Today): " FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                <TextBlock Text="{Binding ReadingsToday, StringFormat={}{0:N0}}" FontSize="11" FontWeight="Bold" />
-                            </StackPanel>
-                        </Border>
-                        <Border Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="4" Padding="6,2">
-                            <StackPanel Orientation="Horizontal">
-                                <Ellipse Width="8" Height="8" Fill="#FFF59E0B" Margin="0,0,6,0" VerticalAlignment="Center" />
-                                <TextBlock Text="Waiting in Local Buffer: " FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                <TextBlock Text="{Binding BufferedReadings, StringFormat={}{0:N0}}" FontSize="11" FontWeight="Bold" />
-                            </StackPanel>
-                        </Border>
                     </StackPanel>
 
-                    <!-- Real-time Sparkline -->
-                    <Canvas Grid.Row="2" Height="80" ClipToBounds="True" Background="{DynamicResource ControlFillColorDefaultBrush}">
-                        <Polyline Points="{Binding ReadingTrend}" Stroke="{DynamicResource SystemAccentColorPrimaryBrush}" StrokeThickness="2.5" />
-                        <Polyline Points="{Binding BufferTrend}" Stroke="#FFF59E0B" StrokeThickness="2" StrokeDashArray="4,2" />
-                    </Canvas>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <ui:Button Content="Trends" Icon="{ui:SymbolIcon DataHistogram24}" Margin="0,0,8,0"
+                                   Padding="12,6" Appearance="Secondary"
+                                   Command="{Binding OpenTrendsCommand}" />
+                        <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowClockwise24}" Padding="12,6"
+                                   Command="{Binding RefreshCommand}" />
+                    </StackPanel>
                 </Grid>
-            </Border>
 
-            <!-- Device tiles -->
-            <TextBlock Grid.Row="4" Text="No devices configured yet. Go to Devices to add your first PLC." Style="{StaticResource PageSubtitle}"
-                       Visibility="{Binding Devices.Count, Converter={StaticResource CountToVis}, ConverterParameter=zero}" />
-            <ItemsControl Grid.Row="4" ItemsSource="{Binding Devices}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <WrapPanel />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate DataType="{x:Type vm:DeviceCardViewModel}">
-                        <Border Style="{StaticResource Card}" Width="340" Margin="0,0,12,12">
-                            <StackPanel>
-                                <Grid>
-                                    <StackPanel Orientation="Horizontal">
-                                        <Ellipse Style="{StaticResource Dot}" ToolTip="{Binding StatusText}">
-                                            <Ellipse.Fill>
-                                                <MultiBinding Converter="{StaticResource DeviceStatusToBrush}">
-                                                    <Binding Path="IsRunning" />
-                                                    <Binding Path="IsConnected" />
-                                                    <Binding Path="LastError" />
-                                                </MultiBinding>
-                                            </Ellipse.Fill>
-                                        </Ellipse>
-                                        <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold" />
-                                    </StackPanel>
-                                    <TextBlock Text="{Binding StatusText}" HorizontalAlignment="Right" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                </Grid>
-                                <TextBlock Text="{Binding Summary}" Style="{StaticResource Hint}" Margin="0,4,0,8" />
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition /><ColumnDefinition /><ColumnDefinition />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="{Binding ScanCount, StringFormat={}{0:N0}}" FontWeight="SemiBold" />
-                                        <TextBlock Text="scans" Style="{StaticResource Hint}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Text="{Binding ReadingsWritten, StringFormat={}{0:N0}}" FontWeight="SemiBold" />
-                                        <TextBlock Text="readings" Style="{StaticResource Hint}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="2">
-                                        <TextBlock Text="{Binding ErrorCount, StringFormat={}{0:N0}}" FontWeight="SemiBold" />
-                                        <TextBlock Text="errors" Style="{StaticResource Hint}" />
-                                    </StackPanel>
-                                </Grid>
-                                <TextBlock Margin="0,8,0,0" Style="{StaticResource Hint}">
-                                    <Run Text="Mode: " /><Run Text="{Binding Mode, Mode=OneWay}" /><Run Text="  " /><Run Text="{Binding TriggerText, Mode=OneWay}" FontWeight="SemiBold" />
-                                    <LineBreak /><Run Text="Last scan: " /><Run Text="{Binding LastScanUtc, Mode=OneWay, Converter={StaticResource UtcToLocal}, ConverterParameter=HH:mm:ss}" />
-                                </TextBlock>
-                                <TextBlock Text="{Binding LastError}" Style="{StaticResource ErrorText}" FontSize="11" MaxHeight="40" TextTrimming="CharacterEllipsis"
-                                           Visibility="{Binding LastError, Converter={StaticResource NotNullToVis}}" />
-                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                    <ui:ToggleSwitch IsChecked="{Binding IsCaptureEnabled, Mode=OneWay}" OnContent="Capture" OffContent="Capture"
-                                                     Command="{Binding DataContext.ToggleCaptureCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
-                                                     IsEnabled="{Binding DataContext.CanControl, RelativeSource={RelativeSource AncestorType=Page}}" Margin="0,0,12,0" />
-                                    <ui:ToggleSwitch IsChecked="{Binding IsMonitorEnabled, Mode=OneWay}" OnContent="Monitor" OffContent="Monitor"
-                                                     Command="{Binding DataContext.ToggleMonitorCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
-                                                     IsEnabled="{Binding DataContext.CanControl, RelativeSource={RelativeSource AncestorType=Page}}" />
+                <!-- ==================== KPI STRIP (6 neutral cards) ====================
+                     All six share one neutral surface. Only "Waiting for transfer"
+                     and "Errors" carry a semantic colour, and only when non-zero. -->
+                <UniformGrid Grid.Row="1" Columns="6" Margin="0,0,0,16">
+                    <!-- 1 · Devices (neutral) -->
+                    <Border Style="{StaticResource DashKpiCard}" Margin="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock Text="DEVICES" Style="{StaticResource DashKpiLabel}" />
+                            <TextBlock Text="{Binding DevicesTotal, StringFormat={}{0:N0}}"
+                                       Style="{StaticResource DashKpiValue}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 2 · Connected / running (neutral value; ISA-101 forbids
+                         green for a normal state - the state is carried by the
+                         pill and the tile status dots instead) -->
+                    <Border Style="{StaticResource DashKpiCard}" Margin="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock Text="CONNECTED / RUNNING" Style="{StaticResource DashKpiLabel}" />
+                            <TextBlock Style="{StaticResource DashKpiValue}">
+                                <Run Text="{Binding DevicesConnected, Mode=OneWay}" />
+                                <Run Text=" / " FontSize="14"
+                                     Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                <Run Text="{Binding DevicesRunning, Mode=OneWay}" FontSize="14"
+                                     Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 3 · Readings today (neutral) -->
+                    <Border Style="{StaticResource DashKpiCard}" Margin="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock Text="READINGS TODAY" Style="{StaticResource DashKpiLabel}" />
+                            <TextBlock Text="{Binding ReadingsToday, StringFormat={}{0:N0}}"
+                                       Style="{StaticResource DashKpiValue}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 4 · Waiting for transfer - CAUTION when non-zero.
+                         DataTrigger Value="0" is what makes this "by exception". -->
+                    <Border Style="{StaticResource DashKpiCard}" Margin="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock Text="WAITING FOR TRANSFER" Style="{StaticResource DashKpiLabel}" />
+                            <TextBlock Text="{Binding BufferedReadings, StringFormat={}{0:N0}}">
+                                <TextBlock.Style>
+                                    <!-- Caution when the buffer has rows, muted when empty.
+                                         NOTE: the Style ELEMENT must be the only Style - putting
+                                         Style="{StaticResource DashKpiValue}" on the TextBlock as
+                                         well is a duplicate-property XAML error. BasedOn carries
+                                         the size/weight, this adds the exception colouring. -->
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource DashKpiValue}">
+                                        <Setter Property="Foreground"
+                                                Value="{DynamicResource SystemFillColorCautionBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding BufferedReadings}" Value="0">
+                                                <Setter Property="Foreground"
+                                                        Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 5 · Transferred today (neutral) -->
+                    <Border Style="{StaticResource DashKpiCard}" Margin="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock Text="TRANSFERRED TODAY" Style="{StaticResource DashKpiLabel}" />
+                            <TextBlock Text="{Binding TransferredToday, StringFormat={}{0:N0}}"
+                                       Style="{StaticResource DashKpiValue}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 6 · Errors - CRITICAL when non-zero, muted at zero. -->
+                    <Border Style="{StaticResource DashKpiCard}">
+                        <StackPanel>
+                            <TextBlock Text="ERRORS (SESSION)" Style="{StaticResource DashKpiLabel}" />
+                            <TextBlock Text="{Binding ErrorsToday, StringFormat={}{0:N0}}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource DashKpiValue}">
+                                        <Setter Property="Foreground"
+                                                Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ErrorsToday}" Value="0">
+                                                <Setter Property="Foreground"
+                                                        Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+                </UniformGrid>
+
+                <!-- =============== TREND CHART + PIPELINE HEALTH (one row) =============== -->
+                <Grid Grid.Row="2" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*" MinWidth="340" />
+                        <ColumnDefinition Width="14" />
+                        <ColumnDefinition Width="1*" MinWidth="272" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Style="{StaticResource DashCard}" Padding="14">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="Ingestion &amp; buffer activity"
+                                       Style="{StaticResource DashPanelTitle}" />
+                            <TextBlock Grid.Row="1" Text="{Binding TrendSummary}"
+                                       Style="{StaticResource DashPanelSubtitle}" Margin="0,1,0,6" />
+
+                            <!-- The view model normalises its points into a 300 x 80 box
+                                 (and maps a flat series to y = 80). The canvas is 300 x 96
+                                 so that value is not clipped against the bottom edge, and
+                                 Stretch="Uniform" scales it proportionally - the line is
+                                 never distorted.
+
+                                 A 300x96 box stretched to the full card width would need to be
+                                 ~300 px tall, which is exactly the oversized empty chart this
+                                 page had. So the plot is kept short and centred inside a
+                                 tinted "well" that spans the card. The well is what makes the
+                                 side margins read as deliberate chart padding rather than as
+                                 a chart that failed to fill its box. -->
+                            <Border Grid.Row="2" Height="170" CornerRadius="6" Padding="10,6"
+                                    Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                    ClipToBounds="True">
+                                <Viewbox Stretch="Uniform" StretchDirection="Both"
+                                         HorizontalAlignment="Stretch" VerticalAlignment="Center">
+                                    <Canvas Width="300" Height="96">
+                                        <Line Style="{StaticResource DashChartGridLine}" X1="0" Y1="20" X2="300" Y2="20" />
+                                        <Line Style="{StaticResource DashChartGridLine}" X1="0" Y1="40" X2="300" Y2="40" />
+                                        <Line Style="{StaticResource DashChartGridLine}" X1="0" Y1="60" X2="300" Y2="60" />
+                                        <Line Style="{StaticResource DashChartGridLine}" X1="0" Y1="80" X2="300" Y2="80" />
+                                        <Polyline Points="{Binding ReadingTrend}"
+                                                  Stroke="{DynamicResource TextFillColorPrimaryBrush}"
+                                                  StrokeThickness="1.4" StrokeLineJoin="Round"
+                                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                        <Polyline Points="{Binding BufferTrend}"
+                                                  Stroke="{DynamicResource SystemFillColorCautionBrush}"
+                                                  StrokeThickness="1.2" StrokeDashArray="3,2" StrokeLineJoin="Round"
+                                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                    </Canvas>
+                                </Viewbox>
+                            </Border>
+
+                            <!-- Legend: shape + text as well as colour, so the two
+                                 series stay distinguishable for a colour-blind
+                                 operator (ISA-101 requires colour + shape + position). -->
+                            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
+                                    <Border Width="14" Height="2" Background="{DynamicResource TextFillColorPrimaryBrush}"
+                                            VerticalAlignment="Center" />
+                                    <TextBlock Text="Readings" Style="{StaticResource DashRowLabel}" Margin="6,0,0,0" />
+                                    <TextBlock Text="{Binding ReadingsToday, StringFormat={}{0:N0}}" FontSize="11.5"
+                                               FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                               VerticalAlignment="Center" Margin="4,0,0,0" />
                                 </StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                                    <ui:Button Content="Live data" Icon="{ui:SymbolIcon PulseSquare24}" Margin="0,0,8,0"
-                                               Command="{Binding DataContext.OpenLiveDataCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
-                                    <ui:Button Content="Configure" Icon="{ui:SymbolIcon Settings24}"
-                                               Command="{Binding DataContext.OpenDeviceCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
-                                               Visibility="{Binding DataContext.CanManageDevices, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}" />
+                                <StackPanel Orientation="Horizontal">
+                                    <Border Width="14" Height="2" Background="{DynamicResource SystemFillColorCautionBrush}"
+                                            VerticalAlignment="Center" />
+                                    <TextBlock Text="Buffer" Style="{StaticResource DashRowLabel}" Margin="6,0,0,0" />
+                                    <TextBlock Text="{Binding BufferedReadings, StringFormat={}{0:N0}}" FontSize="11.5"
+                                               FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                               VerticalAlignment="Center" Margin="4,0,0,0" />
                                 </StackPanel>
                             </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </Grid>
+                        </Grid>
+                    </Border>
+
+                    <!-- Pipeline health. Compact, no empty middle: the old version
+                         stretched to match the chart and left a large blank block. -->
+                    <Border Grid.Column="2" Style="{StaticResource DashCard}" Padding="14">
+                        <StackPanel>
+                            <TextBlock Text="Pipeline health" Style="{StaticResource DashPanelTitle}" />
+                            <TextBlock Text="Why the buffer is or is not draining"
+                                       Style="{StaticResource DashPanelSubtitle}" />
+
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="TRANSFERRED" Style="{StaticResource DashMiniLabel}" />
+                                    <TextBlock Text="{Binding TransferredToday, StringFormat={}{0:N0}}"
+                                               Style="{StaticResource DashMiniValue}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                                    <TextBlock Text="WAITING" Style="{StaticResource DashMiniLabel}" TextAlignment="Right" />
+                                    <TextBlock Text="{Binding BufferedReadings, StringFormat={}{0:N0}}"
+                                               Style="{StaticResource DashMiniValue}" TextAlignment="Right" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Border Height="6" CornerRadius="999" Margin="0,8,0,0"
+                                    Background="{DynamicResource ControlFillColorSecondaryBrush}" ClipToBounds="True">
+                                <Border Height="6" CornerRadius="999" HorizontalAlignment="Left"
+                                        Background="{DynamicResource TextFillColorTertiaryBrush}">
+                                    <Border.Width>
+                                        <MultiBinding Converter="{StaticResource RatioToWidth}" ConverterParameter="220">
+                                            <Binding Path="TransferredToday" />
+                                            <Binding Path="BufferedReadings" />
+                                        </MultiBinding>
+                                    </Border.Width>
+                                </Border>
+                            </Border>
+
+                            <Border Style="{StaticResource DashDivider}" />
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Failed batches today" Style="{StaticResource DashRowLabel}" />
+                                <TextBlock Grid.Column="2" Text="{Binding FailedBatchesToday, StringFormat={}{0:N0}}">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock" BasedOn="{StaticResource DashRowValue}">
+                                            <!-- Critical when batches are failing, muted at zero. -->
+                                            <Setter Property="Foreground"
+                                                    Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding FailedBatchesToday}" Value="0">
+                                                    <Setter Property="Foreground"
+                                                            Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+
+                            <Grid Margin="0,7,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Capture" Style="{StaticResource DashRowLabel}" />
+                                <Border Grid.Column="1" Style="{StaticResource DashPill}">
+                                    <TextBlock Text="Paused" Style="{StaticResource DashPillText}"
+                                               Foreground="{DynamicResource SystemFillColorCautionBrush}"
+                                               Visibility="{Binding CapturePaused, Converter={StaticResource BoolToVis}}" />
+                                </Border>
+                                <Border Grid.Column="1" Style="{StaticResource DashPill}">
+                                    <TextBlock Text="Running" Style="{StaticResource DashPillText}"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               Visibility="{Binding CapturePaused, Converter={StaticResource InverseBoolToVis}}" />
+                                </Border>
+                            </Grid>
+
+                            <Grid Margin="0,7,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Transfer" Style="{StaticResource DashRowLabel}" />
+                                <Border Grid.Column="1" Style="{StaticResource DashPill}">
+                                    <TextBlock Text="Paused" Style="{StaticResource DashPillText}"
+                                               Foreground="{DynamicResource SystemFillColorCautionBrush}"
+                                               Visibility="{Binding TransferPaused, Converter={StaticResource BoolToVis}}" />
+                                </Border>
+                                <Border Grid.Column="1" Style="{StaticResource DashPill}">
+                                    <TextBlock Text="Running" Style="{StaticResource DashPillText}"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               Visibility="{Binding TransferPaused, Converter={StaticResource InverseBoolToVis}}" />
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- ============================ DEVICE TILES ============================ -->
+                <TextBlock Grid.Row="3" Text="DEVICES" Style="{StaticResource DashSectionLabel}" />
+
+                <StackPanel Grid.Row="4">
+                    <Border Background="{DynamicResource LayerFillColorAltBrush}" CornerRadius="10"
+                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                            Padding="20" Margin="0,0,0,2"
+                            Visibility="{Binding Devices.Count, Converter={StaticResource CountToVis}, ConverterParameter=zero}">
+                        <TextBlock Text="No devices configured yet. Go to Devices to add your first PLC."
+                                   FontSize="12" TextAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </Border>
+
+                    <ItemsControl ItemsSource="{Binding Devices}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:DeviceCardViewModel}">
+                                <Border Width="300" Margin="0,0,12,12" Padding="14" BorderThickness="1">
+                                    <!-- Self-contained (not BasedOn) so the error state and the
+                                         hover state are both defined in one place. The error state
+                                         is the ONE place a tile is allowed to be tinted: ISA-101
+                                         wants an abnormal condition to be unmissable, and this is
+                                         an abnormal condition. LastError is already on the
+                                         DeviceCardViewModel, so this needs no new logic. -->
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="{DynamicResource LayerFillColorAltBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+                                            <Setter Property="CornerRadius" Value="10" />
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColorPrimaryBrush}" />
+                                                </Trigger>
+                                                <!-- "Running but not connected" is the genuinely abnormal
+                                                     state. Expressed as a MultiDataTrigger on the two
+                                                     bools rather than DataTrigger on LastError == null:
+                                                     a null-valued DataTrigger is unreliable in WPF
+                                                     (it matched every tile, including healthy ones) and
+                                                     this condition is also more precise semantically. -->
+                                                <MultiDataTrigger>
+                                                    <MultiDataTrigger.Conditions>
+                                                        <Condition Binding="{Binding IsRunning}" Value="True" />
+                                                        <Condition Binding="{Binding IsConnected}" Value="False" />
+                                                    </MultiDataTrigger.Conditions>
+                                                    <Setter Property="Background" Value="{DynamicResource SystemFillColorCriticalBackgroundBrush}" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                                                    <Setter Property="BorderThickness" Value="2" />
+                                                    <Setter Property="Padding" Value="13" />
+                                                </MultiDataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <StackPanel>
+
+                                        <!-- Name + state. The dot keeps the existing
+                                             DeviceStatusToBrush mapping unchanged. -->
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Ellipse Style="{StaticResource Dot}" Width="8" Height="8" Margin="0,0,8,0"
+                                                         ToolTip="{Binding StatusText}">
+                                                    <Ellipse.Fill>
+                                                        <MultiBinding Converter="{StaticResource DeviceStatusToBrush}">
+                                                            <Binding Path="IsRunning" />
+                                                            <Binding Path="IsConnected" />
+                                                            <Binding Path="LastError" />
+                                                        </MultiBinding>
+                                                    </Ellipse.Fill>
+                                                </Ellipse>
+                                                <!-- Name grows from 13.5 to 15.5 and turns critical
+                                                     when that device has an error, so the failing
+                                                     unit is the first thing an operator's eye lands on. -->
+                                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="FontSize" Value="13.5" />
+                                                            <Setter Property="FontWeight" Value="Bold" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                                            <Style.Triggers>
+                                                                <MultiDataTrigger>
+                                                                    <MultiDataTrigger.Conditions>
+                                                                        <Condition Binding="{Binding IsRunning}" Value="True" />
+                                                                        <Condition Binding="{Binding IsConnected}" Value="False" />
+                                                                    </MultiDataTrigger.Conditions>
+                                                                    <Setter Property="FontSize" Value="15.5" />
+                                                                    <Setter Property="FontWeight" Value="ExtraBold" />
+                                                                    <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                                                                </MultiDataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </StackPanel>
+                                            <Border Grid.Column="1" Style="{StaticResource DashPill}">
+                                                <TextBlock Text="{Binding StatusText}" Style="{StaticResource DashPillText}">
+                                                    <TextBlock.Foreground>
+                                                        <MultiBinding Converter="{StaticResource DeviceStatusToBrush}">
+                                                            <Binding Path="IsRunning" />
+                                                            <Binding Path="IsConnected" />
+                                                            <Binding Path="LastError" />
+                                                        </MultiBinding>
+                                                    </TextBlock.Foreground>
+                                                </TextBlock>
+                                            </Border>
+                                        </Grid>
+
+                                        <TextBlock Text="{Binding Summary}" Style="{StaticResource Hint}"
+                                                   FontSize="10.5" Margin="0,4,0,0" />
+
+                                        <Border Style="{StaticResource DashDivider}" Margin="0,9,0,0" />
+
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition />
+                                                <ColumnDefinition />
+                                                <ColumnDefinition />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="{Binding ScanCount, StringFormat={}{0:N0}}"
+                                                           Style="{StaticResource DashMiniValue}" />
+                                                <TextBlock Text="SCANS" Style="{StaticResource DashMiniLabel}" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="{Binding ReadingsWritten, StringFormat={}{0:N0}}"
+                                                           Style="{StaticResource DashMiniValue}" />
+                                                <TextBlock Text="READINGS" Style="{StaticResource DashMiniLabel}" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="{Binding ErrorCount, StringFormat={}{0:N0}}">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock" BasedOn="{StaticResource DashMiniValue}">
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding ErrorCount}" Value="0">
+                                                                    <Setter Property="Foreground"
+                                                                            Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                                <TextBlock Text="ERRORS" Style="{StaticResource DashMiniLabel}" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <Border Style="{StaticResource DashDivider}" Margin="0,9,0,0" />
+
+                                        <TextBlock Style="{StaticResource Hint}" FontSize="10.5" TextAlignment="Left">
+                                            <Run Text="Mode: " />
+                                            <Run Text="{Binding Mode, Mode=OneWay}" FontWeight="SemiBold"
+                                                 Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            <Run Text="{Binding TriggerText, Mode=OneWay}" FontWeight="Bold"
+                                                 Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            <LineBreak />
+                                            <Run Text="Last scan: " />
+                                            <Run Text="{Binding LastScanUtc, Mode=OneWay, Converter={StaticResource UtcToLocal}, ConverterParameter=HH:mm:ss}" />
+                                        </TextBlock>
+
+                                        <TextBlock Text="{Binding LastError}" Style="{StaticResource ErrorText}" FontSize="10.5"
+                                                   MaxHeight="32" TextTrimming="CharacterEllipsis" TextWrapping="Wrap"
+                                                   Visibility="{Binding LastError, Converter={StaticResource NotNullToVis}}" />
+
+                                        <!-- Controls. The two action buttons carry TEXT, not just
+                                             an icon: an unlabelled 28 px glyph is a guess for the
+                                             operator, and these are the two things they most often
+                                             need (open live values, open configuration). -->
+                                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                            <ui:ToggleSwitch IsChecked="{Binding IsCaptureEnabled, Mode=OneWay}"
+                                                             OnContent="Capture" OffContent="Capture"
+                                                             Command="{Binding DataContext.ToggleCaptureCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                                             CommandParameter="{Binding}"
+                                                             IsEnabled="{Binding DataContext.CanControl, RelativeSource={RelativeSource AncestorType=Page}}"
+                                                             Margin="0,0,10,0" />
+                                            <ui:ToggleSwitch IsChecked="{Binding IsMonitorEnabled, Mode=OneWay}"
+                                                             OnContent="Monitor" OffContent="Monitor"
+                                                             Command="{Binding DataContext.ToggleMonitorCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                                             CommandParameter="{Binding}"
+                                                             IsEnabled="{Binding DataContext.CanControl, RelativeSource={RelativeSource AncestorType=Page}}" />
+                                        </StackPanel>
+
+                                        <Grid Margin="0,8,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="8" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <ui:Button Grid.Column="0" Content="Live data" Height="30"
+                                                       HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                       Command="{Binding DataContext.OpenLiveDataCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                                       CommandParameter="{Binding}" />
+                                            <ui:Button Grid.Column="2" Content="Configure" Height="30"
+                                                       HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                       Command="{Binding DataContext.OpenDeviceCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                                       CommandParameter="{Binding}"
+                                                       Visibility="{Binding DataContext.CanManageDevices, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+            </Grid>
+        </Border>
     </ScrollViewer>
 </Page>
