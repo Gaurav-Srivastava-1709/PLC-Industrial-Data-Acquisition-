@@ -24,16 +24,36 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly ShellNavigator _shell;
     private readonly Func<ChangePasswordViewModel> _changePasswordFactory;
-
     private readonly IOptions<LoggingOptions> _loggingOptions;
 
-    public SettingsViewModel(IAppSettingsService settings, IRuntimeSettings runtime, ThemeManager theme, ICurrentUserService currentUser, IAuditService audit,
-        IDbContextFactory<AppDbContext> dbFactory, ShellNavigator shell, Func<ChangePasswordViewModel> changePasswordFactory, IDialogService dialogs, ILogger<SettingsViewModel> logger,
-        IOptions<LoggingOptions> loggingOptions) : base(dialogs, logger)
+    // Runtime logging controller — restart ki zaroorat nahi (Manager Req #3)
+    private readonly LoggingController _loggingController;
+
+    public SettingsViewModel(
+        IAppSettingsService settings,
+        IRuntimeSettings runtime,
+        ThemeManager theme,
+        ICurrentUserService currentUser,
+        IAuditService audit,
+        IDbContextFactory<AppDbContext> dbFactory,
+        ShellNavigator shell,
+        Func<ChangePasswordViewModel> changePasswordFactory,
+        IDialogService dialogs,
+        ILogger<SettingsViewModel> logger,
+        IOptions<LoggingOptions> loggingOptions,
+        LoggingController loggingController) : base(dialogs, logger)
     {
-        _settings = settings; _runtime = runtime; _theme = theme; _currentUser = currentUser; _audit = audit; _dbFactory = dbFactory;
-        _shell = shell; _changePasswordFactory = changePasswordFactory;
+        _settings = settings;
+        _runtime = runtime;
+        _theme = theme;
+        _currentUser = currentUser;
+        _audit = audit;
+        _dbFactory = dbFactory;
+        _shell = shell;
+        _changePasswordFactory = changePasswordFactory;
         _loggingOptions = loggingOptions;
+        _loggingController = loggingController;
+
         _currentUser.Changed += (_, _) => OnUi(RefreshUser);
         RefreshUser();
     }
@@ -49,6 +69,8 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty] private string _version = string.Empty;
     [ObservableProperty] private string _displayName = string.Empty;
     [ObservableProperty] private string _roleName = string.Empty;
+
+    // File logging ON/OFF toggle — LoggingController se sync hota hai
     [ObservableProperty] private bool _enableFileLogging = true;
 
     public bool CanManage => _currentUser.HasPermission(Permission.ManageSettings);
@@ -85,15 +107,17 @@ public partial class SettingsViewModel : ViewModelBase
         await RunAsync(async () =>
         {
             IsDarkMode = _theme.Current == AppTheme.Dark;
-            // Non-admin users can open Settings for My Account; runtime values load for everyone
-            // but Save is still gated by CanManage in UI + service layer.
+            // Non-admin users bhi Settings khol sakte hain (My Account ke liye)
+            // Save abhi bhi CanManage se gated hai
             try
             {
                 UseMockPlc = _runtime.UseMockPlc;
                 SessionTimeoutMinutes = _runtime.SessionTimeoutMinutes;
                 TransferredRetentionDays = _runtime.TransferredRetentionDays;
                 TransferIntervalSeconds = _runtime.TransferIntervalSeconds;
-                EnableFileLogging = _loggingOptions.Value.EnableFileLogging;
+
+                // LoggingController se current state lo (accurate hai — appsettings se nahi)
+                EnableFileLogging = _loggingController.IsFileLoggingEnabled;
             }
             catch { }
             try { await LoadDatabaseInfoAsync(); } catch { }
@@ -109,52 +133,48 @@ public partial class SettingsViewModel : ViewModelBase
         var ok = await RunAsync(async () =>
         {
             _currentUser.Demand(Permission.ManageSettings);
+
+            // Mock PLC toggle confirmation
             if (UseMockPlc != _runtime.UseMockPlc && UseMockPlc &&
-                !await Dialogs.ConfirmAsync("Enable simulator?", "ALL devices will read simulated values instead of real controllers while the simulator is on. Data written to the historian during this time is fake.\n\nEnable anyway?", "Enable simulator", destructive: true))
+                !await Dialogs.ConfirmAsync(
+                    "Enable simulator?",
+                    "ALL devices will read simulated values instead of real controllers while the simulator is on. Data written to the historian during this time is fake.\n\nEnable anyway?",
+                    "Enable simulator", destructive: true))
             {
                 UseMockPlc = false;
                 return;
             }
+
+            // Runtime settings save karo (DB mein — instant effect)
             await _settings.SetAsync(AppSettingKeys.UseMockPlc, UseMockPlc.ToString());
             await _settings.SetAsync(AppSettingKeys.SessionTimeoutMinutes, Math.Clamp(SessionTimeoutMinutes, 1, 720).ToString());
             await _settings.SetAsync(AppSettingKeys.TransferredRetentionDays, Math.Clamp(TransferredRetentionDays, 1, 3650).ToString());
             await _settings.SetAsync(AppSettingKeys.TransferIntervalSeconds, Math.Clamp(TransferIntervalSeconds, 1, 3600).ToString());
-            
-            // Save logging setting to appsettings.json (requires app restart to take effect)
-            await UpdateAppSettingsLoggingAsync(EnableFileLogging);
-            
+
+            // File logging toggle — RUNTIME mein apply hota hai (NO restart needed!)
+            // LoggingController internally LoggingLevelSwitch update karta hai + appsettings.json persist karta hai
+            if (EnableFileLogging != _loggingController.IsFileLoggingEnabled)
+            {
+                await _loggingController.SetFileLoggingAsync(EnableFileLogging);
+
+                Logger.LogInformation(
+                    "File logging {Status} by user {User} at runtime.",
+                    EnableFileLogging ? "ENABLED" : "DISABLED",
+                    _currentUser.User?.Username ?? "unknown");
+            }
+
             await _runtime.ReloadAsync();
-            await _audit.RecordAsync("SaveSettings", null, $"Mock={UseMockPlc}; Session={SessionTimeoutMinutes}m; Retention={TransferredRetentionDays}d; TransferInterval={TransferIntervalSeconds}s; FileLogging={EnableFileLogging}");
-            Dialogs.Toast("Settings", "Settings saved. Logging change requires app restart.", ToastKind.Success);
+            await _audit.RecordAsync(
+                "SaveSettings",
+                null,
+                $"Mock={UseMockPlc}; Session={SessionTimeoutMinutes}m; Retention={TransferredRetentionDays}d; " +
+                $"TransferInterval={TransferIntervalSeconds}s; FileLogging={EnableFileLogging}");
+
+            // Industry: logging toggle bhi turant effective — no restart message nahi chahiye
+            Dialogs.Toast("Settings", "Settings saved successfully. All changes are effective immediately.", ToastKind.Success);
+
         }, inlineErrors: true);
         _ = ok;
-    }
-
-    private async Task UpdateAppSettingsLoggingAsync(bool enableFileLogging)
-    {
-        try
-        {
-            var configPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
-            var json = await File.ReadAllTextAsync(configPath);
-            using var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
-            
-            var options = new JsonSerializerOptions { WriteIndented = true };
-            var jsonObj = JsonSerializer.Deserialize<Dictionary<string, object>>(json, options) ?? new();
-            
-            if (!jsonObj.ContainsKey("Logging"))
-                jsonObj["Logging"] = new Dictionary<string, object>();
-            
-            var logging = (Dictionary<string, object>)jsonObj["Logging"];
-            logging["EnableFileLogging"] = enableFileLogging;
-            
-            var updatedJson = JsonSerializer.Serialize(jsonObj, options);
-            await File.WriteAllTextAsync(configPath, updatedJson);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Failed to update appsettings.json logging setting");
-        }
     }
 
     private async Task LoadDatabaseInfoAsync()
@@ -162,7 +182,11 @@ public partial class SettingsViewModel : ViewModelBase
         await using var db = await _dbFactory.CreateDbContextAsync();
         await db.Database.OpenConnectionAsync();
         await using var command = db.Database.GetDbConnection().CreateCommand();
-        command.CommandText = "SELECT CAST(SERVERPROPERTY('ServerName') AS nvarchar(128)), DB_NAME(), CAST(SERVERPROPERTY('Edition') AS nvarchar(128)), (SELECT CAST(SUM(size) * 8.0 / 1024 AS decimal(18,1)) FROM sys.database_files)";
+        command.CommandText =
+            "SELECT CAST(SERVERPROPERTY('ServerName') AS nvarchar(128)), " +
+            "DB_NAME(), " +
+            "CAST(SERVERPROPERTY('Edition') AS nvarchar(128)), " +
+            "(SELECT CAST(SUM(size) * 8.0 / 1024 AS decimal(18,1)) FROM sys.database_files)";
         await using var reader = await command.ExecuteReaderAsync();
         if (!await reader.ReadAsync()) return;
         DatabaseLocation = $"{reader.GetString(0)} / {reader.GetString(1)}";

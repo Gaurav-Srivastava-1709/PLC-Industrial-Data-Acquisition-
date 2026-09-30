@@ -7,12 +7,21 @@ using WTT.Application.Interfaces;
 
 namespace WTT.Infrastructure.Logging;
 
-/// <summary>Reads the newest Serilog rolling files produced with the WTT output template.</summary>
+/// <summary>
+/// WTT log files ko padhta hai — both old flat structure aur new date-folder structure support karta hai.
+/// 
+/// Supported path patterns:
+///   Old: LogDirectory/wtt-20260930-220000.log
+///   New: LogDirectory/2026-09-30/wtt-20260930-220000.log  ← DateFolderFileSink ka output
+/// 
+/// Manager Requirement #2: Date-based folders se logs padhna.
+/// </summary>
 public sealed partial class LogReaderService : ILogReaderService
 {
     public static readonly string DefaultLogDirectory =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "WTT", "Logs");
 
+    // Serilog 3-char level abbreviations: VRB DBG INF WRN ERR FTL
     private static readonly string[] LevelOrder = ["VRB", "DBG", "INF", "WRN", "ERR", "FTL"];
 
     public string LogDirectory { get; }
@@ -22,24 +31,32 @@ public sealed partial class LogReaderService : ILogReaderService
         LogDirectory = string.IsNullOrWhiteSpace(logDirectory) ? DefaultLogDirectory : logDirectory;
     }
 
-    public async Task<IReadOnlyList<LogEntry>> ReadRecentAsync(int maxLines = 1000, string? minimumLevel = null, string? contains = null, CancellationToken ct = default)
+    public async Task<IReadOnlyList<LogEntry>> ReadRecentAsync(
+        int maxLines = 1000,
+        string? minimumLevel = null,
+        string? contains = null,
+        CancellationToken ct = default)
     {
         if (!Directory.Exists(LogDirectory)) return Array.Empty<LogEntry>();
 
-        // Search both old flat structure (wtt-*.log) and new date-folder structure (yyyy-MM-dd/wtt-*.log)
+        // --- Date-folder structure se files dhundho ---
+        // New style:  Logs/yyyy-MM-dd/wtt-*.log   (DateFolderFileSink ka output)
+        // Old style:  Logs/wtt-*.log               (flat, backward compatibility)
         var logDir = new DirectoryInfo(LogDirectory);
-        var files = logDir.GetFiles("wtt-*.log", SearchOption.TopDirectoryOnly)
-            .Concat(logDir.GetFiles("wtt-*.log", SearchOption.AllDirectories))
+
+        // Pichle 7 din ke date folders bhi scan karo + root folder
+        var allFiles = logDir
+            .GetFiles("wtt-*.log", SearchOption.AllDirectories)  // recursive = date sub-folders bhi
             .OrderByDescending(f => f.LastWriteTimeUtc)
-            .GroupBy(f => f.FullName)
+            .GroupBy(f => f.FullName)          // duplicates hatao (agar same file 2 baar aa jaaye)
             .Select(g => g.First())
-            .Take(2)
+            .Take(10)                           // performance: sirf last 10 files (zyada kaafi hai)
             .ToList();
 
         var minIndex = minimumLevel is null ? 0 : Math.Max(0, Array.IndexOf(LevelOrder, NormalizeLevel(minimumLevel)));
         var result = new List<LogEntry>(maxLines);
 
-        foreach (var file in files)
+        foreach (var file in allFiles)
         {
             var lines = await ReadAllLinesSharedAsync(file.FullName, ct);
             LogEntry? current = null;
@@ -104,7 +121,9 @@ public sealed partial class LogReaderService : ILogReaderService
         return i >= 0 ? source[(i + 1)..] : source;
     }
 
-    // 2026-09-04 00:45:17.123 +05:30 [INF] [12] [WTT.Infrastructure.Services.AuthService] message
-    [GeneratedRegex(@"^(?<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3} [+-]\d{2}:\d{2}) \[(?<lvl>[A-Z]{3})\] \[(?<thread>\d+)\] \[(?<src>[^\]]*)\] (?<msg>.*)$")]
+    // Log line format (DateFolderFileSink output):
+    // 2026-10-01 00:01:56.454 +05:30 [INF] [T2] [WTT.Infrastructure.Services.AuthService] message
+    // T prefix is optional for backward compatibility with older log files
+    [GeneratedRegex(@"^(?<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3} [+-]\d{2}:\d{2}) \[(?<lvl>[A-Z]{3})\] \[T?(?<thread>\d+)\] \[(?<src>[^\]]*)\] (?<msg>.*)$")]
     private static partial Regex LineRegex();
 }

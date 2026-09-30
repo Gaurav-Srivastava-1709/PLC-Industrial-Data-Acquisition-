@@ -79,8 +79,9 @@ public partial class App : System.Windows.Application
                 services.AddTransient<DataTransferViewModel>();
                 services.AddTransient<UsersPage>();
                 services.AddTransient<UsersViewModel>();
-                services.AddTransient<LogViewerPage>();
-                services.AddTransient<LogViewerViewModel>();
+                // Logs & Audit Viewer (Singleton taaki Dashboard par jaakar wapas aane par Auto-refresh aur filters reset na ho)
+                services.AddSingleton<LogViewerPage>();
+                services.AddSingleton<LogViewerViewModel>();
                 services.AddTransient<SettingsPage>();
                 services.AddTransient<SettingsViewModel>();
                 services.AddTransient<ProfilePage>();

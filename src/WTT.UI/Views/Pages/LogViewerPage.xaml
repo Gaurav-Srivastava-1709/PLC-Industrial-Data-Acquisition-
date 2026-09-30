@@ -4,73 +4,191 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       Title="Logs">
     <Grid Style="{StaticResource PageRoot}">
-        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-        <ProgressBar Grid.Row="1" IsIndeterminate="True" Height="3" Margin="0,8,0,0"
-                     Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- ===== HEADER ===== -->
         <Grid Grid.Row="0">
             <StackPanel>
                 <TextBlock Text="Logs &amp; audit" Style="{StaticResource PageTitle}" />
-                <TextBlock Style="{StaticResource PageSubtitle}"><Run Text="Application log files live in " /><Run Text="{Binding LogDirectory, Mode=OneWay}" FontFamily="Consolas" /></TextBlock>
+                <!-- Log file path dikhao taaki user ko pata chale kahan files hain (Manager Req #2) -->
+                <TextBlock Style="{StaticResource PageSubtitle}">
+                    <Run Text="Application log files live in " />
+                    <Run Text="{Binding LogDirectory, Mode=OneWay}" FontFamily="Consolas" />
+                </TextBlock>
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
-                <ComboBox ItemsSource="{Binding Levels}" SelectedItem="{Binding MinimumLevel}" Width="130" Margin="0,0,8,0" />
-                <ui:TextBox PlaceholderText="Contains…" Width="220" Text="{Binding Contains, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0" />
-                <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RefreshCommand}" Margin="0,0,8,0" />
-                <ui:Button Content="Open folder" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding OpenFolderCommand}" />
+                <!-- Level filter: sirf relevant logs dikhao -->
+                <ComboBox ItemsSource="{Binding Levels}" SelectedItem="{Binding MinimumLevel}"
+                          Width="130" Margin="0,0,8,0" ToolTip="Minimum log level filter" />
+                <!-- Text search filter -->
+                <ui:TextBox PlaceholderText="Contains…" Width="220"
+                            Text="{Binding Contains, UpdateSourceTrigger=PropertyChanged}"
+                            Margin="0,0,8,0" ToolTip="Search in message or source" />
+                <!-- Auto-Refresh Toggle: TwoWay binding taaki UI switch aur ViewModel state dono sync rahein -->
+                <ui:ToggleSwitch IsChecked="{Binding IsAutoRefreshEnabled, Mode=TwoWay}"
+                                 OnContent="Live (30s)" OffContent="Auto-refresh"
+                                 Margin="0,0,8,0" VerticalAlignment="Center" />
+                <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowClockwise24}"
+                           Command="{Binding RefreshCommand}" Margin="0,0,8,0"
+                           ToolTip="Reload log entries from disk" />
+                <ui:Button Content="Open folder" Icon="{ui:SymbolIcon FolderOpen24}"
+                           Command="{Binding OpenFolderCommand}"
+                           ToolTip="Open the log folder in Windows Explorer" />
             </StackPanel>
         </Grid>
-        <TabControl Grid.Row="2">
+
+        <!-- Loading indicator -->
+        <ProgressBar Grid.Row="1" IsIndeterminate="True" Height="3" Margin="0,8,0,0"
+                     Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
+
+        <!-- ===== TAB CONTENT ===== -->
+        <TabControl Grid.Row="2" Margin="0,8,0,0">
+
+            <!-- ===== APPLICATION LOG TAB ===== -->
             <TabItem Header="Application log">
-                <DataGrid Style="{StaticResource Grid}" ItemsSource="{Binding Entries}" SelectedItem="{Binding Selected}" Margin="0,8,0,0">
-                    <DataGrid.InputBindings><KeyBinding Key="C" Modifiers="Control" Command="{Binding CopySelectedCommand}" /></DataGrid.InputBindings>
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Time" Binding="{Binding Timestamp, StringFormat=yyyy-MM-dd HH:mm:ss.fff}" Width="160" />
-                        <DataGridTemplateColumn Header="Level" Width="60">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Level}" FontWeight="SemiBold" VerticalAlignment="Center">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding Level}" Value="WRN"><Setter Property="Foreground" Value="{StaticResource WarnBrush}" /></DataTrigger>
-                                                    <DataTrigger Binding="{Binding Level}" Value="ERR"><Setter Property="Foreground" Value="{StaticResource BadBrush}" /></DataTrigger>
-                                                    <DataTrigger Binding="{Binding Level}" Value="FTL"><Setter Property="Foreground" Value="{StaticResource BadBrush}" /></DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="200" />
-                        <!-- Single-line + trim keeps fixed row height so virtualization can recycle rows.
-                             Full text is in the tooltip and Copy (Ctrl+C). Wrap+auto-height measured every
-                             row on each refresh and froze scrolling. -->
-                        <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="TextWrapping" Value="NoWrap" />
-                                    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
-                                    <Setter Property="VerticalAlignment" Value="Center" />
-                                    <Setter Property="ToolTip" Value="{Binding Message}" />
-                                </Style>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
-                    </DataGrid.Columns>
-                </DataGrid>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Log DataGrid with color-coded levels -->
+                    <DataGrid Grid.Row="0"
+                              Style="{StaticResource Grid}"
+                              ItemsSource="{Binding Entries}"
+                              SelectedItem="{Binding Selected}"
+                              VirtualizingPanel.IsVirtualizing="True"
+                              VirtualizingPanel.VirtualizationMode="Recycling"
+                              EnableColumnVirtualization="False">
+                        <DataGrid.InputBindings>
+                            <KeyBinding Key="C" Modifiers="Control" Command="{Binding CopySelectedCommand}" />
+                        </DataGrid.InputBindings>
+                        <DataGrid.Columns>
+                            <!-- Timestamp: full precision taaki debugging aasan ho -->
+                            <DataGridTextColumn Header="Time"
+                                               Binding="{Binding Timestamp, StringFormat=yyyy-MM-dd HH:mm:ss.fff}"
+                                               Width="165" />
+
+                            <!-- Level: color-coded (INF=normal, WRN=orange, ERR/FTL=red) -->
+                            <DataGridTemplateColumn Header="Level" Width="55">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Level}" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center" HorizontalAlignment="Center">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <!-- Default: normal text -->
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Level}" Value="INF">
+                                                            <Setter Property="Foreground" Value="{DynamicResource SystemAccentColorPrimaryBrush}" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Level}" Value="DBG">
+                                                            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Level}" Value="WRN">
+                                                            <Setter Property="Foreground" Value="{StaticResource WarnBrush}" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Level}" Value="ERR">
+                                                            <Setter Property="Foreground" Value="{StaticResource BadBrush}" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Level}" Value="FTL">
+                                                            <Setter Property="Foreground" Value="{StaticResource BadBrush}" />
+                                                            <Setter Property="FontWeight" Value="Bold" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Source: kaunsi class se log aaya -->
+                            <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="200" />
+
+                            <!-- Message: single line + ellipsis for performance; tooltip mein full text -->
+                            <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="TextWrapping" Value="NoWrap" />
+                                        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                        <Setter Property="VerticalAlignment" Value="Center" />
+                                        <Setter Property="ToolTip" Value="{Binding Message}" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- Empty state: koi log nahi mila to user ko batao kyu -->
+                    <StackPanel Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVis}}">
+                        <ui:SymbolIcon Symbol="DocumentText24" FontSize="48"
+                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                       HorizontalAlignment="Center" />
+                        <TextBlock Text="No log entries found" HorizontalAlignment="Center"
+                                   Margin="0,8,0,4" FontSize="15" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <TextBlock HorizontalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                   FontSize="12">
+                            <Run Text="Check that File Logging is ON in Settings. Log path: " />
+                            <Run Text="{Binding LogDirectory, Mode=OneWay}" FontFamily="Consolas" />
+                        </TextBlock>
+                    </StackPanel>
+
+                    <!-- Status bar -->
+                    <TextBlock Grid.Row="1" Margin="4,4,0,0" FontSize="11"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                        <Run Text="Showing " />
+                        <Run Text="{Binding Entries.Count, Mode=OneWay}" FontWeight="SemiBold" />
+                        <Run Text=" entries · Press Ctrl+C to copy selected · " />
+                        <Run Text="{Binding LogDirectory, Mode=OneWay}" FontFamily="Consolas" FontSize="10" />
+                    </TextBlock>
+                </Grid>
             </TabItem>
+
+            <!-- ===== AUDIT TRAIL TAB ===== -->
             <TabItem Header="Audit trail">
-                <DataGrid Style="{StaticResource Grid}" ItemsSource="{Binding AuditEntries}" Margin="0,8,0,0">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Time" Binding="{Binding TimestampUtc, Converter={StaticResource UtcToLocal}}" Width="160" />
-                        <DataGridTextColumn Header="User" Binding="{Binding Username}" Width="120" />
-                        <DataGridTextColumn Header="Action" Binding="{Binding Action}" Width="160" />
-                        <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="220" />
-                        <DataGridCheckBoxColumn Header="OK" Binding="{Binding Success}" Width="50" />
-                        <DataGridTextColumn Header="Details" Binding="{Binding Details}" Width="*" />
-                    </DataGrid.Columns>
-                </DataGrid>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <DataGrid Grid.Row="0"
+                              Style="{StaticResource Grid}"
+                              ItemsSource="{Binding AuditEntries}"
+                              Margin="0,8,0,0"
+                              VirtualizingPanel.IsVirtualizing="True"
+                              VirtualizingPanel.VirtualizationMode="Recycling"
+                              EnableColumnVirtualization="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Time"
+                                               Binding="{Binding TimestampUtc, Converter={StaticResource UtcToLocal}}"
+                                               Width="160" />
+                            <DataGridTextColumn Header="User"    Binding="{Binding Username}"  Width="120" />
+                            <DataGridTextColumn Header="Action"  Binding="{Binding Action}"    Width="160" />
+                            <DataGridTextColumn Header="Target"  Binding="{Binding Target}"    Width="200" />
+                            <DataGridCheckBoxColumn Header="OK"  Binding="{Binding Success}"   Width="50" />
+                            <DataGridTextColumn Header="Details" Binding="{Binding Details}"   Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <!-- Status bar for Audit -->
+                    <TextBlock Grid.Row="1" Margin="4,4,0,0" FontSize="11"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                        <Run Text="Showing " />
+                        <Run Text="{Binding AuditEntries.Count, Mode=OneWay}" FontWeight="SemiBold" />
+                        <Run Text=" recent audit records from database" />
+                    </TextBlock>
+                </Grid>
             </TabItem>
         </TabControl>
     </Grid>
 </Page>
+

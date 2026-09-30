@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Configuration;
@@ -37,57 +38,98 @@ public static class LoggingExtensions
         services.AddSingleton(options);
 
         // 2. Create base logger configuration
+        var minimumLevel = options.GetMinimumLogEventLevel();
+
+        // LoggingLevelSwitch — runtime mein level change karne ka official Serilog way
+        // Ye singleton hai, LoggingController isse use karke runtime toggle karta hai
+        var levelSwitch = new LoggingLevelSwitch(minimumLevel);
+
+        // LoggingController — runtime logging toggle (manager requirement #3, NO restart needed)
+        var loggingController = new LoggingController(levelSwitch, options);
+        services.AddSingleton(levelSwitch);         // agar koi direct access chahiye
+        services.AddSingleton(loggingController);   // SettingsViewModel inject karega isko
+
         var loggerConfig = new LoggerConfiguration()
             .Enrich.FromLogContext()
             .Enrich.WithMachineName()
             .Enrich.WithThreadId()
             .Enrich.With<CorrelationIdEnricher>()
             .Enrich.With<PiiMaskingEnricher>()
-            .MinimumLevel.ControlledBy(new LoggingLevelSwitch(GetMinimumLevel(options.MinimumLevel)));
+            .MinimumLevel.ControlledBy(levelSwitch);
 
-        // Apply level overrides
+        // Apply level overrides (specific namespace ko alag level do)
         foreach (var overrideItem in options.LevelOverrides)
         {
-            if (Enum.TryParse<LogEventLevel>(overrideItem.Value, true, out var level))
+            if (Enum.TryParse<LogEventLevel>(overrideItem.Value, true, out var overrideLevel))
             {
-                loggerConfig.MinimumLevel.Override(overrideItem.Key, level);
+                loggerConfig.MinimumLevel.Override(overrideItem.Key, overrideLevel);
             }
         }
 
         // 3. Configure sinks based on options
         ConfigureSinks(loggerConfig, options);
 
-        // 3. Build logger
+        // 4. Build logger aur globally register karo
         var logger = loggerConfig.CreateLogger();
-
-        // 4. Register globally
         Log.Logger = logger;
+
+        // Microsoft.Extensions.Logging (ILogger<T>) ko Serilog pe redirect karo
+        services.AddLogging(loggingBuilder =>
+        {
+            loggingBuilder.ClearProviders();
+            loggingBuilder.AddSerilog(logger, dispose: true);
+        });
 
         return loggerConfig;
     }
 
     private static void ConfigureSinks(LoggerConfiguration loggerConfig, LoggingOptions options)
     {
-        // File sink (if enabled)
+        var minimumLevel = options.GetMinimumLogEventLevel();
+
+        // --- File sink (Date-folder structure: Logs/yyyy-MM-dd/wtt-yyyyMMdd-HHmmss.log) ---
         if (options.EnableFileLogging)
         {
-            var formatter = options.UseJsonFormatter
-                ? (ITextFormatter)new JsonFormatter(renderMessage: true)
-                : new MessageTemplateTextFormatter(
-                    "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [{ThreadId}] [{SourceContext}] {Message:lj}{NewLine}{Exception}",
-                    CultureInfo.InvariantCulture);
+            try
+            {
+                // Industry-grade output template:
+                // - Timestamp with timezone
+                // - Log level (3-char: INF/WRN/ERR/FTL)
+                // - Thread ID (debugging concurrent issues mein helpful)
+                // - Source class name (kahan se log aaya)
+                // - Message + Exception stack trace (manager req #1: descriptive logs)
+                var plainTemplate =
+                    "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [T{ThreadId}] [{SourceContext}] {Message:lj}{NewLine}{Exception}";
 
-            var sink = new DateFolderFileSink(
-                baseDirectory: options.GetExpandedLogDirectory(),
-                fileName: options.FileName,
-                rollingInterval: options.RollingInterval,
-                retainedFileCountLimit: options.RetainedFileCountLimit,
-                fileSizeLimitBytes: options.FileSizeLimitBytes,
-                rollOnFileSizeLimit: options.RollOnFileSizeLimit,
-                flushInterval: options.FlushToDiskInterval,
-                formatter: formatter);
+                ITextFormatter formatter = options.UseJsonFormatter
+                    ? (ITextFormatter)new JsonFormatter(renderMessage: true)
+                    : new MessageTemplateTextFormatter(plainTemplate, CultureInfo.InvariantCulture);
 
-            loggerConfig.WriteTo.Sink(sink, restrictedToMinimumLevel: GetMinimumLevel(options.MinimumLevel));
+                var expandedDir = options.GetExpandedLogDirectory();
+
+                var sink = new DateFolderFileSink(
+                    baseDirectory: expandedDir,
+                    fileName: options.FileName,
+                    rollingInterval: options.RollingInterval,
+                    retainedFileCountLimit: options.RetainedFileCountLimit,
+                    fileSizeLimitBytes: options.FileSizeLimitBytes,
+                    rollOnFileSizeLimit: options.RollOnFileSizeLimit,
+                    flushInterval: options.FlushToDiskInterval,
+                    formatter: formatter);
+
+                loggerConfig.WriteTo.Sink(sink, restrictedToMinimumLevel: minimumLevel);
+
+                System.Diagnostics.Debug.WriteLine(
+                    $"[WTT Logging] File sink initialized → {expandedDir}/yyyy-MM-dd/{options.FileName}-*.log");
+            }
+            catch (Exception ex)
+            {
+                // File sink fail hone par app crash nahi honi chahiye.
+                // Debug output mein error dikhao — at least debug sink se logs milenge.
+                System.Diagnostics.Debug.WriteLine(
+                    $"[WTT Logging] WARNING: File sink initialization failed: {ex.Message}. " +
+                    $"Check permissions for: {options.GetExpandedLogDirectory()}");
+            }
         }
 
         // Debug sink (for development)
@@ -115,6 +157,7 @@ public static class LoggingExtensions
         return Enum.TryParse<LogEventLevel>(levelString, true, out var level) ? level : LogEventLevel.Information;
     }
 
+    // Overload kept for backward compat — delegates to string version
     private static LogEventLevel GetMinimumLevel(LogEventLevel level) => level;
 }
 
@@ -126,7 +169,16 @@ public static class CorrelationIdExtensions
     /// <summary>
     /// Creates a scope with a new CorrelationId (or uses existing Activity.Id).
     /// </summary>
-    public static IDisposable PushCorrelationId(this ILogger logger, string? correlationId = null)
+    public static IDisposable PushCorrelationId(this Serilog.ILogger logger, string? correlationId = null)
+    {
+        var id = correlationId ?? Activity.Current?.Id ?? Guid.NewGuid().ToString("N")[..12];
+        return Serilog.Context.LogContext.PushProperty(CorrelationIdEnricher.PropertyName, id);
+    }
+
+    /// <summary>
+    /// Creates a scope with a new CorrelationId for Microsoft.Extensions.Logging.
+    /// </summary>
+    public static IDisposable? PushCorrelationId(this Microsoft.Extensions.Logging.ILogger logger, string? correlationId = null)
     {
         var id = correlationId ?? Activity.Current?.Id ?? Guid.NewGuid().ToString("N")[..12];
         return Serilog.Context.LogContext.PushProperty(CorrelationIdEnricher.PropertyName, id);

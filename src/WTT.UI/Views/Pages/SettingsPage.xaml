@@ -85,6 +85,24 @@
                             <TextBlock Style="{StaticResource Hint}" Text="How often the buffer is shipped to the central servers." />
                         </StackPanel>
                     </Grid>
+
+                    <!-- Log File Generation Toggle — Manager Requirement #3 -->
+                    <!-- Ye toggle disk pe log files banana band karta hai (testing/dev ke liye useful) -->
+                    <Separator Margin="0,16,0,12" />
+                    <TextBlock Text="Log File Generation" Style="{StaticResource SectionTitle}" Margin="0,0,0,4"/>
+                    <ui:ToggleSwitch x:Name="LoggingToggle"
+                                     IsChecked="{Binding EnableFileLogging}"
+                                     OnContent="File logging ON — logs saved to dated folders on disk"
+                                     OffContent="File logging OFF — no disk writes (testing mode)" />
+                    <ui:InfoBar IsOpen="{Binding EnableFileLogging, Converter={StaticResource InverseBool}}"
+                                Severity="Warning" IsClosable="False" Margin="0,8,0,0"
+                                Title="File logging disabled"
+                                Message="No log files will be written to disk. This takes effect immediately — perfect for testing environments to save disk space." />
+                    <ui:InfoBar IsOpen="{Binding EnableFileLogging}"
+                                Severity="Informational" IsClosable="False" Margin="0,4,0,0"
+                                Title="Logs saved by date folder"
+                                Message="Daily folders: %LocalAppData%\WTT\Logs\yyyy-MM-dd\wtt-*.log  |  30 days retained  |  20 MB max per file" />
+
                     <ui:Button Content="Save settings" Appearance="Primary" Icon="{ui:SymbolIcon Save24}" Command="{Binding SaveCommand}" Margin="0,16,0,0" HorizontalAlignment="Left" />
                     <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" Visibility="{Binding ErrorMessage, Converter={StaticResource NotNullToVis}}" />
                 </StackPanel>

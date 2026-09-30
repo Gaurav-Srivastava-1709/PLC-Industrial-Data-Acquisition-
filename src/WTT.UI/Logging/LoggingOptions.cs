@@ -62,8 +62,10 @@ public sealed class LoggingOptions
 
     /// <summary>
     /// Minimum log level for file sink.
+    /// String format: "Verbose", "Debug", "Information", "Warning", "Error", "Fatal"
+    /// NOTE: string type used (not enum) so JSON deserialization from appsettings.json works correctly.
     /// </summary>
-    public LogEventLevel MinimumLevel { get; set; } = LogEventLevel.Information;
+    public string MinimumLevel { get; set; } = "Information";
 
     /// <summary>
     /// Override minimum level for specific namespaces.
@@ -80,7 +82,7 @@ public sealed class LoggingOptions
     /// Enable structured JSON output (for log aggregation systems like Seq, ELK, Datadog).
     /// When false, uses human-readable text template.
     /// </summary>
-    public bool UseJsonFormatter { get; set; } = false;
+    public bool UseJsonFormatter { get; set; }
 
     /// <summary>
     /// Whether to include scoping properties (CorrelationId, DeviceId, UserId, etc.) in log output.
@@ -106,9 +108,26 @@ public sealed class LoggingOptions
 
     /// <summary>
     /// Expands environment variables in LogDirectory path.
+    /// e.g., %LocalAppData% → C:\Users\UserName\AppData\Local
     /// </summary>
     public string GetExpandedLogDirectory()
+        => Environment.ExpandEnvironmentVariables(LogDirectory);
+
+    /// <summary>
+    /// MinimumLevel string ko Serilog LogEventLevel enum mein safely convert karta hai.
+    /// JSON se string aata hai, Serilog ko enum chahiye — ye bridge method hai.
+    /// </summary>
+    public LogEventLevel GetMinimumLogEventLevel()
     {
-        return Environment.ExpandEnvironmentVariables(LogDirectory);
+        return MinimumLevel.Trim().ToUpperInvariant() switch
+        {
+            "VERBOSE" or "TRACE"             => LogEventLevel.Verbose,
+            "DEBUG"                           => LogEventLevel.Debug,
+            "INFORMATION" or "INFO" or "INF"  => LogEventLevel.Information,
+            "WARNING" or "WARN" or "WRN"      => LogEventLevel.Warning,
+            "ERROR" or "ERR"                  => LogEventLevel.Error,
+            "FATAL" or "CRITICAL" or "FTL"    => LogEventLevel.Fatal,
+            _                                 => LogEventLevel.Information
+        };
     }
 }
