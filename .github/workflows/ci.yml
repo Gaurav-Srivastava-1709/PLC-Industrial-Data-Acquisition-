@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  SQL_SERVER_VERSION: '2022-latest'
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    services:
+      sql-server:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: "Password123!"
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "sqlcmd -S localhost -U sa -P 'Password123!' -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore tools
+        run: dotnet tool restore
+
+      - name: Wait for SQL Server
+        run: |
+          $attempts = 0
+          do {
+            try {
+              sqlcmd -S localhost -U sa -P 'Password123!' -Q "SELECT 1" -C -b
+              break
+            } catch { Start-Sleep 5 }
+            $attempts++
+          } while ($attempts -lt 30)
+
+      - name: Restore
+        run: dotnet restore "WTT.slnx"
+
+      - name: Build
+        run: dotnet build "WTT.slnx" --configuration Release --no-restore
+
+      - name: Run unit tests (exclude integration)
+        run: dotnet test "WTT.slnx" --configuration Release --no-build --filter "Category!=Integration" --logger "trx;LogFileName=unit-tests.trx"
+
+      - name: Run integration tests
+        env:
+          WTT_DESIGN_CONNECTION: "Server=localhost;Database=WTT;User ID=sa;Password=Password123!;Encrypt=True;TrustServerCertificate=True"
+        run: |
+          dotnet ef database update --project "src/WTT.Infrastructure/WTT.Infrastructure.csproj" --startup-project "src/WTT.Infrastructure/WTT.Infrastructure.csproj" --context AppDbContext
+          dotnet test "WTT.slnx" --configuration Release --no-build --filter "Category=Integration" --logger "trx;LogFileName=integration-tests.trx"
+
+      - name: Publish test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: "**/*.trx"
+
+  deploy-artifacts:
+    needs: build-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore "WTT.slnx"
+
+      - name: Build Release
+        run: dotnet build "WTT.slnx" --configuration Release --no-restore
+
+      - name: Publish UI
+        run: |
+          dotnet publish "src/WTT.UI/WTT.UI.csproj" --configuration Release --runtime win-x64 --self-contained true --output "artifacts/UI" --no-restore
+
+      - name: Publish Service
+        run: |
+          dotnet publish "src/WTT.Service/WTT.Service.csproj" --configuration Release --runtime win-x64 --self-contained true --output "artifacts/Service" --no-restore
+
+      - name: Publish Database Bundle
+        run: |
+          dotnet tool run dotnet-ef migrations bundle --project "src/WTT.Infrastructure/WTT.Infrastructure.csproj" --startup-project "src/WTT.Infrastructure/WTT.Infrastructure.csproj" --context AppDbContext --self-contained --runtime win-x64 --output "artifacts/Database/WTT.Database.exe"
+
+      - name: Copy deploy scripts
+        run: |
+          mkdir artifacts/deploy
+          Copy-Item deploy/*.ps1 artifacts/deploy/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wtt-release-${{ github.sha }}
+          path: artifacts/
+          retention-days: 30

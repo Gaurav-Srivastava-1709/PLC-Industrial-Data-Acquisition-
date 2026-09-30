@@ -171,7 +171,7 @@ The alarm/threshold feature has been upgraded from **70% production-ready to 95%
 ---
 
 ### 8. Comprehensive Unit Tests ✅
-**File:** `AlarmEvaluationServiceTests.cs` (20 tests)
+**File:** `AlarmEvaluationServiceTests.cs` (13 tests)
 
 **Coverage:**
 1. ✅ On-delay: Value returns normal before delay → No alarm
@@ -242,7 +242,7 @@ cd "D:\Spring Boot\PLC Project\WTT_PLC\New PLc"
 dotnet test tests/WTT.Tests/AlarmEvaluationServiceTests.cs
 ```
 
-**Expected:** All 20 tests should pass.
+**Expected:** All 13 tests should pass.
 
 ---
 

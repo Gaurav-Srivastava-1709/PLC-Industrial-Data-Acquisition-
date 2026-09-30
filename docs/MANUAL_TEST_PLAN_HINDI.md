@@ -804,7 +804,7 @@ cd "D:\Spring Boot\PLC Project\WTT_PLC\New PLc"
 dotnet test WTT.slnx -c Release
 ```
 
-Expected baseline: At least `87 passed`, zero failed, zero skipped.
+Expected baseline: At least `110 passed`, zero failed, zero skipped.
 
 - [ ] PASS
 - [ ] FAIL

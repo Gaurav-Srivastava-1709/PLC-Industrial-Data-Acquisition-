@@ -743,4 +743,4 @@ Do not include passwords, private keys or full production connection strings.
 | 1.0 | 2026-09-12 | Initial production hardening user guide. |
 | 1.1 | 2026-09-13 | Added runtime status, deployment artifacts and manual test references. |
 | 1.2 | 2026-09-16 | Complete rewrite: full field reference, procedures, verification SQL, safety and support package. |
-| 1.2.0 | Current | Matches release 1.2.0, 87 automated tests passed, mock acceptance complete, real-hardware commissioning still required. |
+| 1.2.0 | Current | Matches release 1.2.0, 110 automated tests passed, mock acceptance complete, real-hardware commissioning still required. |
