@@ -2,10 +2,14 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using System.IO;
+using System.Text.Json;
 using WTT.Application.Interfaces;
 using WTT.Application.Security;
 using WTT.Domain.Enums;
 using WTT.Infrastructure.Persistence;
+using WTT.UI.Logging;
 using WTT.UI.Services;
 
 namespace WTT.UI.ViewModels;
@@ -21,11 +25,15 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly ShellNavigator _shell;
     private readonly Func<ChangePasswordViewModel> _changePasswordFactory;
 
+    private readonly IOptions<LoggingOptions> _loggingOptions;
+
     public SettingsViewModel(IAppSettingsService settings, IRuntimeSettings runtime, ThemeManager theme, ICurrentUserService currentUser, IAuditService audit,
-        IDbContextFactory<AppDbContext> dbFactory, ShellNavigator shell, Func<ChangePasswordViewModel> changePasswordFactory, IDialogService dialogs, ILogger<SettingsViewModel> logger) : base(dialogs, logger)
+        IDbContextFactory<AppDbContext> dbFactory, ShellNavigator shell, Func<ChangePasswordViewModel> changePasswordFactory, IDialogService dialogs, ILogger<SettingsViewModel> logger,
+        IOptions<LoggingOptions> loggingOptions) : base(dialogs, logger)
     {
         _settings = settings; _runtime = runtime; _theme = theme; _currentUser = currentUser; _audit = audit; _dbFactory = dbFactory;
         _shell = shell; _changePasswordFactory = changePasswordFactory;
+        _loggingOptions = loggingOptions;
         _currentUser.Changed += (_, _) => OnUi(RefreshUser);
         RefreshUser();
     }
@@ -41,6 +49,7 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty] private string _version = string.Empty;
     [ObservableProperty] private string _displayName = string.Empty;
     [ObservableProperty] private string _roleName = string.Empty;
+    [ObservableProperty] private bool _enableFileLogging = true;
 
     public bool CanManage => _currentUser.HasPermission(Permission.ManageSettings);
 
@@ -84,6 +93,7 @@ public partial class SettingsViewModel : ViewModelBase
                 SessionTimeoutMinutes = _runtime.SessionTimeoutMinutes;
                 TransferredRetentionDays = _runtime.TransferredRetentionDays;
                 TransferIntervalSeconds = _runtime.TransferIntervalSeconds;
+                EnableFileLogging = _loggingOptions.Value.EnableFileLogging;
             }
             catch { }
             try { await LoadDatabaseInfoAsync(); } catch { }
@@ -109,11 +119,42 @@ public partial class SettingsViewModel : ViewModelBase
             await _settings.SetAsync(AppSettingKeys.SessionTimeoutMinutes, Math.Clamp(SessionTimeoutMinutes, 1, 720).ToString());
             await _settings.SetAsync(AppSettingKeys.TransferredRetentionDays, Math.Clamp(TransferredRetentionDays, 1, 3650).ToString());
             await _settings.SetAsync(AppSettingKeys.TransferIntervalSeconds, Math.Clamp(TransferIntervalSeconds, 1, 3600).ToString());
+            
+            // Save logging setting to appsettings.json (requires app restart to take effect)
+            await UpdateAppSettingsLoggingAsync(EnableFileLogging);
+            
             await _runtime.ReloadAsync();
-            await _audit.RecordAsync("SaveSettings", null, $"Mock={UseMockPlc}; Session={SessionTimeoutMinutes}m; Retention={TransferredRetentionDays}d; TransferInterval={TransferIntervalSeconds}s");
-            Dialogs.Toast("Settings", "Settings saved and applied.", ToastKind.Success);
+            await _audit.RecordAsync("SaveSettings", null, $"Mock={UseMockPlc}; Session={SessionTimeoutMinutes}m; Retention={TransferredRetentionDays}d; TransferInterval={TransferIntervalSeconds}s; FileLogging={EnableFileLogging}");
+            Dialogs.Toast("Settings", "Settings saved. Logging change requires app restart.", ToastKind.Success);
         }, inlineErrors: true);
         _ = ok;
+    }
+
+    private async Task UpdateAppSettingsLoggingAsync(bool enableFileLogging)
+    {
+        try
+        {
+            var configPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+            var json = await File.ReadAllTextAsync(configPath);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            
+            var options = new JsonSerializerOptions { WriteIndented = true };
+            var jsonObj = JsonSerializer.Deserialize<Dictionary<string, object>>(json, options) ?? new();
+            
+            if (!jsonObj.ContainsKey("Logging"))
+                jsonObj["Logging"] = new Dictionary<string, object>();
+            
+            var logging = (Dictionary<string, object>)jsonObj["Logging"];
+            logging["EnableFileLogging"] = enableFileLogging;
+            
+            var updatedJson = JsonSerializer.Serialize(jsonObj, options);
+            await File.WriteAllTextAsync(configPath, updatedJson);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to update appsettings.json logging setting");
+        }
     }
 
     private async Task LoadDatabaseInfoAsync()

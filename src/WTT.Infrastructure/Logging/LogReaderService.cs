@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using WTT.Application.DTOs;
 using WTT.Application.Interfaces;
@@ -24,7 +26,16 @@ public sealed partial class LogReaderService : ILogReaderService
     {
         if (!Directory.Exists(LogDirectory)) return Array.Empty<LogEntry>();
 
-        var files = new DirectoryInfo(LogDirectory).GetFiles("wtt-*.log").OrderByDescending(f => f.LastWriteTimeUtc).Take(2).ToList();
+        // Search both old flat structure (wtt-*.log) and new date-folder structure (yyyy-MM-dd/wtt-*.log)
+        var logDir = new DirectoryInfo(LogDirectory);
+        var files = logDir.GetFiles("wtt-*.log", SearchOption.TopDirectoryOnly)
+            .Concat(logDir.GetFiles("wtt-*.log", SearchOption.AllDirectories))
+            .OrderByDescending(f => f.LastWriteTimeUtc)
+            .GroupBy(f => f.FullName)
+            .Select(g => g.First())
+            .Take(2)
+            .ToList();
+
         var minIndex = minimumLevel is null ? 0 : Math.Max(0, Array.IndexOf(LevelOrder, NormalizeLevel(minimumLevel)));
         var result = new List<LogEntry>(maxLines);
 
