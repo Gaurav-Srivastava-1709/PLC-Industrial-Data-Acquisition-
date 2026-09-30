@@ -34,7 +34,11 @@ public partial class MainWindow : Window
 
         viewModel.ChangePasswordRequested += OnChangePasswordRequested;
         Loaded += OnLoaded;
-        Closed += (_, _) => viewModel.ChangePasswordRequested -= OnChangePasswordRequested;
+        Closed += (_, _) =>
+        {
+            viewModel.ChangePasswordRequested -= OnChangePasswordRequested;
+            viewModel.Dispose(); // Clean up timer + event subscriptions
+        };
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)

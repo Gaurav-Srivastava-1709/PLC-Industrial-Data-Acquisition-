@@ -101,4 +101,10 @@ public partial class ProfileViewModel : ViewModelBase
         RefreshUser();
         return Task.CompletedTask;
     }
+
+    public override Task OnNavigatedFromAsync()
+    {
+        _currentUser.Changed -= (_, _) => OnUi(RefreshUser);
+        return Task.CompletedTask;
+    }
 }

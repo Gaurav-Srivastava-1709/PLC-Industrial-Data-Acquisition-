@@ -18,7 +18,19 @@ New-Item -ItemType Directory -Force -Path $rollback | Out-Null
 Stop-Service $serviceName -Force
 Copy-Item "$installRoot\*" $rollback -Recurse -Force
 $backupScript = if (Test-Path -LiteralPath "$installRoot\Tools\Backup-Wtt.ps1") { "$installRoot\Tools\Backup-Wtt.ps1" } else { "$PackageRoot\deploy\Backup-Wtt.ps1" }
-& $backupScript -Server "." -Database "WTT" -BackupDirectory "C:\ProgramData\WTT\Backups" -RetentionDays 30
+
+# Validate SQL Server connectivity before backup (fail fast with clear message)
+try {
+    $sqlcmd = Get-Command sqlcmd -ErrorAction Stop
+    & $sqlcmd.Source -S $ServerInstance -E -C -b -Q "SELECT 1;" | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Cannot connect to SQL Server instance '$ServerInstance'." }
+}
+catch {
+    throw "Pre-backup connectivity check failed for SQL Server '$ServerInstance': $_"
+}
+
+# Use $ServerInstance parameter (NOT hardcoded '.') so named instances / remote servers work
+& $backupScript -Server $ServerInstance -Database "WTT" -BackupDirectory "C:\ProgramData\WTT\Backups" -RetentionDays 30
 $databaseBackup = Get-ChildItem -LiteralPath "C:\ProgramData\WTT\Backups" -Filter "WTT-*.bak" | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
 if (-not $databaseBackup) { throw "Pre-update database backup was not created." }
 try

@@ -8,7 +8,7 @@ using WTT.UI.Services;
 
 namespace WTT.UI.ViewModels;
 
-public partial class MainViewModel : ViewModelBase
+public partial class MainViewModel : ViewModelBase, IDisposable
 {
     private readonly ICurrentUserService _currentUser;
     private readonly ShellNavigator _shell;
@@ -25,6 +25,7 @@ public partial class MainViewModel : ViewModelBase
     private bool _transferBaselineSet;
     private int _tickCount;
     private int _monitorBusy;
+    private bool _disposed;
 
     public MainViewModel(ICurrentUserService currentUser, ShellNavigator shell, Func<ChangePasswordViewModel> changePasswordFactory, INavigationService navigation,
         IAlarmService alarmService, ISnackbarService snackbarService, ICaptureRuntimeStatusReader runtimeStatus, IDataTransferController transfer,
@@ -53,6 +54,22 @@ public partial class MainViewModel : ViewModelBase
         _syncTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _syncTimer.Tick += (_, _) => _ = OnSyncTickAsync();
         _syncTimer.Start();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        _syncTimer.Stop();
+        _syncTimer.Tick -= (_, _) => _ = OnSyncTickAsync();
+
+        _currentUser.Changed -= (_, _) => OnUi(RefreshUser);
+        _alarmService.AlarmTriggered -= OnAlarmTriggered;
+        _alarmService.AlarmCleared -= OnAlarmCleared;
+        _alarmService.AlarmCountChanged -= (_, _) => _ = RefreshAlarmCountAsync();
+
+        GC.SuppressFinalize(this);
     }
 
     // Single guarded tick: alarm sync every 2s, health monitors staggered so a slow DB never piles up.

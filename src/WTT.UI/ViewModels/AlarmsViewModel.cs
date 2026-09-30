@@ -25,7 +25,6 @@ public partial class AlarmsViewModel : ViewModelBase
 
         _alarmService.AlarmTriggered += OnAlarmTriggered;
         _alarmService.AlarmCleared += OnAlarmCleared;
-        // Industry: badge/count change must refresh the list too — was a no-op before, so the page stayed empty until manual Refresh.
         _alarmService.AlarmCountChanged += (_, _) => _ = RefreshActiveFromDbAsync();
         _autoRefreshTimer.Tick += (_, _) => _ = AutoRefreshAsync();
     }
@@ -131,6 +130,9 @@ public partial class AlarmsViewModel : ViewModelBase
     public override Task OnNavigatedFromAsync()
     {
         _autoRefreshTimer.Stop();
+        _alarmService.AlarmTriggered -= OnAlarmTriggered;
+        _alarmService.AlarmCleared -= OnAlarmCleared;
+        _alarmService.AlarmCountChanged -= (_, _) => _ = RefreshActiveFromDbAsync();
         return Task.CompletedTask;
     }
 

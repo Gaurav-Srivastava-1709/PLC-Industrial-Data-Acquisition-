@@ -128,4 +128,10 @@ public partial class SettingsViewModel : ViewModelBase
         DatabaseEdition = reader.GetString(2);
         DatabaseSize = $"{reader.GetDecimal(3):F1} MB allocated (10 GB Express limit)";
     }
+
+    public override Task OnNavigatedFromAsync()
+    {
+        _currentUser.Changed -= (_, _) => OnUi(RefreshUser);
+        return Task.CompletedTask;
+    }
 }

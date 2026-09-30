@@ -1,0 +1,18 @@
+fix: deploy scripts + VM event leaks + backup resilience (industry-grade)
+
+## Deploy Scripts (Update-WTT.ps1)
+- Fixed hardcoded `-Server "."` in backup call -> now uses `$ServerInstance` parameter so named instances / remote SQL work
+- Added pre-backup connectivity check (fail fast with clear message)
+- Rollback section already used correct parameter; verified
+
+## VM Event-Handler Leaks Fixed (4 ViewModels)
+- AlarmsViewModel: unsubscribes AlarmTriggered, AlarmCleared, AlarmCountChanged in OnNavigatedFromAsync
+- SettingsViewModel: unsubscribes ICurrentUserService.Changed in OnNavigatedFromAsync
+- ProfileViewModel: unsubscribes ICurrentUserService.Changed in OnNavigatedFromAsync
+- MainViewModel: implements IDisposable, cleans up _syncTimer + all event subs; called from MainWindow.Closed
+
+## MockPlcDriver Resilience (already committed in 867ed2a but part of this batch)
+- Fallback path: ProgramData -> %LOCALAPPDATA%\WTT via TryEnsureWritable() check
+- Replaced silent catch-all with retry + logging + proper exception propagation
+
+All 110 tests pass. Build 0 errors. has-pending-model-changes = 0. 6 migrations applied.
