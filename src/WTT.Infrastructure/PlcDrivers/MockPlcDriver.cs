@@ -52,13 +52,90 @@ namespace WTT.Infrastructure.PlcDrivers;
 /// </summary>
 public sealed class MockPlcDriver : IPlcDriver
 {
-    // Fix: Path changed to CommonApplicationData (C:\ProgramData) so both Service (Session 0) and UI (Session 1) see the exact same file
-    private static readonly string StateFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "WTT", "WTT_MockPlcState.json");
+    // Resilient state file path: tries CommonApplicationData (ProgramData) first for cross-process sharing.
+    // Falls back to LocalApplicationData if ProgramData is not writable (e.g., permission issues in test/CI environments).
+    // The mutex name remains Global so cross-process synchronization still works even if file locations differ.
+    private static readonly string StateFilePath = GetResilientStateFilePath();
     private static readonly DateTime Epoch = DateTime.UtcNow;
 
     // Named Mutex — cross-process lock. Both processes (UI + Service) share the same named Mutex.
     // While one process holds it, the other waits. This fully prevents the TOCTOU race.
     private static readonly Mutex StateMutex = new(false, @"Global\WTT_MockPlcStateMutex");
+
+    /// <summary>
+    /// Determines a writable state file path. Prefers ProgramData for true cross-process sharing,
+    /// but falls back to LocalAppData if ProgramData is inaccessible (common in test/CI environments).
+    /// </summary>
+    private static string GetResilientStateFilePath()
+    {
+        // Try ProgramData first (ideal for Service + UI cross-process)
+        var programDataPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            "WTT", "WTT_MockPlcState.json");
+
+        if (TryEnsureWritable(programDataPath))
+        {
+            return programDataPath;
+        }
+
+        // Fallback: LocalAppData (always writable by current user)
+        var localAppDataPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "WTT", "WTT_MockPlcState.json");
+
+        if (TryEnsureWritable(localAppDataPath))
+        {
+            System.Diagnostics.Debug.WriteLine($"[MockPlcDriver] Using fallback state file: {localAppDataPath}");
+            return localAppDataPath;
+        }
+
+        // Last resort: temp path (should never happen)
+        var tempPath = Path.Combine(Path.GetTempPath(), "WTT", "WTT_MockPlcState.json");
+        TryEnsureWritable(tempPath); // best effort
+        System.Diagnostics.Debug.WriteLine($"[MockPlcDriver] WARNING: Using temp state file: {tempPath}");
+        return tempPath;
+    }
+
+    /// <summary>
+    /// Ensures the directory exists and the file (if present) is writable by the current process.
+    /// Returns true if the path is usable for read/write.
+    /// </summary>
+    private static bool TryEnsureWritable(string filePath)
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            // If file exists, test write access by opening with FileShare.None
+            if (File.Exists(filePath))
+            {
+                using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Write, FileShare.None);
+            }
+            else
+            {
+                // Test create/write access in the directory
+                using var fs = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                File.Delete(filePath); // clean up test file
+            }
+            return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false; // file locked, directory not writable, etc.
+        }
+        catch
+        {
+            return false; // any other error = not usable
+        }
+    }
 
     // Reads from the JSON file — must be called while holding the Mutex (do not call directly)
     private static Dictionary<string, string> ReadSharedStateUnsafe()
@@ -107,48 +184,78 @@ public sealed class MockPlcDriver : IPlcDriver
     // This prevents the two processes from ever overwriting each other's writes.
     private static void WriteSharedState(string key, string value)
     {
-        try
+        const int MaxRetries = 3;
+        const int MutexTimeoutMs = 500;
+
+        for (int attempt = 0; attempt < MaxRetries; attempt++)
         {
-            if (!StateMutex.WaitOne(500)) return; // Deadlock prevention — never waits longer than 500ms
+            bool mutexAcquired = false;
             try
             {
-                // Step 1: Read existing data
-                var state = ReadSharedStateUnsafe();
-                // Step 2: Add/update the key-value entry
-                state[key] = value;
-                var json = JsonSerializer.Serialize(state);
-
-                // Step 3: Create the directory if missing
-                var dir = Path.GetDirectoryName(StateFilePath);
-                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                mutexAcquired = StateMutex.WaitOne(MutexTimeoutMs);
+                if (!mutexAcquired)
                 {
-                    Directory.CreateDirectory(dir);
+                    // Log and retry instead of silently dropping the write
+                    System.Diagnostics.Debug.WriteLine($"[MockPlcDriver] WriteSharedState: Mutex timeout on attempt {attempt + 1}/{MaxRetries} for key '{key}'");
+                    if (attempt == MaxRetries - 1)
+                    {
+                        throw new TimeoutException($"Failed to acquire mock PLC state mutex after {MaxRetries} attempts ({MutexTimeoutMs}ms each)");
+                    }
+                    Thread.Sleep(50 * (attempt + 1)); // small backoff
+                    continue;
                 }
 
-                // Step 4: Write to the file atomically (FileShare.None = exclusive lock)
-                using var fs = new FileStream(StateFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
-                using var sw = new StreamWriter(fs);
-                sw.Write(json);
+                try
+                {
+                    // Step 1: Read existing data
+                    var state = ReadSharedStateUnsafe();
+                    // Step 2: Add/update the key-value entry
+                    state[key] = value;
+                    var json = JsonSerializer.Serialize(state);
+
+                    // Step 3: Create the directory if missing
+                    var dir = Path.GetDirectoryName(StateFilePath);
+                    if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    {
+                        Directory.CreateDirectory(dir);
+                    }
+
+                    // Step 4: Write to the file atomically (FileShare.None = exclusive lock)
+                    using var fs = new FileStream(StateFilePath, FileMode.Create, FileAccess.Write, FileShare.None);
+                    using var sw = new StreamWriter(fs);
+                    sw.Write(json);
+                    return; // SUCCESS
+                }
+                finally
+                {
+                    if (mutexAcquired) StateMutex.ReleaseMutex();
+                }
             }
-            finally
+            catch (AbandonedMutexException)
             {
-                StateMutex.ReleaseMutex();
+                // Crash recovery — try once more without lock
+                try
+                {
+                    var state = ReadSharedStateUnsafe();
+                    state[key] = value;
+                    var dir = Path.GetDirectoryName(StateFilePath);
+                    if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                    File.WriteAllText(StateFilePath, JsonSerializer.Serialize(state));
+                    return; // SUCCESS (recovery path)
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[MockPlcDriver] WriteSharedState: Abandoned mutex recovery failed for key '{key}': {ex}");
+                    if (attempt == MaxRetries - 1) throw;
+                }
+            }
+            catch (Exception ex) when (ex is not TimeoutException && ex is not OperationCanceledException)
+            {
+                // LOG the actual error instead of swallowing it!
+                System.Diagnostics.Debug.WriteLine($"[MockPlcDriver] WriteSharedState: Write failed for key '{key}' (attempt {attempt + 1}/{MaxRetries}): {ex.GetType().Name}: {ex.Message}");
+                if (attempt == MaxRetries - 1) throw;
             }
         }
-        catch (AbandonedMutexException)
-        {
-            // Crash recovery — try once more without lock
-            try
-            {
-                var state = ReadSharedStateUnsafe();
-                state[key] = value;
-                var dir = Path.GetDirectoryName(StateFilePath);
-                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
-                File.WriteAllText(StateFilePath, JsonSerializer.Serialize(state));
-            }
-            catch { /* Best effort */ }
-        }
-        catch { /* Ignore other errors for simulator resilience */ }
     }
 
     public MockPlcDriver(Device device) => Device = device;

@@ -85,7 +85,18 @@ namespace WTT.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TriggeredAtUtc");
 
-                    b.HasIndex("Priority", "State");
+                    b.HasIndex("State", "TriggeredAtUtc")
+                        .HasDatabaseName("IX_AlarmEvents_RetentionCleanup");
+
+                    b.HasIndex("TriggeredAtUtc", "ClearedAtUtc")
+                        .HasDatabaseName("IX_AlarmEvents_SyncQuery");
+
+                    b.HasIndex("State", "Priority", "TriggeredAtUtc")
+                        .IsDescending(false, true, true)
+                        .HasDatabaseName("IX_AlarmEvents_ActiveQuery")
+                        .HasFilter("[State] IN (1, 2)");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("State", "Priority", "TriggeredAtUtc"), new[] { "Id", "DeviceName", "TagName", "AlarmType", "TriggerValue", "ThresholdValue", "EngineeringUnit", "AcknowledgedAtUtc", "AcknowledgedBy" });
 
                     b.ToTable("AlarmEvents");
                 });
@@ -796,6 +807,11 @@ namespace WTT.Infrastructure.Persistence.Migrations
                     b.HasIndex("IsTransferred", "TimestampUtc");
 
                     b.HasIndex("DeviceId", "IsTransferred", "Id");
+
+                    b.HasIndex("DeviceId", "TagName", "TimestampUtc")
+                        .HasDatabaseName("IX_TagReadings_HistorianTrend");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("DeviceId", "TagName", "TimestampUtc"), new[] { "Value", "Quality" });
 
                     b.ToTable("TagReadings", (string)null);
                 });

@@ -572,7 +572,7 @@ Do not delete tables manually. Fresh databases start empty and gain rows as feat
 
 | Table | Simple Meaning | Row Created When |
 |---|---|---|
-| `__EFMigrationsHistory` | Database version record | Always 3 migration rows |
+| `__EFMigrationsHistory` | Database version record | Always 6 migration rows |
 | `Users` | Login users and roles | First Admin and new users |
 | `Devices` | PLC and device configuration | Device Save |
 | `DeviceAddresses` | Modbus address blocks | Address block Save |
@@ -588,7 +588,7 @@ Do not delete tables manually. Fresh databases start empty and gain rows as feat
 | `ServiceRuntimeState` | Service heartbeat | Service start, exactly 1 row |
 | `DeviceRuntimeStates` | Per-device connection and scan status | Enabled worker start |
 
-Fresh-start counts: Users 0, Devices 0, Tags 0, Readings 0, Migrations 3. After first Admin: Users 1, others still 0 except migrations.
+Fresh-start counts: Users 0, Devices 0, Tags 0, Readings 0, Migrations 6. After first Admin: Users 1, others still 0 except migrations.
 
 ## 19. Daily Operating Procedures
 

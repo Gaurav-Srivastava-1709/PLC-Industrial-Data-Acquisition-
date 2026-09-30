@@ -10,27 +10,23 @@ namespace WTT.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Drop old index that was in wrong order
             migrationBuilder.DropIndex(
                 name: "IX_AlarmEvents_Priority_State",
                 table: "AlarmEvents");
 
-            // Create optimized covering index for active alarm queries
-            // Covers: WHERE State IN (Active, Acknowledged) ORDER BY Priority DESC, TriggeredAtUtc DESC
-            migrationBuilder.Sql(@"
-                CREATE NONCLUSTERED INDEX [IX_AlarmEvents_ActiveQuery]
-                ON [dbo].[AlarmEvents] ([State], [Priority] DESC, [TriggeredAtUtc] DESC)
-                INCLUDE ([Id], [DeviceName], [TagName], [AlarmType], [TriggerValue], [ThresholdValue], [EngineeringUnit], [AcknowledgedAtUtc], [AcknowledgedBy])
-                WHERE [State] IN (0, 1); -- Active=0, Acknowledged=1
-            ");
+            migrationBuilder.CreateIndex(
+                name: "IX_AlarmEvents_ActiveQuery",
+                table: "AlarmEvents",
+                columns: new[] { "State", "Priority", "TriggeredAtUtc" },
+                descending: new[] { false, true, true },
+                filter: "[State] IN (1, 2)")
+                .Annotation("SqlServer:Include", new[] { "Id", "DeviceName", "TagName", "AlarmType", "TriggerValue", "ThresholdValue", "EngineeringUnit", "AcknowledgedAtUtc", "AcknowledgedBy" });
 
-            // Add index for retention cleanup query
             migrationBuilder.CreateIndex(
                 name: "IX_AlarmEvents_RetentionCleanup",
                 table: "AlarmEvents",
                 columns: new[] { "State", "TriggeredAtUtc" });
 
-            // Add index for cross-process sync queries
             migrationBuilder.CreateIndex(
                 name: "IX_AlarmEvents_SyncQuery",
                 table: "AlarmEvents",
@@ -52,7 +48,6 @@ namespace WTT.Infrastructure.Persistence.Migrations
                 name: "IX_AlarmEvents_SyncQuery",
                 table: "AlarmEvents");
 
-            // Restore old index
             migrationBuilder.CreateIndex(
                 name: "IX_AlarmEvents_Priority_State",
                 table: "AlarmEvents",

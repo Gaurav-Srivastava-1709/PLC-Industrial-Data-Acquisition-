@@ -250,7 +250,7 @@ Tables delete nahi karni hain. Fresh test me tables empty rehti hain aur feature
 
 | Table | Simple meaning | Row kab banegi |
 |---|---|---|
-| `__EFMigrationsHistory` | Database version record | Hamesha 3 migration rows rahengi |
+| `__EFMigrationsHistory` | Database version record | Hamesha 6 migration rows rahengi |
 | `Users` | Login users and roles | First Admin aur naye users banane par |
 | `Devices` | PLC/device configuration | Device Save karne par |
 | `DeviceAddresses` | Modbus address blocks | Address block Save karne par |
@@ -277,8 +277,8 @@ SELECT (SELECT COUNT(*) FROM dbo.Users) AS Users,
        (SELECT COUNT(*) FROM dbo.__EFMigrationsHistory) AS Migrations;
 ```
 
-First Admin se pehle expected: Users `0`, Devices `0`, Tags `0`, Readings `0`, Migrations `3`.
-First Admin ke baad expected: Users `1`, baaki application data `0`, Migrations `3`.
+First Admin se pehle expected: Users `0`, Devices `0`, Tags `0`, Readings `0`, Migrations `6`.
+First Admin ke baad expected: Users `1`, baaki application data `0`, Migrations `6`.
 
 ## 9. Settings Aur Mock PLC
 
@@ -834,7 +834,7 @@ WHERE IsTransferred = 0;
 
 Expected:
 
-- 3 migrations including `AddRuntimeStatus`.
+- 6 migrations including `AddAlarmThresholdSystem`, `OptimizeAlarmIndexes` and `AddHistorianTrendIndex`.
 - Recent heartbeat while service running.
 - Device runtime rows.
 - Pending rows transfer configuration ke according drain hon.

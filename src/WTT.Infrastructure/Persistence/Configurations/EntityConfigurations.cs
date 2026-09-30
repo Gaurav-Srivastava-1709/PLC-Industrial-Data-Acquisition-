@@ -89,8 +89,13 @@ public sealed class TagReadingConfiguration : IEntityTypeConfiguration<TagReadin
         b.HasIndex(x => new { x.DeviceId, x.IsTransferred, x.Id });
         // Retention cleanup query
         b.HasIndex(x => new { x.IsTransferred, x.TimestampUtc });
-        // Historian trend query: WHERE DeviceId + TagName + TimestampUtc range ORDER BY TimestampUtc
-        b.HasIndex(x => new { x.DeviceId, x.TagName, x.TimestampUtc });
+        // Historian trend query: WHERE DeviceId = ? AND TagName = ? AND TimestampUtc BETWEEN ...
+        //   ORDER BY TimestampUtc. Key columns cover the seek/sort; Value + Quality are INCLUDEd
+        //   so the trend reader never pays a key lookup per point. Without this index a 1-hour
+        //   trend window is a full scan of the largest table in the database.
+        b.HasIndex(x => new { x.DeviceId, x.TagName, x.TimestampUtc })
+            .HasDatabaseName("IX_TagReadings_HistorianTrend")
+            .IncludeProperties(x => new { x.Value, x.Quality });
     }
 }
 

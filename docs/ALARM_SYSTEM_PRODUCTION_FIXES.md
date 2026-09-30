@@ -112,8 +112,13 @@ The alarm/threshold feature has been upgraded from **70% production-ready to 95%
 1. **IX_AlarmEvents_ActiveQuery** (Covering index)
    - Columns: State, Priority DESC, TriggeredAtUtc DESC
    - Includes: All display columns
-   - Filtered: WHERE State IN (0, 1) -- Active, Acknowledged
+   - Filtered: `WHERE State IN (1, 2)` — `AlarmState.Active = 1`, `AlarmState.Acknowledged = 2`
    - **Impact:** 10x faster active alarm queries
+   - > **Corrected 2026-09-30:** the original hand-written migration filtered on
+   >   `IN (0, 1)` and documented `Active=0, Acknowledged=1`. The enum actually starts
+   >   at 1, so that predicate excluded every *Acknowledged* alarm from the index —
+   >   the exact row set `GetActiveAlarmsAsync` reads. The index is now declared in
+   >   `AlarmEventConfiguration.cs` (EF owns it) instead of raw SQL.
 
 2. **IX_AlarmEvents_RetentionCleanup**
    - Columns: State, TriggeredAtUtc
@@ -122,6 +127,15 @@ The alarm/threshold feature has been upgraded from **70% production-ready to 95%
 3. **IX_AlarmEvents_SyncQuery**
    - Columns: TriggeredAtUtc, ClearedAtUtc
    - **Impact:** Faster cross-process sync
+
+> **Corrected 2026-09-30 — this migration never actually ran.** It and
+> `20260927090000_AddHistorianTrendIndex.cs` were written by hand and shipped with no
+> `.Designer.cs`, hence no `[DbContext]` / `[Migration]` attributes. EF Core silently
+> filters migrations that lack them, so neither `dotnet ef database update` nor the
+> `WTT.Database.exe` bundle ever applied them, and `DatabaseInitializer` still reported
+> "schema current". Both migrations were regenerated through `dotnet ef migrations add`
+> (attributes, `BuildTargetModel` and snapshot now EF-generated), keeping their original
+> IDs. Verified: `__EFMigrationsHistory` now carries 6 rows.
 
 ---
 
@@ -234,10 +248,16 @@ dotnet test tests/WTT.Tests/AlarmEvaluationServiceTests.cs
 
 ### 2. Apply Database Migration
 ```bash
-dotnet ef database update --project src/WTT.Infrastructure --startup-project src/WTT.UI
+dotnet ef database update --project "src\WTT.Infrastructure\WTT.Infrastructure.csproj" --startup-project "src\WTT.Infrastructure\WTT.Infrastructure.csproj" --context AppDbContext
+```
+In production use the bundled runner instead (built by `deploy\Publish-Release.ps1`):
+```powershell
+.\Database\WTT.Database.exe --connection "Server=.;Database=WTT;Integrated Security=True;Encrypt=True"
 ```
 
-**Expected:** New optimized indexes created.
+**Expected:** New optimized indexes created. Confirm with
+`SELECT MigrationId FROM __EFMigrationsHistory ORDER BY MigrationId` — 6 rows, ending
+with `20260927090000_AddHistorianTrendIndex`.
 
 ---
 
