@@ -12,6 +12,7 @@ using Wpf.Ui.DependencyInjection;
 using WTT.Application.Interfaces;
 using WTT.Infrastructure;
 using WTT.Infrastructure.Persistence;
+using WTT.UI.Logging;
 using WTT.UI.Services;
 using WTT.UI.ViewModels;
 using WTT.UI.Views.Pages;
@@ -35,12 +36,9 @@ public partial class App : System.Windows.Application
                    .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("WTT_ENVIRONMENT") ?? "Production"}.json", optional: true)
                    .AddEnvironmentVariables("WTT_");
             })
-            .UseSerilog((ctx, services, cfg) => cfg
-                .ReadFrom.Configuration(ctx.Configuration)
-                .ReadFrom.Services(services)
-                .Enrich.FromLogContext())
             .ConfigureServices((ctx, services) =>
             {
+                services.AddWttLogging(ctx.Configuration);
                 services.AddInfrastructure(ctx.Configuration);
 
                 // WPF-UI plumbing
@@ -82,9 +80,7 @@ public partial class App : System.Windows.Application
                 services.AddTransient<UsersPage>();
                 services.AddTransient<UsersViewModel>();
                 services.AddTransient<LogViewerPage>();
-                services.AddTransient<LogViewerViewModel>(); 
-                services.AddTransient<AlarmsPage>();
-                services.AddTransient<AlarmsViewModel>();
+                services.AddTransient<LogViewerViewModel>();
                 services.AddTransient<SettingsPage>();
                 services.AddTransient<SettingsViewModel>();
                 services.AddTransient<ProfilePage>();
