@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using WTT.Application.DTOs;
 using WTT.Application.Interfaces;
+using WTT.Application.Security;
 using WTT.Domain.Entities;
 using WTT.Domain.Enums;
 using WTT.Domain.ValueObjects;
@@ -298,6 +299,7 @@ public partial class AlarmsViewModel : ViewModelBase
     private async Task AcknowledgeAsync(AlarmEvent alarm)
     {
         if (alarm == null) return;
+        _currentUser.Demand(Permission.AcknowledgeAlarm);
         await RunAsync(async () =>
         {
             // Save acknowledgment to DB (with operator username)
@@ -314,6 +316,7 @@ public partial class AlarmsViewModel : ViewModelBase
     [RelayCommand]
     private async Task AcknowledgeAllAsync()
     {
+        _currentUser.Demand(Permission.AcknowledgeAlarm);
         await RunAsync(async () =>
         {
             // Acknowledge all active alarms at once

@@ -12,7 +12,7 @@
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
                 <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RefreshCommand}" Margin="0,0,8,0" />
-                <ui:Button Content="Add user" Icon="{ui:SymbolIcon PersonAdd24}" Appearance="Primary" Command="{Binding AddCommand}" />
+                <ui:Button Content="Add user" Icon="{ui:SymbolIcon PersonAdd24}" Appearance="Primary" Command="{Binding AddCommand}" Visibility="{Binding CanManageUsers, Converter={StaticResource BoolToVis}}" />
             </StackPanel>
         </Grid>
         <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding Users}" SelectedItem="{Binding Selected}">
@@ -31,10 +31,10 @@
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <ui:Button Icon="{ui:SymbolIcon Edit24}" ToolTip="Edit" Padding="8,2" Margin="0,0,4,0" Appearance="Secondary" Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
-                                <ui:Button Icon="{ui:SymbolIcon Key24}" ToolTip="Reset password" Padding="8,2" Margin="0,0,4,0" Appearance="Secondary" Command="{Binding DataContext.ResetPasswordCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
-                                <ui:Button Icon="{ui:SymbolIcon LockOpen24}" ToolTip="Unlock" Padding="8,2" Margin="0,0,4,0" Appearance="Secondary" Command="{Binding DataContext.UnlockCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
-                                <ui:Button Icon="{ui:SymbolIcon Delete24}" ToolTip="Delete" Padding="8,2" Appearance="Danger" Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                                <ui:Button Icon="{ui:SymbolIcon Edit24}" ToolTip="Edit" Padding="8,2" Margin="0,0,4,0" Appearance="Secondary" Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" Visibility="{Binding DataContext.CanManageUsers, Converter={StaticResource BoolToVis}, RelativeSource={RelativeSource AncestorType=Page}}" />
+                                <ui:Button Icon="{ui:SymbolIcon Key24}" ToolTip="Reset password" Padding="8,2" Margin="0,0,4,0" Appearance="Secondary" Command="{Binding DataContext.ResetPasswordCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" Visibility="{Binding DataContext.CanManageUsers, Converter={StaticResource BoolToVis}, RelativeSource={RelativeSource AncestorType=Page}}" />
+                                <ui:Button Icon="{ui:SymbolIcon LockOpen24}" ToolTip="Unlock" Padding="8,2" Margin="0,0,4,0" Appearance="Secondary" Command="{Binding DataContext.UnlockCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" Visibility="{Binding DataContext.CanManageUsers, Converter={StaticResource BoolToVis}, RelativeSource={RelativeSource AncestorType=Page}}" />
+                                <ui:Button Icon="{ui:SymbolIcon Delete24}" ToolTip="Delete" Padding="8,2" Appearance="Danger" Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" Visibility="{Binding DataContext.CanManageUsers, Converter={StaticResource BoolToVis}, RelativeSource={RelativeSource AncestorType=Page}}" />
                             </StackPanel>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>

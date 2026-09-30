@@ -18,6 +18,7 @@ namespace WTT.Tests;
 /// Boots the real composition root (AddInfrastructure) against a temporary SQL Server database with the
 /// simulator enabled and drives the capture pipeline the way the UI would.
 /// </summary>
+[Trait("Category", "Integration")]
 public sealed class CapturePipelineEndToEndTests : IAsyncLifetime
 {
     private readonly SqlServerTestDatabase _database = new();

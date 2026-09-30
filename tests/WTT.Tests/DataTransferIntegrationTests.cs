@@ -15,6 +15,7 @@ using Xunit;
 
 namespace WTT.Tests;
 
+[Trait("Category", "Integration")]
 public sealed class DataTransferIntegrationTests : IAsyncLifetime
 {
     private readonly SqlServerTestDatabase _database = new();

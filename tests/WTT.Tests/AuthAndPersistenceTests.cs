@@ -17,6 +17,7 @@ using Xunit;
 namespace WTT.Tests;
 
 /// <summary>Real SQL Server database + real BCrypt; only the audit sink is faked.</summary>
+[Trait("Category", "Integration")]
 public sealed class AuthAndPersistenceTests : IAsyncLifetime
 {
     private const string AdminPassword = "Admin#Secure2026";

@@ -10,6 +10,7 @@ using Xunit;
 
 namespace WTT.Tests;
 
+[Trait("Category", "Integration")]
 public sealed class RuntimeStatusIntegrationTests : IAsyncLifetime
 {
     private readonly SqlServerTestDatabase _database = new();

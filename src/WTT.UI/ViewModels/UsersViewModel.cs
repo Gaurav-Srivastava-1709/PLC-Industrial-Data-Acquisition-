@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using WTT.Application.DTOs;
 using WTT.Application.Interfaces;
+using WTT.Application.Security;
 using WTT.Domain.Enums;
 using WTT.UI.Services;
 
@@ -23,9 +24,15 @@ public partial class UsersViewModel : ViewModelBase
     public ObservableCollection<UserDto> Users { get; } = new();
     [ObservableProperty] private UserDto? _selected;
 
+    public bool CanManageUsers => _currentUser.HasPermission(Permission.ManageUsers);
+
     public event EventHandler<UserEditViewModel>? EditRequested;
 
-    public override Task OnNavigatedToAsync() => LoadAsync();
+    public override Task OnNavigatedToAsync()
+    {
+        OnPropertyChanged(nameof(CanManageUsers));
+        return LoadAsync();
+    }
 
     private async Task LoadAsync() => await RunAsync(async () =>
     {
@@ -33,7 +40,7 @@ public partial class UsersViewModel : ViewModelBase
         Users.Clear(); foreach (var u in list) Users.Add(u);
     });
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanManageUsers))]
     private void Add()
     {
         var vm = _editFactory();
@@ -42,7 +49,7 @@ public partial class UsersViewModel : ViewModelBase
         EditRequested?.Invoke(this, vm);
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanManageUsers))]
     private void Edit(UserDto? user)
     {
         user ??= Selected;
@@ -53,7 +60,7 @@ public partial class UsersViewModel : ViewModelBase
         EditRequested?.Invoke(this, vm);
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanManageUsers))]
     private void ResetPassword(UserDto? user)
     {
         user ??= Selected;
@@ -64,7 +71,7 @@ public partial class UsersViewModel : ViewModelBase
         EditRequested?.Invoke(this, vm);
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanManageUsers))]
     private async Task UnlockAsync(UserDto? user)
     {
         user ??= Selected;
@@ -72,7 +79,7 @@ public partial class UsersViewModel : ViewModelBase
         if (await RunAsync(() => _users.UnlockAsync(user.Id))) { Dialogs.Toast("Users", $"'{user.Username}' unlocked.", ToastKind.Success); await LoadAsync(); }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanManageUsers))]
     private async Task DeleteAsync(UserDto? user)
     {
         user ??= Selected;
