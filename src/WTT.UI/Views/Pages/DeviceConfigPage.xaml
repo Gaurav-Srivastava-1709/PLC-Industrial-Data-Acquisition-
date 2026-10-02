@@ -14,6 +14,30 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+        <!-- Active tab highlight (UX research: underline + bold + accent, teeno
+             ek sath; sirf rang se pata nahi chalta). Fixed accent #0EA5E9 +
+             translucent wash dono mode me dikhta hai. -->
+        <Style x:Key="ProTabItem" TargetType="TabItem">
+            <Setter Property="FontSize" Value="13.5" />
+            <Setter Property="Padding" Value="14,9" />
+            <Setter Property="Margin" Value="0,0,2,0" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0,0,0,3" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#140EA5E9" />
+                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Foreground" Value="#0EA5E9" />
+                    <Setter Property="FontWeight" Value="Bold" />
+                    <Setter Property="Background" Value="#140EA5E9" />
+                    <Setter Property="BorderBrush" Value="#0EA5E9" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Page.Resources>
 
     <Grid Style="{StaticResource PageRoot}">
@@ -35,7 +59,7 @@
 
         <TabControl Grid.Row="1">
             <!-- ================= PLC TAGS ================= -->
-            <TabItem Header="PLC tags">
+            <TabItem Header="PLC tags" Style="{StaticResource ProTabItem}">
                 <Grid Margin="0,12,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -194,7 +218,7 @@
             </TabItem>
 
             <!-- ================= ADDRESS BLOCKS (Modbus) ================= -->
-            <TabItem Header="Address blocks" Visibility="{Binding IsModbus, Converter={StaticResource BoolToVis}}">
+            <TabItem Header="Address blocks" Style="{StaticResource ProTabItem}" Visibility="{Binding IsModbus, Converter={StaticResource BoolToVis}}">
                 <Grid Margin="0,12,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -244,7 +268,7 @@
             </TabItem>
 
             <!-- ================= CUSTOM & EXTERNAL ================= -->
-            <TabItem Header="Custom &amp; external tags">
+            <TabItem Header="Custom &amp; external tags" Style="{StaticResource ProTabItem}">
                 <Grid Margin="0,12,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -370,7 +394,7 @@
             </TabItem>
 
             <!-- ================= CAPTURE TRIGGER ================= -->
-            <TabItem Header="Capture trigger">
+            <TabItem Header="Capture trigger" Style="{StaticResource ProTabItem}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
                     <StackPanel MaxWidth="900" HorizontalAlignment="Left">
                         <Border Style="{StaticResource Card}" Margin="0,0,0,12">
@@ -440,7 +464,7 @@
             </TabItem>
 
             <!-- ================= TRANSFER SERVER ================= -->
-            <TabItem Header="Central server">
+            <TabItem Header="Central server" Style="{StaticResource ProTabItem}">
                 <StackPanel Margin="0,12,0,0" MaxWidth="900" HorizontalAlignment="Left">
                     <Border Style="{StaticResource Card}">
                         <StackPanel>
