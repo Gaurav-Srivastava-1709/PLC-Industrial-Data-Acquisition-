@@ -32,9 +32,12 @@
                 <ui:ToggleSwitch IsChecked="{Binding IsAutoRefreshEnabled, Mode=TwoWay}"
                                  OnContent="Live (30s)" OffContent="Auto-refresh"
                                  Margin="0,0,8,0" VerticalAlignment="Center" />
-                <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowClockwise24}"
-                           Command="{Binding RefreshCommand}" Margin="0,0,8,0"
-                           ToolTip="Reload log entries from disk" />
+                <Button Style="{StaticResource CoralRefreshBtn}" Command="{Binding RefreshCommand}" Margin="0,0,8,0" ToolTip="Reload log entries from disk">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <ui:SymbolIcon Symbol="ArrowClockwise24" Foreground="White" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center" />
+                        <TextBlock Text="Refresh" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
                 <ui:Button Content="Open folder" Icon="{ui:SymbolIcon FolderOpen24}"
                            Command="{Binding OpenFolderCommand}"
                            ToolTip="Open the log folder in Windows Explorer" />

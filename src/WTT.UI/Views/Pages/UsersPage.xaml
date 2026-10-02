@@ -11,7 +11,12 @@
                 <TextBlock Text="Admin: full control · Operator: start/stop capture, view logs · Viewer: read only. New users must change their password at first login." Style="{StaticResource PageSubtitle}" />
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
-                <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RefreshCommand}" Margin="0,0,8,0" />
+                <Button Style="{StaticResource CoralRefreshBtn}" Command="{Binding RefreshCommand}" Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <ui:SymbolIcon Symbol="ArrowClockwise24" Foreground="White" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center" />
+                        <TextBlock Text="Refresh" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
                 <ui:Button Content="Add user" Icon="{ui:SymbolIcon PersonAdd24}" Appearance="Primary" Command="{Binding AddCommand}" Visibility="{Binding CanManageUsers, Converter={StaticResource BoolToVis}}" />
             </StackPanel>
         </Grid>
@@ -30,11 +35,17 @@
                 <DataGridTemplateColumn Header="Actions" Width="150" MinWidth="146" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <ui:Button Icon="{ui:SymbolIcon Edit24}" ToolTip="Edit" Padding="6,3" Margin="0,0,4,0" Appearance="Secondary" Style="{StaticResource RowActionBtn}" Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" Visibility="{Binding DataContext.CanManageUsers, Converter={StaticResource BoolToVis}, RelativeSource={RelativeSource AncestorType=Page}}" />
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <!-- Modern Blue Gradient Edit Button -->
+                                <Button Style="{StaticResource EditBtn}" ToolTip="Edit user" Width="28" Height="28" Margin="0,0,4,0" Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" Visibility="{Binding DataContext.CanManageUsers, Converter={StaticResource BoolToVis}, RelativeSource={RelativeSource AncestorType=Page}}">
+                                    <ui:SymbolIcon Symbol="Edit24" Foreground="White" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Button>
                                 <ui:Button Icon="{ui:SymbolIcon Key24}" ToolTip="Reset password" Padding="6,3" Margin="0,0,4,0" Appearance="Secondary" Style="{StaticResource RowActionBtn}" Command="{Binding DataContext.ResetPasswordCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" Visibility="{Binding DataContext.CanManageUsers, Converter={StaticResource BoolToVis}, RelativeSource={RelativeSource AncestorType=Page}}" />
                                 <ui:Button Icon="{ui:SymbolIcon LockOpen24}" ToolTip="Unlock" Padding="6,3" Margin="0,0,4,0" Appearance="Secondary" Style="{StaticResource RowActionBtn}" Command="{Binding DataContext.UnlockCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" Visibility="{Binding DataContext.CanManageUsers, Converter={StaticResource BoolToVis}, RelativeSource={RelativeSource AncestorType=Page}}" />
-                                <ui:Button Icon="{ui:SymbolIcon Delete24}" ToolTip="Delete" Padding="6,3" Appearance="Danger" Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" Visibility="{Binding DataContext.CanManageUsers, Converter={StaticResource BoolToVis}, RelativeSource={RelativeSource AncestorType=Page}}" />
+                                <!-- Industry Grade Trash Button -->
+                                <Button Style="{StaticResource TrashBtn}" ToolTip="Delete user" Width="28" Height="28" Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" Visibility="{Binding DataContext.CanManageUsers, Converter={StaticResource BoolToVis}, RelativeSource={RelativeSource AncestorType=Page}}">
+                                    <ui:SymbolIcon Symbol="Delete24" Foreground="White" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Button>
                             </StackPanel>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>

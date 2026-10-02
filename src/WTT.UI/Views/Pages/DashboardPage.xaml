@@ -160,8 +160,12 @@
                         <ui:Button Content="Trends" Icon="{ui:SymbolIcon DataHistogram24}" Margin="0,0,8,0"
                                    Padding="12,6" Appearance="Secondary"
                                    Command="{Binding OpenTrendsCommand}" />
-                        <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowClockwise24}" Padding="12,6"
-                                   Command="{Binding RefreshCommand}" />
+                        <Button Style="{StaticResource CoralRefreshBtn}" Command="{Binding RefreshCommand}" ToolTip="Refresh dashboard">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <ui:SymbolIcon Symbol="ArrowClockwise24" Foreground="White" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Refresh" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </Grid>
 

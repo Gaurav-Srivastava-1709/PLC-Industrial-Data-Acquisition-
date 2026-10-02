@@ -18,7 +18,9 @@
                 <ComboBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" DisplayMemberPath="Name" Width="240" Margin="0,0,8,0" />
                 <ui:TextBox PlaceholderText="Filter…" Icon="{ui:SymbolIcon Search24}" Width="200" Text="{Binding Filter, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0" />
                 <ui:Button Content="Export CSV" Icon="{ui:SymbolIcon ArrowDownload24}" Command="{Binding ExportCsvCommand}" Margin="0,0,8,0" />
-                <ui:Button Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RefreshCommand}" />
+                <Button Style="{StaticResource CoralRefreshIconBtn}" Command="{Binding RefreshCommand}" ToolTip="Refresh">
+                    <ui:SymbolIcon Symbol="ArrowClockwise24" Foreground="White" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
             </WrapPanel>
         </Grid>
 

@@ -14,7 +14,12 @@
                 <TextBlock Text="Store-and-forward from the local buffer to each device's central SQL Server. Transfers are idempotent and retried automatically." Style="{StaticResource PageSubtitle}" />
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
-                <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RefreshCommand}" Margin="0,0,8,0" />
+                <Button Style="{StaticResource CoralRefreshBtn}" Command="{Binding RefreshCommand}" Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <ui:SymbolIcon Symbol="ArrowClockwise24" Foreground="White" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center" />
+                        <TextBlock Text="Refresh" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </Grid>
 

@@ -56,7 +56,12 @@
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,12">
                         <ui:Button Content="Acknowledge All" Icon="{ui:SymbolIcon CheckmarkCircle24}" Appearance="Primary" Command="{Binding AcknowledgeAllCommand}" />
-                        <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding LoadActiveAlarmsCommand}" Margin="12,0,0,0" />
+                        <Button Style="{StaticResource CoralRefreshBtn}" Command="{Binding LoadActiveAlarmsCommand}" Margin="12,0,0,0" ToolTip="Refresh alarms">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <ui:SymbolIcon Symbol="ArrowSync24" Foreground="White" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Refresh" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
 
                     <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding ActiveAlarms}"

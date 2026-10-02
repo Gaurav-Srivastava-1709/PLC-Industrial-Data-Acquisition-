@@ -83,7 +83,9 @@
                            Margin="0,0,8,6" /> -->
 
                 <!-- Refresh -->
-                <ui:Button Icon="{ui:SymbolIcon ArrowClockwise24}" ToolTip="Refresh Window" Command="{Binding RefreshCommand}" Margin="0,0,8,6" />
+                <Button Style="{StaticResource CoralRefreshIconBtn}" Command="{Binding RefreshCommand}" Margin="0,0,8,6" ToolTip="Refresh Window">
+                    <ui:SymbolIcon Symbol="ArrowClockwise24" Foreground="White" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Button>
             </WrapPanel>
             <!-- Mixed-units warning -->
             <TextBlock Grid.Row="2" Text="{Binding UnitsWarning}" Foreground="#FFB300" FontSize="12" Margin="0,6,0,0"

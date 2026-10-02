@@ -16,7 +16,12 @@
                 <TextBlock Text="PLCs and data loggers. Select a device and open Configure to manage tags, address blocks, triggers and the transfer server." Style="{StaticResource PageSubtitle}" />
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
-                <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowClockwise24}" Command="{Binding RefreshCommand}" Margin="0,0,8,0" />
+                <Button Style="{StaticResource CoralRefreshBtn}" Command="{Binding RefreshCommand}" Margin="0,0,8,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <ui:SymbolIcon Symbol="ArrowClockwise24" Foreground="White" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center" />
+                        <TextBlock Text="Refresh" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
                 <ui:Button Content="Add device" Icon="{ui:SymbolIcon Add24}" Appearance="Primary" Command="{Binding AddCommand}"
                            Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}" />
             </StackPanel>
@@ -66,15 +71,20 @@
                 <DataGridTemplateColumn Header="Actions" Width="200" MinWidth="196" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <!-- Actions StackPanel: VerticalAlignment=Center rakha hai taaki DataGrid cell ke andar buttons exact middle me align hon -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                                 <ui:Button Content="Configure" Icon="{ui:SymbolIcon Settings24}" FontSize="12" Appearance="Secondary" Margin="0,0,6,0" Padding="6,3" MinWidth="88" Style="{StaticResource RowActionBtn}"
                                            Command="{Binding DataContext.ConfigureCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
-                                <ui:Button Icon="{ui:SymbolIcon Edit24}" ToolTip="Edit connection" Appearance="Secondary" Margin="0,0,6,0" Padding="6,3" Style="{StaticResource RowActionBtn}"
+                                <!-- Modern Blue Gradient Edit Button -->
+                                <Button Style="{StaticResource EditBtn}" ToolTip="Edit connection" Margin="0,0,6,0" Width="28" Height="28"
                                            Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
-                                           Visibility="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}" />
-                                <ui:Button Icon="{ui:SymbolIcon Delete24}" ToolTip="Delete" Appearance="Danger" Padding="6,3"
-                                           Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
-                                           Visibility="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}" />
+                                           Visibility="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}">
+                                    <ui:SymbolIcon Symbol="Edit24" Foreground="White" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Button>
+                                <!-- Industry Grade Trash Button (Zero Bottom Edge Clipping) -->
+                                <Button Style="{StaticResource TrashBtn}" ToolTip="Delete" Width="28" Height="28" Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" Visibility="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}">
+                                    <ui:SymbolIcon Symbol="Delete24" Foreground="White" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Button>
                             </StackPanel>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>

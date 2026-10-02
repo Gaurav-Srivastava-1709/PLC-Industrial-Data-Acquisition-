@@ -1,4 +1,4 @@
-﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
 
@@ -96,7 +96,8 @@
         <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
         <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
         <Setter Property="HeadersVisibility" Value="Column" />
-        <Setter Property="RowHeight" Value="34" />
+        <!-- Table row height ko 38px set kiya taaki cell action buttons (Edit/Delete) neeche se cut na hon -->
+        <Setter Property="RowHeight" Value="38" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
         <Setter Property="EnableRowVirtualization" Value="True" />
@@ -525,5 +526,183 @@
                 </Setter>
             </Trigger>
         </Style.Triggers>
+    </Style>
+
+    <!-- Coral Refresh buttons (flat, rounded, white icon + text).
+         Native Button + apna template taaki hover par rang na badle
+         (WPF-UI Button hover override karta hai - Delete wala sabak).
+         Text wale = CoralRefreshBtn, icon-only = CoralRefreshIconBtn. -->
+    <Style x:Key="CoralRefreshBtn" TargetType="{x:Type Button}">
+        <Setter Property="Background" Value="#FF8559" />
+        <Setter Property="BorderBrush" Value="#E06A3F" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Padding" Value="14,7" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6" Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          RecognizesAccessKey="True" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#F27244" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#C85A34" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#D95F33" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#B34E28" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Background" Value="#E7E5E4" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#D6D3D1" />
+                            <Setter Property="Foreground" Value="#A8A29E" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="CoralRefreshIconBtn" TargetType="{x:Type Button}" BasedOn="{StaticResource CoralRefreshBtn}">
+        <Setter Property="Padding" Value="9,7" />
+        <Setter Property="MinWidth" Value="34" />
+    </Style>
+
+    <!-- Modern Edit icon button (blue gradient background #3B82F6 -> #2563EB, white pencil icon, rounded square shape, subtle shadow).
+         Flat UI style, professional dashboard icon button. -->
+    <Style x:Key="EditBtn" TargetType="{x:Type Button}">
+        <!-- Top se Bottom blue gradient background -->
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#3B82F6" Offset="0" />
+                    <GradientStop Color="#2563EB" Offset="1" />
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="BorderBrush" Value="#1D4ED8" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="MinWidth" Value="28" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <!-- Rounded square border with 6px radius and subtle shadow -->
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6" Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <Border.Effect>
+                            <!-- Blue tinted subtle drop shadow -->
+                            <DropShadowEffect Color="#302563EB" BlurRadius="4"
+                                              ShadowDepth="1" Direction="270" Opacity="0.4" />
+                        </Border.Effect>
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          RecognizesAccessKey="True" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <!-- Hover state gradient -->
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background">
+                                <Setter.Value>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#60A5FA" Offset="0" />
+                                        <GradientStop Color="#1D4ED8" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Setter.Value>
+                            </Setter>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#1E40AF" />
+                        </Trigger>
+                        <!-- Clicked / Pressed state -->
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background">
+                                <Setter.Value>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#1D4ED8" Offset="0" />
+                                        <GradientStop Color="#1E40AF" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <!-- Disabled state -->
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Background" Value="#E7E5E4" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#D6D3D1" />
+                            <Setter Property="Foreground" Value="#A8A29E" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Dark-red trash icon button (flat, rounded square, subtle shadow).
+         Native Button + apna template taaki hover par rang pakka rahe. -->
+    <Style x:Key="TrashBtn" TargetType="{x:Type Button}">
+        <!-- Industry red background (#DC2626) -->
+        <Setter Property="Background" Value="#DC2626" />
+        <Setter Property="BorderBrush" Value="#B91C1C" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="13" />
+        <!-- Padding zero rakha taaki icon DataGrid cell ke andar cut na ho -->
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="MinWidth" Value="28" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6" Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <Border.Effect>
+                            <!-- Shadow depth 1px aur blur 4px focus rakhi hai jisse bottom edge clipping solve hoti hai -->
+                            <DropShadowEffect Color="#30DC2626" BlurRadius="4"
+                                              ShadowDepth="1" Direction="270" Opacity="0.4" />
+                        </Border.Effect>
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          RecognizesAccessKey="True" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#B91C1C" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#991B1B" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#991B1B" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#7F1D1D" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Background" Value="#E7E5E4" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#D6D3D1" />
+                            <Setter Property="Foreground" Value="#A8A29E" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 </ResourceDictionary>
