@@ -526,7 +526,7 @@
                                 <TextBlock Grid.Row="5" Text="Last error" Style="{StaticResource FieldLabel}" /><TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Server.LastError}" Style="{StaticResource ErrorText}" Margin="0,8,0,4" />
                             </Grid>
                             <StackPanel Orientation="Horizontal" Margin="0,16,0,0" Visibility="{Binding CanManageTransfer, Converter={StaticResource BoolToVis}}">
-                                <ui:Button Content="Configure server" Icon="{ui:SymbolIcon Database24}" Style="{StaticResource RowActionBtn}" Command="{Binding EditServerCommand}" Margin="0,0,8,0" />
+                                <ui:Button Content="Configure server" Icon="{ui:SymbolIcon Database24}" Appearance="Primary" Command="{Binding EditServerCommand}" Margin="0,0,8,0" />
                                 <ui:Button Content="Enable / disable" Command="{Binding ToggleServerEnabledCommand}" Margin="0,0,8,0" Visibility="{Binding Server, Converter={StaticResource NotNullToVis}}" />
                                 <Button Style="{StaticResource TrashBtn}" Padding="14,7" ToolTip="Remove server" Command="{Binding DeleteServerCommand}" Visibility="{Binding Server, Converter={StaticResource NotNullToVis}}">
                                     <TextBlock Text="Remove" VerticalAlignment="Center" />
