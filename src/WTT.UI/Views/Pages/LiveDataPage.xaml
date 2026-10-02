@@ -38,7 +38,7 @@
             <DataGrid Style="{StaticResource Grid}" ItemsSource="{Binding Rows}"
                       HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1"
                       CanUserResizeColumns="True" CanUserReorderColumns="False">
-            <DataGrid.Resources>
+            <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="FontSize" Value="12.5"/><Setter Property="Padding" Value="8,6"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="MinHeight" Value="36"/></Style></DataGrid.ColumnHeaderStyle><DataGrid.CellStyle><Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}"><Setter Property="Padding" Value="8,4"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridCell"><Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True"><ContentPresenter VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter></Style></DataGrid.CellStyle><DataGrid.Resources>
                 <Style TargetType="TextBlock" x:Key="TrimCell">
                     <Setter Property="TextTrimming" Value="CharacterEllipsis" />
                     <Setter Property="VerticalAlignment" Value="Center" />
@@ -74,25 +74,22 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Tag" Binding="{Binding Name}" Width="*" MinWidth="140" ElementStyle="{StaticResource TrimCell}" />
-                <DataGridTextColumn Header="Address / kind" Binding="{Binding Address}" Width="110" MinWidth="90" ElementStyle="{StaticResource TrimCell}" />
-                <DataGridTextColumn Header="Type" Binding="{Binding DataType}" Width="65" MinWidth="60" />
-                <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="100" MinWidth="85" FontFamily="Consolas" FontWeight="SemiBold">
+                <DataGridTextColumn Header="Tag" Binding="{Binding Name}" Width="*" MinWidth="150" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Address / kind" Binding="{Binding Address}" Width="120" MinWidth="100" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Type" Binding="{Binding DataType}" Width="70" MinWidth="65" />
+                <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="135" MinWidth="110" FontFamily="Consolas" FontWeight="SemiBold">
                     <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding HasActiveAlarm}" Value="True">
-                                    <Setter Property="Foreground" Value="#FFFF3B30" />
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource TrimCell}"><Setter Property="ToolTip" Value="{Binding Value}" /><Style.Triggers><DataTrigger Binding="{Binding HasActiveAlarm}" Value="True"><Setter Property="Foreground" Value="#FFFF3B30" />
                                     <Setter Property="FontWeight" Value="Bold" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
                     </DataGridTextColumn.ElementStyle>
                 </DataGridTextColumn>
-                <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="50" MinWidth="45" />
-                <DataGridTextColumn Header="Min" Binding="{Binding MinDisplay}" Width="60" MinWidth="55" />
-                <DataGridTextColumn Header="Max" Binding="{Binding MaxDisplay}" Width="60" MinWidth="55" />
-                <DataGridTemplateColumn Header="Alarm" Width="85" MinWidth="75">
+                <DataGridTextColumn Header="Unit" Binding="{Binding Unit}" Width="55" MinWidth="50" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Min" Binding="{Binding MinDisplay}" Width="65" MinWidth="60" />
+                <DataGridTextColumn Header="Max" Binding="{Binding MaxDisplay}" Width="65" MinWidth="60" />
+                <DataGridTemplateColumn Header="Alarm" Width="95" MinWidth="85">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -144,12 +141,12 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="75" MinWidth="65" />
-                <DataGridTextColumn Header="Updated" Binding="{Binding TimestampUtc, Converter={StaticResource UtcToLocal}, ConverterParameter=HH:mm:ss.fff}" Width="100" MinWidth="90" />
-                <DataGridTemplateColumn Header="" Width="80" MinWidth="80" CanUserResize="False">
+                <DataGridTextColumn Header="Quality" Binding="{Binding Quality}" Width="65" MinWidth="60" />
+                <DataGridTextColumn Header="Updated" Binding="{Binding TimestampUtc, Converter={StaticResource UtcToLocal}, ConverterParameter=HH:mm:ss.fff}" Width="130" MinWidth="120" FontFamily="Consolas" />
+                <DataGridTemplateColumn Header="Action" Width="100" MinWidth="96" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <ui:Button Content="Write" Icon="{ui:SymbolIcon Edit24}" Padding="8,2" HorizontalAlignment="Right" Appearance="Secondary"
+                            <ui:Button Content="Write" Icon="{ui:SymbolIcon Edit24}" FontSize="12" Padding="10,4" HorizontalAlignment="Center" VerticalAlignment="Center" Appearance="Secondary" ToolTip="Write value to PLC"
                                         Command="{Binding DataContext.WriteCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
                                         IsEnabled="{Binding IsWritable}"
                                        Visibility="{Binding DataContext.CanWrite, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}" />

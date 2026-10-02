@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:pages="clr-namespace:WTT.UI.Views.Pages"
-        Title="WTT — Industrial Data Acquisition" Height="800" Width="1280" MinHeight="560" MinWidth="720"
+        Title="" Height="800" Width="1280" MinHeight="560" MinWidth="720"
         WindowStartupLocation="CenterScreen" WindowState="Maximized"
         Background="{DynamicResource ApplicationBackgroundBrush}">
     <Window.InputBindings>
@@ -106,7 +106,7 @@
                                     </Border>
                                 </Grid>
                             </ui:Button>
-                            <CheckBox IsChecked="{Binding IsBeepEnabled}" Content="Beep" ToolTip="Beep Silent/ON (Critical/High only)" VerticalAlignment="Center" Margin="0,0,12,0" />
+                            <!-- <CheckBox IsChecked="{Binding IsBeepEnabled}" Content="Beep" ToolTip="Beep Silent/ON (Critical/High only)" VerticalAlignment="Center" Margin="0,0,12,0" /> -->
                             <!-- Compact account entry: full profile opens on its own page. -->
                             <ui:Button ToolTip="My Profile" Appearance="Secondary"
                                        Command="{Binding OpenProfileCommand}">

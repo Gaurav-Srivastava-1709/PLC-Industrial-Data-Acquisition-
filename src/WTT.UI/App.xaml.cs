@@ -77,6 +77,8 @@ public partial class App : System.Windows.Application
                 services.AddSingleton<TrendsViewModel>();
                 services.AddTransient<DataTransferPage>();
                 services.AddTransient<DataTransferViewModel>();
+                services.AddTransient<AlarmsPage>();
+                services.AddTransient<AlarmsViewModel>();
                 services.AddTransient<UsersPage>();
                 services.AddTransient<UsersViewModel>();
                 // Logs & Audit Viewer (Singleton taaki Dashboard par jaakar wapas aane par Auto-refresh aur filters reset na ho)

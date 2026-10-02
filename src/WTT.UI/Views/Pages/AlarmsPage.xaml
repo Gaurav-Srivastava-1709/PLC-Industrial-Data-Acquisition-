@@ -13,6 +13,8 @@
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Margin" Value="2"/>
         </Style>
+        <!-- Professional danger (native Button + own template so WPF-UI hover never turns it white) -->
+<Style x:Key="DangerProNative" TargetType="Button"><Setter Property="Background" Value="#B42318"/><Setter Property="BorderBrush" Value="#7A271A"/><Setter Property="Foreground" Value="White"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="FontSize" Value="13"/><Setter Property="Padding" Value="14,6"/><Setter Property="Margin" Value="0,0,12,0"/><Setter Property="Cursor" Value="Hand"/><Setter Property="BorderThickness" Value="1"/><Setter Property="SnapsToDevicePixels" Value="True"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button"><Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/></Border><ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="#912018"/><Setter TargetName="Bd" Property="BorderBrush" Value="#5F1D13"/></Trigger><Trigger Property="IsPressed" Value="True"><Setter TargetName="Bd" Property="Background" Value="#7A1A12"/><Setter TargetName="Bd" Property="BorderBrush" Value="#4A130D"/></Trigger><Trigger Property="IsEnabled" Value="False"><Setter TargetName="Bd" Property="Background" Value="#E7E5E4"/><Setter TargetName="Bd" Property="BorderBrush" Value="#D6D3D1"/><Setter Property="Foreground" Value="#A8A29E"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
     </Page.Resources>
     <Grid Margin="24">
         <Grid.RowDefinitions>
@@ -31,7 +33,7 @@
                     <TextBlock Text="Custom days:" VerticalAlignment="Center" Margin="8,0,4,0" Style="{StaticResource FieldLabel}"/>
                     <ui:TextBox Width="60" Text="{Binding CustomRetentionDays}" Margin="0,0,8,0"/>
                     <ui:Button Content="Save Retention" Appearance="Secondary" Command="{Binding UpdateRetentionCommand}" Margin="0,0,12,0"/>
-                    <ui:Button Content="Delete Now" Appearance="Danger" Command="{Binding PurgeNowCommand}" Margin="0,0,12,0"/>
+                    <Button Content="Delete Now" Style="{StaticResource DangerProNative}" Command="{Binding PurgeNowCommand}"/>
                     <CheckBox Content="Beep" IsChecked="{Binding IsBeepEnabled}" VerticalAlignment="Center" ToolTip="Beep ON/Silent for Critical/High"/>
                     <!-- <TextBlock Text="Email Ready (extensible)" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontStyle="Italic"/> -->
                 </StackPanel>
