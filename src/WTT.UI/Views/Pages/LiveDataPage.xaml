@@ -38,7 +38,7 @@
             <DataGrid Style="{StaticResource Grid}" ItemsSource="{Binding Rows}"
                       HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1"
                       CanUserResizeColumns="True" CanUserReorderColumns="False">
-            <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="13"/><Setter Property="Padding" Value="8,6"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="MinHeight" Value="36"/></Style></DataGrid.ColumnHeaderStyle><DataGrid.CellStyle><Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}"><Setter Property="Padding" Value="8,4"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridCell"><Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True"><ContentPresenter VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter></Style></DataGrid.CellStyle><DataGrid.Resources>
+            <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="13"/><Setter Property="Padding" Value="8,6"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="MinHeight" Value="36"/></Style></DataGrid.ColumnHeaderStyle><DataGrid.CellStyle><Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}"><Setter Property="Padding" Value="8,4"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridCell"><Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True"><ContentPresenter VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter><Style.Triggers><DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type DataGridRow}}, Path=(ItemsControl.AlternationIndex)}" Value="1"><Setter Property="Foreground" Value="#1A1A1A"/></DataTrigger></Style.Triggers></Style></DataGrid.CellStyle><DataGrid.Resources>
                 <Style TargetType="TextBlock" x:Key="TrimCell">
                     <Setter Property="TextTrimming" Value="CharacterEllipsis" />
                     <Setter Property="VerticalAlignment" Value="Center" />
@@ -47,6 +47,10 @@
             <DataGrid.RowStyle>
                 <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
                     <Style.Triggers>
+                        <DataTrigger Binding="{Binding RelativeSource={RelativeSource Self}, Path=(ItemsControl.AlternationIndex)}" Value="1">
+                            <Setter Property="Background" Value="#FFF8E1" />
+                            <Setter Property="Foreground" Value="#1A1A1A" />
+                        </DataTrigger>
                         <DataTrigger Binding="{Binding HasActiveAlarm}" Value="True">
                             <Setter Property="Background" Value="#26FF3B30" />
                         </DataTrigger>
@@ -146,7 +150,7 @@
                 <DataGridTemplateColumn Header="Action" Width="100" MinWidth="96" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <ui:Button Content="Write" Icon="{ui:SymbolIcon Edit24}" FontSize="12" Padding="10,4" HorizontalAlignment="Center" VerticalAlignment="Center" Appearance="Secondary" ToolTip="Write value to PLC"
+                            <ui:Button Content="Write" Icon="{ui:SymbolIcon Edit24}" FontSize="12" Padding="10,4" HorizontalAlignment="Center" VerticalAlignment="Center" Appearance="Secondary" ToolTip="Write value to PLC" Style="{StaticResource RowActionBtn}"
                                         Command="{Binding DataContext.WriteCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
                                         IsEnabled="{Binding IsWritable}"
                                        Visibility="{Binding DataContext.CanWrite, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}" />

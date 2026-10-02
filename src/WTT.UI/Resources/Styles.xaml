@@ -73,10 +73,28 @@
     <Style x:Key="Grid" TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
         <Setter Property="AutoGenerateColumns" Value="False" />
         <Setter Property="IsReadOnly" Value="True" />
+        <Setter Property="AlternationCount" Value="2" />
+        <!-- Alternate row cream + dark text DONO set hai taaki dark mode me bhi
+             padha jaye (dark theme ka safed text cream par gayab ho jata tha).
+             Selection (green) template-level par isse upar rehta hai. -->
+        <Setter Property="RowStyle">
+            <Setter.Value>
+                <Style TargetType="{x:Type DataGridRow}">
+                    <Style.Triggers>
+                        <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                            <Setter Property="Background" Value="#FFF8E1" />
+                            <Setter Property="Foreground" Value="#1A1A1A" />
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </Setter.Value>
+        </Setter>
         <Setter Property="CanUserAddRows" Value="False" />
         <Setter Property="CanUserDeleteRows" Value="False" />
         <Setter Property="SelectionMode" Value="Single" />
-        <Setter Property="GridLinesVisibility" Value="Horizontal" />
+        <Setter Property="GridLinesVisibility" Value="All" />
+        <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
         <Setter Property="HeadersVisibility" Value="Column" />
         <Setter Property="RowHeight" Value="34" />
         <Setter Property="BorderThickness" Value="1" />
@@ -417,5 +435,95 @@
         <Setter Property="Padding" Value="10,6" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+    </Style>
+
+    <!-- All table headers app-wide: violet (#6D28D9) background, white text.
+         Sirf rang hai - koi template change nahi, isliye header ka
+         design, separator aur sort arrow bilkul pehle jaisa rahega. -->
+    <Style TargetType="{x:Type DataGridColumnHeader}">
+        <Setter Property="Background" Value="#6D28D9" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <!-- Selected table row app-wide: blue ki jagah light green (Excel jaisa).
+         Sirf selection ke rang hai - koi template change nahi. -->
+    <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#C6EFCE" />
+    <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#006100" />
+    <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#E2EFDA" />
+    <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#006100" />
+
+    <!-- Table row ke action buttons (Write/Configure/Edit/Verify...): cream
+         alternate row par dark mode ka safed text gayab ho jata tha.
+         Danger (red) buttons ka apna background hai, unhe ye nahi chahiye. -->
+    <Style x:Key="RowActionBtn" TargetType="{x:Type ui:Button}" BasedOn="{StaticResource {x:Type ui:Button}}">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type DataGridRow}}, Path=(ItemsControl.AlternationIndex)}" Value="1">
+                <Setter Property="Foreground" Value="#1A1A1A" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Shared colourful KPI cards (Tailwind-admin inspired, Dashboard jaisa):
+         FIXED pastel gradients + dark text, isliye Light aur Dark dono me
+         same dikhte hai. DashboardPage me inhi ki local copy hai. -->
+    <LinearGradientBrush x:Key="KpiBlueBg" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#DBEAFE" Offset="0" />
+        <GradientStop Color="#BFDBFE" Offset="1" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="KpiTealBg" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#CCFBF1" Offset="0" />
+        <GradientStop Color="#99F6E0" Offset="1" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="KpiPurpleBg" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#EDE9FE" Offset="0" />
+        <GradientStop Color="#DDD6FE" Offset="1" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="KpiAmberBg" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#FEF3C7" Offset="0" />
+        <GradientStop Color="#FDE68A" Offset="1" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="KpiPinkBg" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#FCE7F3" Offset="0" />
+        <GradientStop Color="#FBCFE8" Offset="1" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="KpiRedBg" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#FEE2E2" Offset="0" />
+        <GradientStop Color="#FECACA" Offset="1" />
+    </LinearGradientBrush>
+    <Style x:Key="KpiLabel" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="10.5" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="#475569" />
+        <Setter Property="Margin" Value="0,0,0,2" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style x:Key="KpiValue" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="26" />
+        <Setter Property="FontWeight" Value="ExtraBold" />
+        <Setter Property="Foreground" Value="#0F172A" />
+    </Style>
+    <Style x:Key="ModernKpiCard" TargetType="Border">
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="BorderBrush" Value="#00000000" />
+        <Setter Property="Padding" Value="14,14,14,0" />
+        <Setter Property="Margin" Value="0,0,10,0" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="BorderBrush" Value="#CCFFFFFF" />
+                <Setter Property="RenderTransform">
+                    <Setter.Value>
+                        <TranslateTransform Y="-3" />
+                    </Setter.Value>
+                </Setter>
+                <Setter Property="Effect">
+                    <Setter.Value>
+                        <DropShadowEffect Color="#40000000" BlurRadius="14"
+                                          ShadowDepth="3" Direction="270" Opacity="0.45" />
+                    </Setter.Value>
+                </Setter>
+            </Trigger>
+        </Style.Triggers>
     </Style>
 </ResourceDictionary>
