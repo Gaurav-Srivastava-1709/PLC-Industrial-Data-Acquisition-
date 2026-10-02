@@ -73,8 +73,14 @@
                         <DataTemplate>
                             <!-- Actions StackPanel: VerticalAlignment=Center rakha hai taaki DataGrid cell ke andar buttons exact middle me align hon -->
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                <ui:Button Content="Configure" Icon="{ui:SymbolIcon Settings24}" FontSize="12" Appearance="Secondary" Margin="0,0,6,0" Padding="6,3" MinWidth="88" Style="{StaticResource RowActionBtn}"
-                                           Command="{Binding DataContext.ConfigureCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
+                                <!-- Configure button: Dark navy background (#1e3a5f) and white text & icon -->
+                                <Button FontSize="12" Margin="0,0,6,0" Padding="8,3" MinWidth="88" Style="{StaticResource ConfigureBtn}"
+                                        Command="{Binding DataContext.ConfigureCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <ui:SymbolIcon Symbol="Settings24" Foreground="White" FontSize="13" Margin="0,0,5,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="Configure" Foreground="White" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
                                 <!-- Modern Blue Gradient Edit Button -->
                                 <Button Style="{StaticResource EditBtn}" ToolTip="Edit connection" Margin="0,0,6,0" Width="28" Height="28"
                                            Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"

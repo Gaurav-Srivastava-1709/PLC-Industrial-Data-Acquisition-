@@ -733,15 +733,19 @@
                                                 <ColumnDefinition Width="8" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
-                                            <ui:Button Grid.Column="0" Content="Live data" Height="30"
-                                                       HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                                       Command="{Binding DataContext.OpenLiveDataCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                                                       CommandParameter="{Binding}" />
-                                            <ui:Button Grid.Column="2" Content="Configure" Height="30"
-                                                       HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                                       Command="{Binding DataContext.OpenDeviceCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                                                       CommandParameter="{Binding}"
-                                                       Visibility="{Binding DataContext.CanManageDevices, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}" />
+                                            <!-- Dashboard Live data button: #1d4ed8 background, white text -->
+                                            <Button Grid.Column="0" Content="Live data" Height="30"
+                                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                    Style="{StaticResource DashLiveDataBtn}"
+                                                    Command="{Binding DataContext.OpenLiveDataCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                                    CommandParameter="{Binding}" />
+                                            <!-- Configure button: #1e3a5f background, white text -->
+                                            <Button Grid.Column="2" Content="Configure" Height="30"
+                                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                    Style="{StaticResource ConfigureBtn}"
+                                                    Command="{Binding DataContext.OpenDeviceCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                                    CommandParameter="{Binding}"
+                                                    Visibility="{Binding DataContext.CanManageDevices, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}" />
                                         </Grid>
                                     </StackPanel>
                                 </Border>

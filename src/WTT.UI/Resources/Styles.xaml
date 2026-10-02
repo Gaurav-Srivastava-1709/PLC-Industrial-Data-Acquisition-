@@ -577,6 +577,183 @@
         <Setter Property="MinWidth" Value="34" />
     </Style>
 
+    <!-- Write Action Button: Blue gradient matching Edit button (#3B82F6 -> #2563EB) with white text & icon -->
+    <Style x:Key="WriteBtn" TargetType="{x:Type Button}">
+        <!-- Top se Bottom blue gradient background -->
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#3B82F6" Offset="0" />
+                    <GradientStop Color="#2563EB" Offset="1" />
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="BorderBrush" Value="#1D4ED8" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Padding" Value="10,4" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6" Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <Border.Effect>
+                            <!-- Blue tinted subtle drop shadow -->
+                            <DropShadowEffect Color="#302563EB" BlurRadius="4"
+                                              ShadowDepth="1" Direction="270" Opacity="0.4" />
+                        </Border.Effect>
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          RecognizesAccessKey="True" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <!-- Hover state: lighter gradient -->
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background">
+                                <Setter.Value>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#60A5FA" Offset="0" />
+                                        <GradientStop Color="#1D4ED8" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Setter.Value>
+                            </Setter>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#1E40AF" />
+                        </Trigger>
+                        <!-- Pressed state: deeper blue -->
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background">
+                                <Setter.Value>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#1D4ED8" Offset="0" />
+                                        <GradientStop Color="#1E40AF" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <!-- Disabled state -->
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Background" Value="#E7E5E4" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#D6D3D1" />
+                            <Setter Property="Foreground" Value="#A8A29E" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Configure Action Button: Professional Dark Navy Background (#1e3a5f) and White Text -->
+    <Style x:Key="ConfigureBtn" TargetType="{x:Type Button}">
+        <!-- Dark Navy Background (#1e3a5f) -->
+        <Setter Property="Background" Value="#1e3a5f" />
+        <Setter Property="BorderBrush" Value="#152843" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Padding" Value="10,4" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6" Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <Border.Effect>
+                            <!-- Subtle drop shadow -->
+                            <DropShadowEffect Color="#20000000" BlurRadius="4"
+                                              ShadowDepth="1" Direction="270" Opacity="0.3" />
+                        </Border.Effect>
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          RecognizesAccessKey="True" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <!-- Hover state: lighter navy blue -->
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#2A4D7C" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#1E3A5F" />
+                        </Trigger>
+                        <!-- Pressed state: deep navy -->
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#152843" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#0E1C30" />
+                        </Trigger>
+                        <!-- Disabled state -->
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Background" Value="#E7E5E4" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#D6D3D1" />
+                            <Setter Property="Foreground" Value="#A8A29E" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Dashboard Live Data Button: Rich Royal Blue (#1d4ed8) and White Text -->
+    <Style x:Key="DashLiveDataBtn" TargetType="{x:Type Button}">
+        <!-- Royal Blue (#1d4ed8) background -->
+        <Setter Property="Background" Value="#1d4ed8" />
+        <Setter Property="BorderBrush" Value="#1e40af" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Padding" Value="10,4" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="SnapsToDevicePixels" Value="True" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="6" Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <Border.Effect>
+                            <!-- Subtle drop shadow -->
+                            <DropShadowEffect Color="#301D4ED8" BlurRadius="4"
+                                              ShadowDepth="1" Direction="270" Opacity="0.4" />
+                        </Border.Effect>
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                          RecognizesAccessKey="True" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <!-- Hover state: lighter royal blue -->
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#2563EB" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#1D4ED8" />
+                        </Trigger>
+                        <!-- Pressed state: deeper blue -->
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="#1E40AF" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#172554" />
+                        </Trigger>
+                        <!-- Disabled state -->
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Background" Value="#E7E5E4" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#D6D3D1" />
+                            <Setter Property="Foreground" Value="#A8A29E" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Modern Edit icon button (blue gradient background #3B82F6 -> #2563EB, white pencil icon, rounded square shape, subtle shadow).
          Flat UI style, professional dashboard icon button. -->
     <Style x:Key="EditBtn" TargetType="{x:Type Button}">
