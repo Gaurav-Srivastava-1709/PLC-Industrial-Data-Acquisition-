@@ -31,7 +31,7 @@
             <DataGrid.InputBindings>
                 <MouseBinding MouseAction="LeftDoubleClick" Command="{Binding ConfigureCommand}" />
             </DataGrid.InputBindings>
-            <DataGrid.Resources>
+            <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="13"/><Setter Property="Padding" Value="6,5"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="MinHeight" Value="34"/></Style></DataGrid.ColumnHeaderStyle><DataGrid.CellStyle><Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}"><Setter Property="Padding" Value="6,3"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridCell"><Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True"><ContentPresenter VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter></Style></DataGrid.CellStyle><DataGrid.Resources>
                 <Style TargetType="TextBlock" x:Key="TrimCell">
                     <Setter Property="TextTrimming" Value="CharacterEllipsis" />
                     <Setter Property="VerticalAlignment" Value="Center" />
@@ -53,26 +53,26 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Name" Binding="{Binding Device.Name}" Width="*" MinWidth="150" ElementStyle="{StaticResource TrimCell}" />
-                <DataGridTextColumn Header="Protocol" Binding="{Binding Device.Protocol, Converter={StaticResource EnumDesc}}" Width="90" MinWidth="80" ElementStyle="{StaticResource TrimCell}" />
-                <DataGridTextColumn Header="Manufacturer" Binding="{Binding Device.Manufacturer, Converter={StaticResource EnumDesc}}" Width="100" MinWidth="90" ElementStyle="{StaticResource TrimCell}" />
-                <DataGridTextColumn Header="Model" Binding="{Binding Device.Model, Converter={StaticResource EnumDesc}}" Width="105" MinWidth="95" ElementStyle="{StaticResource TrimCell}" />
-                <DataGridTextColumn Header="Host" Binding="{Binding Device.Host}" Width="105" MinWidth="90" ElementStyle="{StaticResource TrimCell}" />
-                <DataGridTextColumn Header="Port" Binding="{Binding Device.Port}" Width="55" MinWidth="50" />
-                <DataGridTextColumn Header="Poll (ms)" Binding="{Binding Device.PollIntervalMs}" Width="70" MinWidth="65" />
-                <DataGridTextColumn Header="Mode" Binding="{Binding Device.CaptureMode, Converter={StaticResource EnumDesc}}" Width="80" MinWidth="70" ElementStyle="{StaticResource TrimCell}" />
-                <DataGridCheckBoxColumn Header="Capture" Binding="{Binding Device.IsCaptureEnabled}" Width="60" MinWidth="55" CanUserResize="False" />
-                <DataGridCheckBoxColumn Header="Monitor" Binding="{Binding Device.IsMonitorEnabled}" Width="60" MinWidth="55" CanUserResize="False" />
-                <DataGridTemplateColumn Header="Actions" Width="225" MinWidth="225" CanUserResize="False">
+                <DataGridTextColumn Header="Name" Binding="{Binding Device.Name}" Width="*" MinWidth="130" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Protocol" Binding="{Binding Device.Protocol, Converter={StaticResource EnumDesc}}" Width="92" MinWidth="82" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Manufacturer" Binding="{Binding Device.Manufacturer, Converter={StaticResource EnumDesc}}" Width="108" MinWidth="95" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Model" Binding="{Binding Device.Model, Converter={StaticResource EnumDesc}}" Width="110" MinWidth="95" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Host" Binding="{Binding Device.Host}" Width="102" MinWidth="90" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Port" Binding="{Binding Device.Port}" Width="70" MinWidth="64" />
+                <DataGridTextColumn Header="Poll (ms)" Binding="{Binding Device.PollIntervalMs}" Width="76" MinWidth="70" />
+                <DataGridTextColumn Header="Mode" Binding="{Binding Device.CaptureMode, Converter={StaticResource EnumDesc}}" Width="78" MinWidth="70" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridCheckBoxColumn Header="Capture" Binding="{Binding Device.IsCaptureEnabled}" Width="62" MinWidth="58" CanUserResize="False" />
+                <DataGridCheckBoxColumn Header="Monitor" Binding="{Binding Device.IsMonitorEnabled}" Width="62" MinWidth="58" CanUserResize="False" />
+                <DataGridTemplateColumn Header="Actions" Width="200" MinWidth="196" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <ui:Button Content="Configure" Icon="{ui:SymbolIcon Settings24}" Appearance="Secondary" Margin="0,0,6,0" Padding="8,4" MinWidth="105"
+                                <ui:Button Content="Configure" Icon="{ui:SymbolIcon Settings24}" FontSize="12" Appearance="Secondary" Margin="0,0,6,0" Padding="6,3" MinWidth="88"
                                            Command="{Binding DataContext.ConfigureCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}" />
-                                <ui:Button Icon="{ui:SymbolIcon Edit24}" ToolTip="Edit connection" Appearance="Secondary" Margin="0,0,6,0" Padding="8,4"
+                                <ui:Button Icon="{ui:SymbolIcon Edit24}" ToolTip="Edit connection" Appearance="Secondary" Margin="0,0,6,0" Padding="6,3"
                                            Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
                                            Visibility="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}" />
-                                <ui:Button Icon="{ui:SymbolIcon Delete24}" ToolTip="Delete" Appearance="Danger" Padding="8,4"
+                                <ui:Button Icon="{ui:SymbolIcon Delete24}" ToolTip="Delete" Appearance="Danger" Padding="6,3"
                                            Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
                                            Visibility="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}" />
                             </StackPanel>

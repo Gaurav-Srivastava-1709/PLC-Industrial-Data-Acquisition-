@@ -30,25 +30,25 @@
             <ProgressBar IsIndeterminate="True" Width="180" Height="6" Margin="16,0,0,0" Visibility="{Binding HasPending, Converter={StaticResource BoolToVis}}" />
         </StackPanel>
 
-        <DataGrid Grid.Row="3" Style="{StaticResource Grid}" ItemsSource="{Binding Servers}">
+        <DataGrid Grid.Row="3" Style="{StaticResource Grid}" ItemsSource="{Binding Servers}" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1" CanUserResizeColumns="True" CanUserReorderColumns="False"><DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="13"/><Setter Property="Padding" Value="6,5"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="MinHeight" Value="34"/></Style></DataGrid.ColumnHeaderStyle><DataGrid.CellStyle><Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}"><Setter Property="Padding" Value="6,3"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridCell"><Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True"><ContentPresenter VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter></Style></DataGrid.CellStyle><DataGrid.Resources><Style TargetType="TextBlock" x:Key="TrimCell"><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="VerticalAlignment" Value="Center"/></Style></DataGrid.Resources>
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="" Width="36">
+                <DataGridTemplateColumn Header="" Width="32" MinWidth="32" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate><DataTemplate><Ellipse Style="{StaticResource Dot}" Margin="0" HorizontalAlignment="Center" Fill="{Binding IsEnabled, Converter={StaticResource BoolToBrush}}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Device" Binding="{Binding Device.Name}" Width="160" />
-                <DataGridTextColumn Header="Server" Binding="{Binding ServerName}" Width="180" />
-                <DataGridTextColumn Header="Database" Binding="{Binding DatabaseName}" Width="130" />
-                <DataGridTextColumn Header="Table" Binding="{Binding TableName}" Width="110" />
-                <DataGridTextColumn Header="Auth" Binding="{Binding UserId}" Width="110" />
-                <DataGridTextColumn Header="Last success" Binding="{Binding LastSuccessAtUtc, Converter={StaticResource UtcToLocal}}" Width="150" />
-                <DataGridTextColumn Header="Last error" Binding="{Binding LastError}" Width="*" />
-                <DataGridTemplateColumn Header="" Width="180">
+                <DataGridTextColumn Header="Device" Binding="{Binding Device.Name}" Width="150" MinWidth="130" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Server" Binding="{Binding ServerName}" Width="130" MinWidth="100" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Database" Binding="{Binding DatabaseName}" Width="140" MinWidth="120" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Table" Binding="{Binding TableName}" Width="100" MinWidth="90" />
+                <DataGridTextColumn Header="Auth" Binding="{Binding UserId}" Width="80" MinWidth="70" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Last success" Binding="{Binding LastSuccessAtUtc, Converter={StaticResource UtcToLocal}}" Width="155" MinWidth="145" FontFamily="Consolas" />
+                <DataGridTextColumn Header="Last error" Binding="{Binding LastError}" Width="*" MinWidth="180" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTemplateColumn Header="Actions" Width="170" MinWidth="166" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <ui:Button Content="Enable/disable" Padding="8,2" Margin="0,0,4,0" Appearance="Secondary" Command="{Binding DataContext.ToggleEnabledCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
+                                <ui:Button Content="Enable/disable" FontSize="12" Padding="6,3" Margin="0,0,4,0" Appearance="Secondary" Command="{Binding DataContext.ToggleEnabledCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
                                            Visibility="{Binding DataContext.CanControl, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}" />
-                                <ui:Button Icon="{ui:SymbolIcon Settings24}" Padding="8,2" Appearance="Secondary" Command="{Binding DataContext.ConfigureCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
+                                <ui:Button Icon="{ui:SymbolIcon Settings24}" Padding="6,3" Appearance="Secondary" Command="{Binding DataContext.ConfigureCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
                                            Visibility="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}" />
                             </StackPanel>
                         </DataTemplate>
@@ -58,15 +58,15 @@
         </DataGrid>
 
         <TextBlock Grid.Row="4" Text="Recent batches" Style="{StaticResource SectionTitle}" Margin="0,16,0,6" />
-        <DataGrid Grid.Row="5" Style="{StaticResource Grid}" ItemsSource="{Binding Batches}">
+        <DataGrid Grid.Row="5" Style="{StaticResource Grid}" ItemsSource="{Binding Batches}" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1" CanUserResizeColumns="True" CanUserReorderColumns="False"><DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="13"/><Setter Property="Padding" Value="6,5"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="MinHeight" Value="34"/></Style></DataGrid.ColumnHeaderStyle><DataGrid.CellStyle><Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}"><Setter Property="Padding" Value="6,3"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridCell"><Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True"><ContentPresenter VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter></Style></DataGrid.CellStyle><DataGrid.Resources><Style TargetType="TextBlock" x:Key="TrimCell"><Setter Property="TextTrimming" Value="CharacterEllipsis"/><Setter Property="VerticalAlignment" Value="Center"/></Style></DataGrid.Resources>
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Started" Binding="{Binding StartedAtUtc, Converter={StaticResource UtcToLocal}}" Width="150" />
-                <DataGridTextColumn Header="Device" Binding="{Binding DeviceName}" Width="150" />
-                <DataGridTextColumn Header="Target" Binding="{Binding TargetServer}" Width="160" />
-                <DataGridTextColumn Header="Rows" Binding="{Binding RecordCount, StringFormat={}{0:N0}}" Width="80" />
-                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="90" />
-                <DataGridTextColumn Header="ms" Binding="{Binding DurationMs}" Width="70" />
-                <DataGridTextColumn Header="Error" Binding="{Binding ErrorMessage}" Width="*" />
+                <DataGridTextColumn Header="Started" Binding="{Binding StartedAtUtc, Converter={StaticResource UtcToLocal}}" Width="155" MinWidth="145" FontFamily="Consolas" />
+                <DataGridTextColumn Header="Device" Binding="{Binding DeviceName}" Width="140" MinWidth="120" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Target" Binding="{Binding TargetServer}" Width="120" MinWidth="100" ElementStyle="{StaticResource TrimCell}" />
+                <DataGridTextColumn Header="Rows" Binding="{Binding RecordCount, StringFormat={}{0:N0}}" Width="80" MinWidth="70" />
+                <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="90" MinWidth="80" />
+                <DataGridTextColumn Header="ms" Binding="{Binding DurationMs}" Width="70" MinWidth="60" />
+                <DataGridTextColumn Header="Error" Binding="{Binding ErrorMessage}" Width="*" MinWidth="200" ElementStyle="{StaticResource TrimCell}" />
             </DataGrid.Columns>
         </DataGrid>
     </Grid>

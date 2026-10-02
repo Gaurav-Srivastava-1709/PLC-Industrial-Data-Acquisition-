@@ -54,18 +54,27 @@
                         <ui:Button Content="Refresh" Icon="{ui:SymbolIcon ArrowSync24}" Command="{Binding LoadActiveAlarmsCommand}" Margin="12,0,0,0" />
                     </StackPanel>
 
-                    <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding ActiveAlarms}">
+                    <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding ActiveAlarms}"
+                              HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1"
+                              CanUserResizeColumns="True" CanUserReorderColumns="False">
+                        <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="13"/><Setter Property="Padding" Value="6,5"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="MinHeight" Value="34"/></Style></DataGrid.ColumnHeaderStyle><DataGrid.CellStyle><Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}"><Setter Property="Padding" Value="6,3"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridCell"><Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True"><ContentPresenter VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter></Style></DataGrid.CellStyle>
+                        <DataGrid.Resources>
+                            <Style TargetType="TextBlock" x:Key="TrimCell">
+                                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                <Setter Property="VerticalAlignment" Value="Center" />
+                            </Style>
+                        </DataGrid.Resources>
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Priority" Binding="{Binding Priority}" Width="80" />
-                            <DataGridTextColumn Header="State" Binding="{Binding State}" Width="100" />
-                            <DataGridTextColumn Header="Triggered (UTC)" Binding="{Binding TriggeredAtUtc, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="140" />
-                            <DataGridTextColumn Header="Device" Binding="{Binding DeviceName}" Width="150" />
-                            <DataGridTextColumn Header="Tag" Binding="{Binding TagName}" Width="180" />
-                            <DataGridTextColumn Header="Type" Binding="{Binding AlarmType}" Width="80" />
-                            <DataGridTextColumn Header="Value" Binding="{Binding TriggerValue}" Width="70" />
-                            <DataGridTextColumn Header="Limit" Binding="{Binding ThresholdValue}" Width="70" />
-                            <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" />
-                            <DataGridTemplateColumn Header="" Width="120">
+                            <DataGridTextColumn Header="Priority" Binding="{Binding Priority}" Width="84" MinWidth="78" />
+                            <DataGridTextColumn Header="State" Binding="{Binding State}" Width="95" MinWidth="88" />
+                            <DataGridTextColumn Header="Triggered (UTC)" Binding="{Binding TriggeredAtUtc, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="155" MinWidth="145" FontFamily="Consolas" />
+                            <DataGridTextColumn Header="Device" Binding="{Binding DeviceName}" Width="140" MinWidth="120" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTextColumn Header="Tag" Binding="{Binding TagName}" Width="150" MinWidth="130" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTextColumn Header="Type" Binding="{Binding AlarmType}" Width="70" MinWidth="64" />
+                            <DataGridTextColumn Header="Value" Binding="{Binding TriggerValue}" Width="68" MinWidth="62" />
+                            <DataGridTextColumn Header="Limit" Binding="{Binding ThresholdValue}" Width="68" MinWidth="62" />
+                            <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" MinWidth="150" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTemplateColumn Header="Actions" Width="110" MinWidth="106" CanUserResize="False">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <ui:Button Command="{Binding DataContext.AcknowledgeCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}">
@@ -136,17 +145,26 @@
                     </Border>
 
                     <!-- Data Grid -->
-                    <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding HistoryAlarms}">
+                    <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding HistoryAlarms}"
+                              HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1"
+                              CanUserResizeColumns="True" CanUserReorderColumns="False">
+                        <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="13"/><Setter Property="Padding" Value="6,5"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="MinHeight" Value="34"/></Style></DataGrid.ColumnHeaderStyle><DataGrid.CellStyle><Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}"><Setter Property="Padding" Value="6,3"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridCell"><Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True"><ContentPresenter VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter></Style></DataGrid.CellStyle>
+                        <DataGrid.Resources>
+                            <Style TargetType="TextBlock" x:Key="TrimCell">
+                                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                <Setter Property="VerticalAlignment" Value="Center" />
+                            </Style>
+                        </DataGrid.Resources>
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Triggered (UTC)" Binding="{Binding TriggeredAtUtc, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="140" />
-                            <DataGridTextColumn Header="Cleared (UTC)" Binding="{Binding ClearedAtUtc, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="140" />
-                            <DataGridTextColumn Header="State" Binding="{Binding State}" Width="100" />
-                            <DataGridTextColumn Header="Priority" Binding="{Binding Priority}" Width="80" />
-                            <DataGridTextColumn Header="Device" Binding="{Binding DeviceName}" Width="120" />
-                            <DataGridTextColumn Header="Tag" Binding="{Binding TagName}" Width="150" />
-                            <DataGridTextColumn Header="Val" Binding="{Binding TriggerValue}" Width="60" />
-                            <DataGridTextColumn Header="Limit" Binding="{Binding ThresholdValue}" Width="60" />
-                            <DataGridTextColumn Header="Ack By" Binding="{Binding AcknowledgedBy}" Width="120" />
+                            <DataGridTextColumn Header="Triggered (UTC)" Binding="{Binding TriggeredAtUtc, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="155" MinWidth="145" FontFamily="Consolas" />
+                            <DataGridTextColumn Header="Cleared (UTC)" Binding="{Binding ClearedAtUtc, StringFormat={}{0:yyyy-MM-dd HH:mm:ss}}" Width="155" MinWidth="145" FontFamily="Consolas" />
+                            <DataGridTextColumn Header="State" Binding="{Binding State}" Width="95" MinWidth="88" />
+                            <DataGridTextColumn Header="Priority" Binding="{Binding Priority}" Width="84" MinWidth="78" />
+                            <DataGridTextColumn Header="Device" Binding="{Binding DeviceName}" Width="130" MinWidth="115" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTextColumn Header="Tag" Binding="{Binding TagName}" Width="140" MinWidth="120" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTextColumn Header="Val" Binding="{Binding TriggerValue}" Width="64" MinWidth="58" />
+                            <DataGridTextColumn Header="Limit" Binding="{Binding ThresholdValue}" Width="64" MinWidth="58" />
+                            <DataGridTextColumn Header="Ack By" Binding="{Binding AcknowledgedBy}" Width="130" MinWidth="110" ElementStyle="{StaticResource TrimCell}" />
                         </DataGrid.Columns>
                     </DataGrid>
 

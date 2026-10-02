@@ -5,7 +5,7 @@
       Title="Device configuration">
     <Page.Resources>
         <Style x:Key="RowBtn" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
-            <Setter Property="Padding" Value="6,2" />
+            <Setter Property="Padding" Value="6,3" />
             <Setter Property="Margin" Value="0,0,4,0" />
             <Setter Property="Appearance" Value="Secondary" />
         </Style>
@@ -49,6 +49,7 @@
                     <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding PlcTags}" SelectedItem="{Binding SelectedPlcTag}"
                               HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1"
                               CanUserResizeColumns="True" CanUserReorderColumns="False">
+                        <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="13"/><Setter Property="Padding" Value="6,5"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="MinHeight" Value="34"/></Style></DataGrid.ColumnHeaderStyle><DataGrid.CellStyle><Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}"><Setter Property="Padding" Value="6,3"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridCell"><Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True"><ContentPresenter VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter></Style></DataGrid.CellStyle>
                         <DataGrid.Resources>
                             <Style TargetType="TextBlock" x:Key="TrimCell">
                                 <Setter Property="TextTrimming" Value="CharacterEllipsis" />
@@ -68,7 +69,7 @@
                             </Style>
                         </DataGrid.RowStyle>
                         <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="On" Width="48" MinWidth="48">
+                            <DataGridTemplateColumn Header="On" Width="56" MinWidth="52" CanUserResize="False">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <CheckBox HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -78,13 +79,13 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Tag name" Binding="{Binding Name}" Width="*" MinWidth="130" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTextColumn Header="Tag name" Binding="{Binding Name}" Width="*" MinWidth="110" ElementStyle="{StaticResource TrimCell}" />
                             <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" Width="80" MinWidth="60" ElementStyle="{StaticResource TrimCell}" />
                             <DataGridTextColumn Header="Address" Binding="{Binding PlcAddress}" Width="75" MinWidth="65" ElementStyle="{StaticResource TrimCell}" />
                             <DataGridTextColumn Header="Type" Binding="{Binding DataType}" Width="65" MinWidth="60" />
                             <DataGridTextColumn Header="Reg" Binding="{Binding RegisterType, Converter={StaticResource EnumDesc}}" Width="135" MinWidth="110" ElementStyle="{StaticResource TrimCell}" />
-                            <DataGridTextColumn Header="Count" Binding="{Binding ElementCount}" Width="50" MinWidth="45" />
-                            <DataGridTextColumn Header="Scale" Binding="{Binding ScaleFactor}" Width="55" MinWidth="50" />
+                            <DataGridTextColumn Header="Count" Binding="{Binding ElementCount}" Width="60" MinWidth="55" />
+                            <DataGridTextColumn Header="Scale" Binding="{Binding ScaleFactor}" Width="60" MinWidth="55" ElementStyle="{StaticResource TrimCell}" />
                             <DataGridTextColumn Header="Unit" Binding="{Binding EngineeringUnit}" Width="50" MinWidth="45" ElementStyle="{StaticResource TrimCell}" />
                             <DataGridTextColumn Header="Min" Binding="{Binding AlarmMinThreshold, TargetNullValue=—}" Width="60" MinWidth="55">
                                 <DataGridTextColumn.ElementStyle>
@@ -168,7 +169,7 @@
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTemplateColumn Header="" Width="80" MinWidth="80" CanUserResize="False">
+                            <DataGridTemplateColumn Header="Actions" Width="84" MinWidth="80" CanUserResize="False">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}">
@@ -196,19 +197,28 @@
                         <ui:Button Content="Add block" Icon="{ui:SymbolIcon Add24}" Appearance="Primary" Command="{Binding AddBlockCommand}" HorizontalAlignment="Right"
                                    Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}" />
                     </Grid>
-                    <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding AddressBlocks}" SelectedItem="{Binding SelectedBlock}">
+                    <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding AddressBlocks}" SelectedItem="{Binding SelectedBlock}"
+                              HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1"
+                              CanUserResizeColumns="True" CanUserReorderColumns="False">
+                        <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="13"/><Setter Property="Padding" Value="6,5"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="MinHeight" Value="34"/></Style></DataGrid.ColumnHeaderStyle><DataGrid.CellStyle><Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}"><Setter Property="Padding" Value="6,3"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridCell"><Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True"><ContentPresenter VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter></Style></DataGrid.CellStyle>
+                        <DataGrid.Resources>
+                            <Style TargetType="TextBlock" x:Key="TrimCell">
+                                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                <Setter Property="VerticalAlignment" Value="Center" />
+                            </Style>
+                        </DataGrid.Resources>
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Type" Binding="{Binding AddressType}" Width="100" />
-                            <DataGridTextColumn Header="Register" Binding="{Binding RegisterType, Converter={StaticResource EnumDesc}}" Width="130" />
-                            <DataGridTextColumn Header="Start" Binding="{Binding StartAddress}" Width="70" />
-                            <DataGridTextColumn Header="Data type" Binding="{Binding DataType}" Width="90" />
-                            <DataGridTextColumn Header="Points" Binding="{Binding PointCount}" Width="70" />
-                            <DataGridTextColumn Header="Prefix" Binding="{Binding TagPrefix}" Width="100" />
-                            <DataGridCheckBoxColumn Header="0-based" Binding="{Binding ZeroBasedTagIndex}" Width="70" />
-                            <DataGridTextColumn Header="Offset" Binding="{Binding ModuleOffset}" Width="70" />
-                            <DataGridTextColumn Header="Decimals" Binding="{Binding DecimalPlaces}" Width="75" />
-                            <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" />
-                            <DataGridTemplateColumn Header="" Width="200">
+                            <DataGridTextColumn Header="Type" Binding="{Binding AddressType}" Width="100" MinWidth="90" />
+                            <DataGridTextColumn Header="Register" Binding="{Binding RegisterType, Converter={StaticResource EnumDesc}}" Width="135" MinWidth="120" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTextColumn Header="Start" Binding="{Binding StartAddress}" Width="70" MinWidth="64" />
+                            <DataGridTextColumn Header="Data type" Binding="{Binding DataType}" Width="90" MinWidth="80" />
+                            <DataGridTextColumn Header="Points" Binding="{Binding PointCount}" Width="70" MinWidth="64" />
+                            <DataGridTextColumn Header="Prefix" Binding="{Binding TagPrefix}" Width="100" MinWidth="90" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridCheckBoxColumn Header="0-based" Binding="{Binding ZeroBasedTagIndex}" Width="74" MinWidth="68" CanUserResize="False" />
+                            <DataGridTextColumn Header="Offset" Binding="{Binding ModuleOffset}" Width="70" MinWidth="64" />
+                            <DataGridTextColumn Header="Decimals" Binding="{Binding DecimalPlaces}" Width="78" MinWidth="72" />
+                            <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" MinWidth="140" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTemplateColumn Header="Actions" Width="190" MinWidth="186" CanUserResize="False">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}">
@@ -241,13 +251,22 @@
                         <ui:Button Content="Add custom tag" Icon="{ui:SymbolIcon Add24}" Command="{Binding AddTagCommand}" CommandParameter="Custom" HorizontalAlignment="Right"
                                    Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}" />
                     </Grid>
-                    <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding CustomTags}" MinHeight="90">
+                    <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding CustomTags}" MinHeight="90"
+                              HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1"
+                              CanUserResizeColumns="True" CanUserReorderColumns="False">
+                        <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="13"/><Setter Property="Padding" Value="6,5"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="MinHeight" Value="34"/></Style></DataGrid.ColumnHeaderStyle><DataGrid.CellStyle><Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}"><Setter Property="Padding" Value="6,3"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridCell"><Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True"><ContentPresenter VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter></Style></DataGrid.CellStyle>
+                        <DataGrid.Resources>
+                            <Style TargetType="TextBlock" x:Key="TrimCell">
+                                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                <Setter Property="VerticalAlignment" Value="Center" />
+                            </Style>
+                        </DataGrid.Resources>
                         <DataGrid.Columns>
-                            <DataGridCheckBoxColumn Header="On" Binding="{Binding IsSelected}" Width="44" />
-                            <DataGridTextColumn Header="Tag name" Binding="{Binding Name}" Width="200" />
-                            <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" Width="140" />
-                            <DataGridTextColumn Header="Value" Binding="{Binding SetValue}" Width="*" />
-                            <DataGridTemplateColumn Header="" Width="90">
+                            <DataGridCheckBoxColumn Header="On" Binding="{Binding IsSelected}" Width="48" MinWidth="44" CanUserResize="False" />
+                            <DataGridTextColumn Header="Tag name" Binding="{Binding Name}" Width="200" MinWidth="150" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" Width="140" MinWidth="110" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTextColumn Header="Value" Binding="{Binding SetValue}" Width="*" MinWidth="140" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTemplateColumn Header="Actions" Width="84" MinWidth="80" CanUserResize="False">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}">
@@ -267,22 +286,31 @@
                             <ui:Button Content="Add query" Icon="{ui:SymbolIcon Add24}" Command="{Binding AddQueryCommand}" />
                         </StackPanel>
                     </Grid>
-                    <DataGrid Grid.Row="3" Style="{StaticResource Grid}" ItemsSource="{Binding Queries}" MinHeight="90">
+                    <DataGrid Grid.Row="3" Style="{StaticResource Grid}" ItemsSource="{Binding Queries}" MinHeight="90"
+                              HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1"
+                              CanUserResizeColumns="True" CanUserReorderColumns="False">
+                        <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="13"/><Setter Property="Padding" Value="6,5"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="MinHeight" Value="34"/></Style></DataGrid.ColumnHeaderStyle><DataGrid.CellStyle><Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}"><Setter Property="Padding" Value="6,3"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridCell"><Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True"><ContentPresenter VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter></Style></DataGrid.CellStyle>
+                        <DataGrid.Resources>
+                            <Style TargetType="TextBlock" x:Key="TrimCell">
+                                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                <Setter Property="VerticalAlignment" Value="Center" />
+                            </Style>
+                        </DataGrid.Resources>
                         <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="" Width="36">
+                            <DataGridTemplateColumn Header="" Width="32" MinWidth="32" CanUserResize="False">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Ellipse Style="{StaticResource Dot}" Fill="{Binding IsVerified, Converter={StaticResource BoolToBrush}}" HorizontalAlignment="Center" Margin="0" ToolTip="Green = verified" />
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="150" />
-                            <DataGridTextColumn Header="Server" Binding="{Binding ServerName}" Width="150" />
-                            <DataGridTextColumn Header="Database" Binding="{Binding DatabaseName}" Width="120" />
-                            <DataGridTextColumn Header="Type" Binding="{Binding QueryType}" Width="90" />
-                            <DataGridTextColumn Header="Columns" Binding="{Binding Columns.Count}" Width="70" />
-                            <DataGridTextColumn Header="Last error" Binding="{Binding LastError}" Width="*" />
-                            <DataGridTemplateColumn Header="" Width="150">
+                            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="150" MinWidth="130" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTextColumn Header="Server" Binding="{Binding ServerName}" Width="140" MinWidth="110" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTextColumn Header="Database" Binding="{Binding DatabaseName}" Width="145" MinWidth="130" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTextColumn Header="Type" Binding="{Binding QueryType}" Width="90" MinWidth="80" />
+                            <DataGridTextColumn Header="Columns" Binding="{Binding Columns.Count}" Width="78" MinWidth="72" />
+                            <DataGridTextColumn Header="Last error" Binding="{Binding LastError}" Width="*" MinWidth="150" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTemplateColumn Header="Actions" Width="140" MinWidth="136" CanUserResize="False">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}">
@@ -301,14 +329,23 @@
                         <ui:Button Content="Add external tag" Icon="{ui:SymbolIcon Add24}" Command="{Binding AddTagCommand}" CommandParameter="External" HorizontalAlignment="Right"
                                    Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}" />
                     </Grid>
-                    <DataGrid Grid.Row="5" Style="{StaticResource Grid}" ItemsSource="{Binding ExternalTags}" MinHeight="90">
+                    <DataGrid Grid.Row="5" Style="{StaticResource Grid}" ItemsSource="{Binding ExternalTags}" MinHeight="90"
+                              HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1"
+                              CanUserResizeColumns="True" CanUserReorderColumns="False">
+                        <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="13"/><Setter Property="Padding" Value="6,5"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="MinHeight" Value="34"/></Style></DataGrid.ColumnHeaderStyle><DataGrid.CellStyle><Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}"><Setter Property="Padding" Value="6,3"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridCell"><Border Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="True"><ContentPresenter VerticalAlignment="Center"/></Border></ControlTemplate></Setter.Value></Setter></Style></DataGrid.CellStyle>
+                        <DataGrid.Resources>
+                            <Style TargetType="TextBlock" x:Key="TrimCell">
+                                <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+                                <Setter Property="VerticalAlignment" Value="Center" />
+                            </Style>
+                        </DataGrid.Resources>
                         <DataGrid.Columns>
-                            <DataGridCheckBoxColumn Header="On" Binding="{Binding IsSelected}" Width="44" />
-                            <DataGridTextColumn Header="Tag name" Binding="{Binding Name}" Width="200" />
-                            <DataGridTextColumn Header="Query" Binding="{Binding Query.Name}" Width="150" />
-                            <DataGridTextColumn Header="Column" Binding="{Binding QueryColumn.ColumnName}" Width="150" />
-                            <DataGridTextColumn Header="Current value" Binding="{Binding SetValue}" Width="*" />
-                            <DataGridTemplateColumn Header="" Width="90">
+                            <DataGridCheckBoxColumn Header="On" Binding="{Binding IsSelected}" Width="48" MinWidth="44" CanUserResize="False" />
+                            <DataGridTextColumn Header="Tag name" Binding="{Binding Name}" Width="200" MinWidth="150" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTextColumn Header="Query" Binding="{Binding Query.Name}" Width="150" MinWidth="130" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTextColumn Header="Column" Binding="{Binding QueryColumn.ColumnName}" Width="150" MinWidth="130" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTextColumn Header="Current value" Binding="{Binding SetValue}" Width="*" MinWidth="140" ElementStyle="{StaticResource TrimCell}" />
+                            <DataGridTemplateColumn Header="Actions" Width="84" MinWidth="80" CanUserResize="False">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="{Binding DataContext.CanManage, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}">
@@ -353,14 +390,17 @@
                                     <TextBlock Text="{Binding ExpressionText}" FontFamily="Consolas" TextWrapping="Wrap" />
                                 </Border>
 
-                                <DataGrid Style="{StaticResource Grid}" ItemsSource="{Binding Conditions}" MaxHeight="240" Margin="0,0,0,12">
+                                <DataGrid Style="{StaticResource Grid}" ItemsSource="{Binding Conditions}" MaxHeight="240" Margin="0,0,0,12"
+                                          HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                                          CanUserResizeColumns="True" CanUserReorderColumns="False">
+                                    <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}"><Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="13"/><Setter Property="Padding" Value="6,5"/><Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="MinHeight" Value="32"/></Style></DataGrid.ColumnHeaderStyle>
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="#" Binding="{Binding Order}" Width="40" />
-                                        <DataGridTextColumn Header="Join" Binding="{Binding Conjunction}" Width="70" />
-                                        <DataGridTextColumn Header="Tag" Binding="{Binding TagName}" Width="220" />
-                                        <DataGridTextColumn Header="Operator" Binding="{Binding Operator, Converter={StaticResource EnumDesc}}" Width="130" />
-                                        <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="*" />
-                                        <DataGridTemplateColumn Header="" Width="50">
+                                        <DataGridTextColumn Header="#" Binding="{Binding Order}" Width="44" MinWidth="40" />
+                                        <DataGridTextColumn Header="Join" Binding="{Binding Conjunction}" Width="76" MinWidth="70" />
+                                        <DataGridTextColumn Header="Tag" Binding="{Binding TagName}" Width="220" MinWidth="160" />
+                                        <DataGridTextColumn Header="Operator" Binding="{Binding Operator, Converter={StaticResource EnumDesc}}" Width="130" MinWidth="110" />
+                                        <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="*" MinWidth="120" />
+                                        <DataGridTemplateColumn Header="" Width="52" MinWidth="48" CanUserResize="False">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <ui:Button Style="{StaticResource RowBtn}" Icon="{ui:SymbolIcon Delete24}" Appearance="Danger" Command="{Binding DataContext.DeleteConditionCommand, RelativeSource={RelativeSource AncestorType=Page}}" CommandParameter="{Binding}"
