@@ -736,7 +736,8 @@
                                             <ui:Button Grid.Column="0" Content="Live data" Height="30"
                                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                                        Command="{Binding DataContext.OpenLiveDataCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                                                       CommandParameter="{Binding}" />
+                                                       CommandParameter="{Binding}"
+                                                       Style="{StaticResource DashboardLiveDataBtn}" />
                                             <ui:Button Grid.Column="2" Content="Configure" Height="30"
                                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                                        Command="{Binding DataContext.OpenDeviceCommand, RelativeSource={RelativeSource AncestorType=Page}}"

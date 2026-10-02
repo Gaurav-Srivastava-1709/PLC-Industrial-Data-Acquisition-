@@ -453,15 +453,17 @@
     <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#E2EFDA" />
     <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#006100" />
 
-    <!-- Table row ke action buttons (Write/Configure/Edit/Verify...): cream
-         alternate row par dark mode ka safed text gayab ho jata tha.
-         Danger (red) buttons ka apna background hai, unhe ye nahi chahiye. -->
+    <!-- Table row ke action buttons (Write/Configure/Edit/Verify...): professional dark blue background with white text -->
+         Configure buttons ko highlight karne ke liye consistent industry look -->
     <Style x:Key="RowActionBtn" TargetType="{x:Type ui:Button}" BasedOn="{StaticResource {x:Type ui:Button}}">
         <Style.Triggers>
             <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type DataGridRow}}, Path=(ItemsControl.AlternationIndex)}" Value="1">
                 <Setter Property="Foreground" Value="#1A1A1A" />
             </DataTrigger>
         </Style.Triggers>
+        <Setter Property="Background" Value="#1e3a5f" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="BorderBrush" Value="#1e3a5f" />
     </Style>
 
     <!-- Shared colourful KPI cards (Tailwind-admin inspired, Dashboard jaisa):
@@ -526,6 +528,17 @@
                 </Setter>
             </Trigger>
         </Style.Triggers>
+    </Style>
+
+    <!-- Dashboard Live Data button: professional blue background with white text -->
+    <Style x:Key="DashboardLiveDataBtn" TargetType="{x:Type ui:Button}">
+        <Setter Property="Background" Value="#1d4ed8" />
+        <Setter Property="Foreground" Value="White" />
+        <Setter Property="BorderBrush" Value="#1d4ed8" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Padding" Value="14,7" />
+        <Setter Property="Cursor" Value="Hand" />
     </Style>
 
     <!-- Coral Refresh buttons (flat, rounded, white icon + text).
