@@ -14,9 +14,8 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
-        <!-- Active tab highlight (UX research: underline + bold + accent, teeno
-             ek sath; sirf rang se pata nahi chalta). Fixed accent #0EA5E9 +
-             translucent wash dono mode me dikhta hai. -->
+        <!-- Active tab: solid #1D4ED8 background + white text (selected tab
+             hamesha blue pill me dikhega, unselected transparent rahega). -->
         <Style x:Key="ProTabItem" TargetType="TabItem">
             <Setter Property="FontSize" Value="13.5" />
             <Setter Property="Padding" Value="14,9" />
@@ -24,17 +23,49 @@
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0,0,0,3" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4,4,0,0"
+                                Padding="{TemplateBinding Padding}"
+                                Margin="{TemplateBinding Margin}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter ContentSource="Header"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True"
+                                              TextElement.Foreground="{TemplateBinding Foreground}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#141D4ED8" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#1D4ED8" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#1D4ED8" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#140EA5E9" />
                     <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Foreground" Value="#0EA5E9" />
+                    <Setter Property="Foreground" Value="White" />
                     <Setter Property="FontWeight" Value="Bold" />
-                    <Setter Property="Background" Value="#140EA5E9" />
-                    <Setter Property="BorderBrush" Value="#0EA5E9" />
+                    <Setter Property="Background" Value="#1D4ED8" />
+                    <Setter Property="BorderBrush" Value="#1D4ED8" />
                 </Trigger>
             </Style.Triggers>
         </Style>
