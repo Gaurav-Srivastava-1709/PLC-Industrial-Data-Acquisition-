@@ -74,7 +74,12 @@
                            Margin="0,0,8,6" />
 
                 <!-- Export CSV -->
-                <ui:Button Content="Export CSV" Icon="{ui:SymbolIcon ArrowDownload24}" ToolTip="Full-resolution CSV (10k points)" Command="{Binding ExportCsvCommand}" Margin="0,0,8,6" />
+                <Button Style="{StaticResource ExportBtn}" ToolTip="Full-resolution CSV (10k points)" Command="{Binding ExportCsvCommand}" Margin="0,0,8,6">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <ui:SymbolIcon Symbol="ArrowDownload24" Foreground="White" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                        <TextBlock Text="Export CSV" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
 
                 <!-- Export PNG (full card: legend + chart + hint — like an industry report) -->
                 <!-- <ui:Button Content="Export PNG" Icon="{ui:SymbolIcon Image24}"
