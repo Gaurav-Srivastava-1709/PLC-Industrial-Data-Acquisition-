@@ -438,11 +438,11 @@
         <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
     </Style>
 
-    <!-- All table headers app-wide: violet (#6D28D9) background, white text.
+    <!-- All table headers app-wide: blue (#1D4ED8) background, white text.
          Sirf rang hai - koi template change nahi, isliye header ka
          design, separator aur sort arrow bilkul pehle jaisa rahega. -->
     <Style TargetType="{x:Type DataGridColumnHeader}">
-        <Setter Property="Background" Value="#6D28D9" />
+        <Setter Property="Background" Value="#1D4ED8" />
         <Setter Property="Foreground" Value="White" />
     </Style>
 
