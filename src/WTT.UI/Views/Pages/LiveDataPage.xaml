@@ -23,8 +23,11 @@
                         <TextBlock Text="Export CSV" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
-                <Button Style="{StaticResource CoralRefreshIconBtn}" Command="{Binding RefreshCommand}" ToolTip="Refresh">
-                    <ui:SymbolIcon Symbol="ArrowClockwise24" Foreground="White" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <Button Style="{StaticResource CoralRefreshBtn}" Command="{Binding RefreshCommand}" Margin="0,0,8,0" ToolTip="Refresh">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <ui:SymbolIcon Symbol="ArrowClockwise24" Foreground="White" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center" />
+                        <TextBlock Text="Refresh" VerticalAlignment="Center" />
+                    </StackPanel>
                 </Button>
             </WrapPanel>
         </Grid>

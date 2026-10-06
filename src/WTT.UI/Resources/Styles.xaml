@@ -528,17 +528,29 @@
         </Style.Triggers>
     </Style>
 
-    <!-- Coral Refresh buttons (flat, rounded, white icon + text).
+    <!-- Refresh buttons - rich indigo gradient (flat, rounded, white icon + text).
+         Indigo (#6366F1 family) primary-blue se alag dikhta hai phir bhi professional
+         blue-family me rehta hai. Bagal wale royal-blue (Export/Add) buttons se
+         clash nahi karta.
          Native Button + apna template taaki hover par rang na badle
          (WPF-UI Button hover override karta hai - Delete wala sabak).
-         Text wale = CoralRefreshBtn, icon-only = CoralRefreshIconBtn. -->
+         Text wale = CoralRefreshBtn, icon-only = CoralRefreshIconBtn. (Key naam same
+         rakha taaki 9 pages ke usages na chhedne pade - sirf rang badla hai.) -->
     <Style x:Key="CoralRefreshBtn" TargetType="{x:Type Button}">
-        <Setter Property="Background" Value="#FF8559" />
-        <Setter Property="BorderBrush" Value="#E06A3F" />
+        <Setter Property="Background">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop Color="#818CF8" Offset="0" />
+                    <GradientStop Color="#4F46E5" Offset="1" />
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="BorderBrush" Value="#4338CA" />
         <Setter Property="Foreground" Value="White" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="FontSize" Value="13" />
-        <Setter Property="Padding" Value="14,7" />
+        <Setter Property="Padding" Value="14,6" />
+        <Setter Property="MinHeight" Value="34" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
@@ -550,17 +562,35 @@
                             BorderThickness="{TemplateBinding BorderThickness}"
                             CornerRadius="6" Padding="{TemplateBinding Padding}"
                             SnapsToDevicePixels="True">
+                        <Border.Effect>
+                            <DropShadowEffect Color="#304F46E5" BlurRadius="4"
+                                              ShadowDepth="1" Direction="270" Opacity="0.4" />
+                        </Border.Effect>
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                           RecognizesAccessKey="True" />
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="#F27244" />
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="#C85A34" />
+                            <Setter TargetName="Bd" Property="Background">
+                                <Setter.Value>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#A5B4FC" Offset="0" />
+                                        <GradientStop Color="#4F46E5" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Setter.Value>
+                            </Setter>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#4338CA" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="#D95F33" />
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="#B34E28" />
+                            <Setter TargetName="Bd" Property="Background">
+                                <Setter.Value>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#4F46E5" Offset="0" />
+                                        <GradientStop Color="#4338CA" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Setter.Value>
+                            </Setter>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#3730A3" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Bd" Property="Background" Value="#E7E5E4" />
@@ -657,8 +687,9 @@
         <Setter Property="BorderBrush" Value="#152843" />
         <Setter Property="Foreground" Value="White" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="FontSize" Value="12" />
-        <Setter Property="Padding" Value="10,4" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Padding" Value="14,6" />
+        <Setter Property="MinHeight" Value="34" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
@@ -709,8 +740,9 @@
         <Setter Property="BorderBrush" Value="#047857" />
         <Setter Property="Foreground" Value="White" />
         <Setter Property="FontWeight" Value="Bold" />
-        <Setter Property="FontSize" Value="12" />
-        <Setter Property="Padding" Value="10,4" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Padding" Value="14,6" />
+        <Setter Property="MinHeight" Value="34" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
