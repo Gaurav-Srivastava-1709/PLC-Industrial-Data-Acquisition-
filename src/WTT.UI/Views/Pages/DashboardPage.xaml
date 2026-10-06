@@ -540,8 +540,30 @@
                     </Border>
                 </Grid>
 
-                <!-- ============================ DEVICE TILES ============================ -->
-                <TextBlock Grid.Row="3" Text="DEVICES" Style="{StaticResource DashSectionLabel}" />
+                <!-- ============================ DEVICE TILES SECTION HEADER ============================ -->
+                <Grid Grid.Row="3" Margin="0,6,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Colorful section icon badge -->
+                        <Border Background="#EEF2FF" CornerRadius="8" Width="32" Height="32" Margin="0,0,10,0">
+                            <ui:SymbolIcon Symbol="Server24" Foreground="#4F46E5" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="CONNECTED DEVICES" FontSize="15" FontWeight="ExtraBold"
+                                           Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <Border Background="#E0E7FF" CornerRadius="10" Padding="8,2" Margin="8,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Devices.Count, StringFormat={}{0} Total}" FontSize="10.5" FontWeight="Bold" Foreground="#4338CA" />
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Text="Real-time PLC nodes, communication channels &amp; acquisition controls"
+                                       FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,1,0,0" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
 
                 <StackPanel Grid.Row="4">
                     <Border Background="{DynamicResource LayerFillColorAltBrush}" CornerRadius="10"
@@ -561,28 +583,32 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="{x:Type vm:DeviceCardViewModel}">
-                                <Border Width="300" Margin="0,0,12,12" Padding="14" BorderThickness="1">
-                                    <!-- Self-contained (not BasedOn) so the error state and the
-                                         hover state are both defined in one place. The error state
-                                         is the ONE place a tile is allowed to be tinted: ISA-101
-                                         wants an abnormal condition to be unmissable, and this is
-                                         an abnormal condition. LastError is already on the
-                                         DeviceCardViewModel, so this needs no new logic. -->
+                                <!-- Modern Industrial Device Card: 320px width, crisp border, soft multi-layer shadow, elevated hover -->
+                                <Border Width="320" Margin="0,0,16,16" BorderThickness="1.5" SnapsToDevicePixels="True">
                                     <Border.Style>
                                         <Style TargetType="Border">
+                                            <!-- Card Shell: Clean soft surface with gentle Slate border -->
                                             <Setter Property="Background" Value="{DynamicResource LayerFillColorAltBrush}" />
                                             <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
-                                            <Setter Property="CornerRadius" Value="10" />
+                                            <Setter Property="CornerRadius" Value="12" />
+                                            <Setter Property="Effect">
+                                                <Setter.Value>
+                                                    <DropShadowEffect Color="#0F172A" BlurRadius="12" ShadowDepth="3" Direction="270" Opacity="0.08" />
+                                                </Setter.Value>
+                                            </Setter>
                                             <Style.Triggers>
+                                                <!-- Hover: subtle lift, vibrant indigo border, and deeper shadow -->
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColorPrimaryBrush}" />
+                                                    <Setter Property="BorderBrush" Value="#6366F1" />
+                                                    <Setter Property="Effect">
+                                                        <Setter.Value>
+                                                            <DropShadowEffect Color="#4F46E5" BlurRadius="16" ShadowDepth="5" Direction="270" Opacity="0.22" />
+                                                        </Setter.Value>
+                                                    </Setter>
                                                 </Trigger>
-                                                <!-- "Running but not connected" is the genuinely abnormal
-                                                     state. Expressed as a MultiDataTrigger on the two
-                                                     bools rather than DataTrigger on LastError == null:
-                                                     a null-valued DataTrigger is unreliable in WPF
-                                                     (it matched every tile, including healthy ones) and
-                                                     this condition is also more precise semantically. -->
+                                                <!-- Critical Abnormal state: Running par connection fail / error.
+                                                     Theme-aware brushes (light me halka pink, dark me dark red tint)
+                                                     taaki dono mode me readable rahe. -->
                                                 <MultiDataTrigger>
                                                     <MultiDataTrigger.Conditions>
                                                         <Condition Binding="{Binding IsRunning}" Value="True" />
@@ -591,163 +617,234 @@
                                                     <Setter Property="Background" Value="{DynamicResource SystemFillColorCriticalBackgroundBrush}" />
                                                     <Setter Property="BorderBrush" Value="{DynamicResource SystemFillColorCriticalBrush}" />
                                                     <Setter Property="BorderThickness" Value="2" />
-                                                    <Setter Property="Padding" Value="13" />
                                                 </MultiDataTrigger>
                                             </Style.Triggers>
                                         </Style>
                                     </Border.Style>
-                                    <StackPanel>
 
-                                        <!-- Name + state. The dot keeps the existing
-                                             DeviceStatusToBrush mapping unchanged. -->
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                                <Ellipse Style="{StaticResource Dot}" Width="8" Height="8" Margin="0,0,8,0"
-                                                         ToolTip="{Binding StatusText}">
-                                                    <Ellipse.Fill>
-                                                        <MultiBinding Converter="{StaticResource DeviceStatusToBrush}">
-                                                            <Binding Path="IsRunning" />
-                                                            <Binding Path="IsConnected" />
-                                                            <Binding Path="LastError" />
-                                                        </MultiBinding>
-                                                    </Ellipse.Fill>
-                                                </Ellipse>
-                                                <!-- Name grows from 13.5 to 15.5 and turns critical
-                                                     when that device has an error, so the failing
-                                                     unit is the first thing an operator's eye lands on. -->
-                                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
-                                                           TextTrimming="CharacterEllipsis">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="FontSize" Value="13.5" />
-                                                            <Setter Property="FontWeight" Value="Bold" />
-                                                            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-                                                            <Style.Triggers>
-                                                                <MultiDataTrigger>
-                                                                    <MultiDataTrigger.Conditions>
-                                                                        <Condition Binding="{Binding IsRunning}" Value="True" />
-                                                                        <Condition Binding="{Binding IsConnected}" Value="False" />
-                                                                    </MultiDataTrigger.Conditions>
-                                                                    <Setter Property="FontSize" Value="15.5" />
-                                                                    <Setter Property="FontWeight" Value="ExtraBold" />
-                                                                    <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
-                                                                </MultiDataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <!-- Top Status Accent Header Bar (Rich Slate Gradient) -->
+                                            <RowDefinition Height="Auto" />
+                                            <!-- Main Card Body (Clean Content Container) -->
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+
+                                        <!-- 1. Top Header Accent Banner: Deep Slate-Blue Gradient with White/High-Contrast Text -->
+                                        <Border Grid.Row="0" CornerRadius="11,11,0,0" Padding="14,12" BorderThickness="0,0,0,1" BorderBrush="#0F172A">
+                                            <Border.Background>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                    <GradientStop Color="#1E293B" Offset="0" />
+                                                    <GradientStop Color="#0F172A" Offset="1" />
+                                                </LinearGradientBrush>
+                                            </Border.Background>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Device Icon + Big Bold Name + Protocol / IP summary -->
+                                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Ellipse Style="{StaticResource Dot}" Width="10" Height="10" Margin="0,0,8,0"
+                                                                 ToolTip="{Binding StatusText}">
+                                                            <Ellipse.Fill>
+                                                                <MultiBinding Converter="{StaticResource DeviceStatusToBrush}">
+                                                                    <Binding Path="IsRunning" />
+                                                                    <Binding Path="IsConnected" />
+                                                                    <Binding Path="LastError" />
+                                                                </MultiBinding>
+                                                            </Ellipse.Fill>
+                                                        </Ellipse>
+                                                        <!-- Device Title: Bada (15.5px) aur ExtraBold taaki turant nazar aaye -->
+                                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
+                                                                   FontWeight="ExtraBold" FontSize="15.5"
+                                                                   Foreground="#FFFFFF"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+                                                    <!-- Device Summary: Soft Blue-Grey tint for high readability -->
+                                                    <TextBlock Text="{Binding Summary}" FontSize="11"
+                                                               Foreground="#CBD5E1" FontWeight="SemiBold"
+                                                               Margin="18,3,0,0" TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+
+                                                <!-- Status Badge (Pill with dark border) -->
+                                                <Border Grid.Column="1" VerticalAlignment="Center" CornerRadius="12" Padding="10,4"
+                                                        Background="#334155" BorderBrush="#475569" BorderThickness="1">
+                                                    <TextBlock Text="{Binding StatusText}" FontSize="10.5" FontWeight="Bold">
+                                                        <TextBlock.Foreground>
+                                                            <MultiBinding Converter="{StaticResource DeviceStatusToBrush}">
+                                                                <Binding Path="IsRunning" />
+                                                                <Binding Path="IsConnected" />
+                                                                <Binding Path="LastError" />
+                                                            </MultiBinding>
+                                                        </TextBlock.Foreground>
+                                                    </TextBlock>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+
+                                        <!-- 2. Main Card Content Area -->
+                                        <Border Grid.Row="1" Padding="14,13" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" CornerRadius="0,0,11,11">
+                                            <StackPanel>
+                                                <!-- Metrics Strip: Scans (Cyan/Slate), Readings (Indigo), Errors (Rose) -->
+                                                <Grid Margin="0,0,0,12">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="8" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="8" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <!-- SCANS Pod: Soft Indigo/Slate Tint with border -->
+                                                    <Border Grid.Column="0" Background="{DynamicResource ControlFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="6,7" SnapsToDevicePixels="True">
+                                                        <StackPanel HorizontalAlignment="Center">
+                                                            <TextBlock Text="{Binding ScanCount, StringFormat={}{0:N0}}"
+                                                                       FontSize="14" FontWeight="ExtraBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                                                       HorizontalAlignment="Center" />
+                                                            <TextBlock Text="SCANS" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                                       HorizontalAlignment="Center" Margin="0,1,0,0" />
+                                                        </StackPanel>
+                                                    </Border>
+
+                                                    <!-- READINGS Pod: Rich Vibrant Indigo Tint -->
+                                                    <Border Grid.Column="2" Background="{DynamicResource ControlFillColorDefaultBrush}" BorderBrush="#6366F1" BorderThickness="1" CornerRadius="8" Padding="6,7" SnapsToDevicePixels="True">
+                                                        <StackPanel HorizontalAlignment="Center">
+                                                            <TextBlock Text="{Binding ReadingsWritten, StringFormat={}{0:N0}}"
+                                                                       FontSize="14" FontWeight="ExtraBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                                                       HorizontalAlignment="Center" />
+                                                            <TextBlock Text="READINGS" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                                       HorizontalAlignment="Center" Margin="0,1,0,0" />
+                                                        </StackPanel>
+                                                    </Border>
+
+                                                    <!-- ERRORS Pod: Warm Alert Rose Tint -->
+                                                    <Border Grid.Column="4" CornerRadius="8" Padding="6,7" SnapsToDevicePixels="True" BorderThickness="1">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+                                                                <Setter Property="BorderBrush" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding ErrorCount}" Value="0">
+                                                                        <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+                                                                        <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <StackPanel HorizontalAlignment="Center">
+                                                            <TextBlock Text="{Binding ErrorCount, StringFormat={}{0:N0}}"
+                                                                       FontSize="14" FontWeight="ExtraBold" HorizontalAlignment="Center">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding ErrorCount}" Value="0">
+                                                                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                            <TextBlock Text="ERRORS" FontSize="9.5" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,1,0,0">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding ErrorCount}" Value="0">
+                                                                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </Grid>
+
+                                                <!-- Metadata strip (Mode badge + Last Scan timestamp) -->
+                                                <Border Background="{DynamicResource ControlFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="7" Padding="9,6" Margin="0,0,0,12">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <TextBlock Text="Mode: " FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                                            <!-- Colorful Amber/Indigo Mode Badge -->
+                                                            <Border Background="#FEF3C7" BorderBrush="#FDE68A" BorderThickness="1" CornerRadius="5" Padding="6,1.5" Margin="2,0,0,0">
+                                                                <TextBlock Text="{Binding Mode, Mode=OneWay}" FontSize="10.5" FontWeight="Bold" Foreground="#B45309" />
+                                                            </Border>
+                                                            <TextBlock Text="{Binding TriggerText, Mode=OneWay}" FontSize="10.5" FontWeight="Bold"
+                                                                       Foreground="#059669" Margin="6,0,0,0" VerticalAlignment="Center" />
+                                                        </StackPanel>
+
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                            <ui:SymbolIcon Symbol="Clock20" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="13" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                                            <TextBlock Text="Last scan: " FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                                            <TextBlock Text="{Binding LastScanUtc, Mode=OneWay, Converter={StaticResource UtcToLocal}, ConverterParameter=HH:mm:ss, TargetNullValue=—, FallbackValue=—}"
+                                                                       FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+
+                                                <!-- Error banner if any (theme-aware: dono mode me readable) -->
+                                                <Border Background="{DynamicResource SystemFillColorCriticalBackgroundBrush}" BorderBrush="{DynamicResource SystemFillColorCriticalBrush}" BorderThickness="1" CornerRadius="6" Padding="8,5" Margin="0,0,0,10"
+                                                        Visibility="{Binding LastError, Converter={StaticResource NotNullToVis}}">
+                                                    <TextBlock Text="{Binding LastError}" Style="{StaticResource ErrorText}" FontSize="10.5"
+                                                               Margin="0" TextWrapping="Wrap" />
+                                                </Border>
+
+                                                <!-- Toggles: Capture & Monitor switches (SemiBold + Display formatting
+                                                     taaki dark background par white label sharp dikhe, blur nahi) -->
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                                    <ui:ToggleSwitch IsChecked="{Binding IsCaptureEnabled, Mode=OneWay}"
+                                                                     OnContent="Capture" OffContent="Capture"
+                                                                     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                                                     FontSize="13" FontWeight="SemiBold"
+                                                                     TextOptions.TextFormattingMode="Display"
+                                                                     SnapsToDevicePixels="True" UseLayoutRounding="True"
+                                                                     Command="{Binding DataContext.ToggleCaptureCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                                                     CommandParameter="{Binding}"
+                                                                     IsEnabled="{Binding DataContext.CanControl, RelativeSource={RelativeSource AncestorType=Page}}"
+                                                                     Margin="0,0,14,0" />
+                                                    <ui:ToggleSwitch IsChecked="{Binding IsMonitorEnabled, Mode=OneWay}"
+                                                                     OnContent="Monitor" OffContent="Monitor"
+                                                                     Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                                                     FontSize="13" FontWeight="SemiBold"
+                                                                     TextOptions.TextFormattingMode="Display"
+                                                                     SnapsToDevicePixels="True" UseLayoutRounding="True"
+                                                                     Command="{Binding DataContext.ToggleMonitorCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                                                     CommandParameter="{Binding}"
+                                                                     IsEnabled="{Binding DataContext.CanControl, RelativeSource={RelativeSource AncestorType=Page}}" />
+                                                </StackPanel>
+
+                                                <!-- Action Buttons: Live Data (Fresh Emerald Green) & Configure (Refined Slate Navy) -->
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="8" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <!-- Live data button: Fresh Emerald Green gradient to contrast with dark configure button -->
+                                                    <Button Grid.Column="0" Content="Live data" Height="32"
+                                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                            Style="{StaticResource DashLiveDataBtn}"
+                                                            Command="{Binding DataContext.OpenLiveDataCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                                            CommandParameter="{Binding}" />
+                                                    <!-- Configure button: Refined Slate-Navy button -->
+                                                    <Button Grid.Column="2" Content="Configure" Height="32"
+                                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                            Style="{StaticResource ConfigureBtn}"
+                                                            Command="{Binding DataContext.OpenDeviceCommand, RelativeSource={RelativeSource AncestorType=Page}}"
+                                                            CommandParameter="{Binding}"
+                                                            Visibility="{Binding DataContext.CanManageDevices, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}" />
+                                                </Grid>
                                             </StackPanel>
-                                            <Border Grid.Column="1" Style="{StaticResource DashPill}">
-                                                <TextBlock Text="{Binding StatusText}" Style="{StaticResource DashPillText}">
-                                                    <TextBlock.Foreground>
-                                                        <MultiBinding Converter="{StaticResource DeviceStatusToBrush}">
-                                                            <Binding Path="IsRunning" />
-                                                            <Binding Path="IsConnected" />
-                                                            <Binding Path="LastError" />
-                                                        </MultiBinding>
-                                                    </TextBlock.Foreground>
-                                                </TextBlock>
-                                            </Border>
-                                        </Grid>
-
-                                        <TextBlock Text="{Binding Summary}" Style="{StaticResource Hint}"
-                                                   FontSize="10.5" Margin="0,4,0,0" />
-
-                                        <Border Style="{StaticResource DashDivider}" Margin="0,9,0,0" />
-
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition />
-                                                <ColumnDefinition />
-                                                <ColumnDefinition />
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Grid.Column="0">
-                                                <TextBlock Text="{Binding ScanCount, StringFormat={}{0:N0}}"
-                                                           Style="{StaticResource DashMiniValue}" />
-                                                <TextBlock Text="SCANS" Style="{StaticResource DashMiniLabel}" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="1">
-                                                <TextBlock Text="{Binding ReadingsWritten, StringFormat={}{0:N0}}"
-                                                           Style="{StaticResource DashMiniValue}" />
-                                                <TextBlock Text="READINGS" Style="{StaticResource DashMiniLabel}" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2">
-                                                <TextBlock Text="{Binding ErrorCount, StringFormat={}{0:N0}}">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock" BasedOn="{StaticResource DashMiniValue}">
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding ErrorCount}" Value="0">
-                                                                    <Setter Property="Foreground"
-                                                                            Value="{DynamicResource TextFillColorSecondaryBrush}" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                                <TextBlock Text="ERRORS" Style="{StaticResource DashMiniLabel}" />
-                                            </StackPanel>
-                                        </Grid>
-
-                                        <Border Style="{StaticResource DashDivider}" Margin="0,9,0,0" />
-
-                                        <TextBlock Style="{StaticResource Hint}" FontSize="10.5" TextAlignment="Left">
-                                            <Run Text="Mode: " />
-                                            <Run Text="{Binding Mode, Mode=OneWay}" FontWeight="SemiBold"
-                                                 Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                            <Run Text="{Binding TriggerText, Mode=OneWay}" FontWeight="Bold"
-                                                 Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                            <LineBreak />
-                                            <Run Text="Last scan: " />
-                                            <Run Text="{Binding LastScanUtc, Mode=OneWay, Converter={StaticResource UtcToLocal}, ConverterParameter=HH:mm:ss}" />
-                                        </TextBlock>
-
-                                        <TextBlock Text="{Binding LastError}" Style="{StaticResource ErrorText}" FontSize="10.5"
-                                                   MaxHeight="32" TextTrimming="CharacterEllipsis" TextWrapping="Wrap"
-                                                   Visibility="{Binding LastError, Converter={StaticResource NotNullToVis}}" />
-
-                                        <!-- Controls. The two action buttons carry TEXT, not just
-                                             an icon: an unlabelled 28 px glyph is a guess for the
-                                             operator, and these are the two things they most often
-                                             need (open live values, open configuration). -->
-                                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                            <ui:ToggleSwitch IsChecked="{Binding IsCaptureEnabled, Mode=OneWay}"
-                                                             OnContent="Capture" OffContent="Capture"
-                                                             Command="{Binding DataContext.ToggleCaptureCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                                                             CommandParameter="{Binding}"
-                                                             IsEnabled="{Binding DataContext.CanControl, RelativeSource={RelativeSource AncestorType=Page}}"
-                                                             Margin="0,0,10,0" />
-                                            <ui:ToggleSwitch IsChecked="{Binding IsMonitorEnabled, Mode=OneWay}"
-                                                             OnContent="Monitor" OffContent="Monitor"
-                                                             Command="{Binding DataContext.ToggleMonitorCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                                                             CommandParameter="{Binding}"
-                                                             IsEnabled="{Binding DataContext.CanControl, RelativeSource={RelativeSource AncestorType=Page}}" />
-                                        </StackPanel>
-
-                                        <Grid Margin="0,8,0,0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="8" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <!-- Dashboard Live data button: #1d4ed8 background, white text -->
-                                            <Button Grid.Column="0" Content="Live data" Height="30"
-                                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                                    Style="{StaticResource DashLiveDataBtn}"
-                                                    Command="{Binding DataContext.OpenLiveDataCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                                                    CommandParameter="{Binding}" />
-                                            <!-- Configure button: #1e3a5f background, white text -->
-                                            <Button Grid.Column="2" Content="Configure" Height="30"
-                                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                                    Style="{StaticResource ConfigureBtn}"
-                                                    Command="{Binding DataContext.OpenDeviceCommand, RelativeSource={RelativeSource AncestorType=Page}}"
-                                                    CommandParameter="{Binding}"
-                                                    Visibility="{Binding DataContext.CanManageDevices, RelativeSource={RelativeSource AncestorType=Page}, Converter={StaticResource BoolToVis}}" />
-                                        </Grid>
-                                    </StackPanel>
+                                        </Border>
+                                    </Grid>
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

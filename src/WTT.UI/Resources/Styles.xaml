@@ -121,7 +121,7 @@
     <SolidColorBrush x:Key="GoodBrush" Color="#2ECC71" />
     <SolidColorBrush x:Key="WarnBrush" Color="#F39C12" />
     <SolidColorBrush x:Key="BadBrush" Color="#E74C3C" />
-    <SolidColorBrush x:Key="NeutralBrush" Color="#7F8C8D" />
+    <SolidColorBrush x:Key="NeutralBrush" Color="#9CA3AF" />
 
     <!-- ======================================================================
          DASHBOARD TOKENS - high-performance HMI, ISA-101.01 aligned
@@ -702,13 +702,13 @@
         </Setter>
     </Style>
 
-    <!-- Dashboard Live Data Button: Rich Royal Blue (#1d4ed8) and White Text -->
+    <!-- Dashboard Live Data Button: Vibrant Emerald Green (#059669) with White Text & Green Shadow -->
     <Style x:Key="DashLiveDataBtn" TargetType="{x:Type Button}">
-        <!-- Royal Blue (#1d4ed8) background -->
-        <Setter Property="Background" Value="#1d4ed8" />
-        <Setter Property="BorderBrush" Value="#1e40af" />
+        <!-- Emerald Green (#059669) background -->
+        <Setter Property="Background" Value="#059669" />
+        <Setter Property="BorderBrush" Value="#047857" />
         <Setter Property="Foreground" Value="White" />
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="FontSize" Value="12" />
         <Setter Property="Padding" Value="10,4" />
         <Setter Property="Cursor" Value="Hand" />
@@ -724,23 +724,23 @@
                             CornerRadius="6" Padding="{TemplateBinding Padding}"
                             SnapsToDevicePixels="True">
                         <Border.Effect>
-                            <!-- Subtle drop shadow -->
-                            <DropShadowEffect Color="#301D4ED8" BlurRadius="4"
-                                              ShadowDepth="1" Direction="270" Opacity="0.4" />
+                            <!-- Subtle green-tinted drop shadow -->
+                            <DropShadowEffect Color="#30059669" BlurRadius="5"
+                                              ShadowDepth="1" Direction="270" Opacity="0.45" />
                         </Border.Effect>
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
                                           RecognizesAccessKey="True" />
                     </Border>
                     <ControlTemplate.Triggers>
-                        <!-- Hover state: lighter royal blue -->
+                        <!-- Hover state: lighter emerald green -->
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="#2563EB" />
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="#1D4ED8" />
+                            <Setter TargetName="Bd" Property="Background" Value="#10B981" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#059669" />
                         </Trigger>
-                        <!-- Pressed state: deeper blue -->
+                        <!-- Pressed state: deep forest green -->
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="#1E40AF" />
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="#172554" />
+                            <Setter TargetName="Bd" Property="Background" Value="#047857" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#065F46" />
                         </Trigger>
                         <!-- Disabled state -->
                         <Trigger Property="IsEnabled" Value="False">
