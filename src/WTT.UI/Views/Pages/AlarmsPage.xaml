@@ -47,7 +47,7 @@
 
         <TabControl Grid.Row="1" SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}" Background="Transparent" BorderThickness="0">
             <!-- ACTIVE ALARMS -->
-            <TabItem Header="Active Alarms" Padding="12,8">
+            <TabItem Header="Active Alarms" Style="{StaticResource ProTabItem}">
                 <Grid Margin="0,16,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -110,7 +110,7 @@
             </TabItem>
 
             <!-- ALARM HISTORY -->
-            <TabItem Header="Alarm History" Padding="12,8">
+            <TabItem Header="Alarm History" Style="{StaticResource ProTabItem}">
                 <Grid Margin="0,16,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>

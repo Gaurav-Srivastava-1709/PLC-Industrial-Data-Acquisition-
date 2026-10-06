@@ -52,7 +52,7 @@
         <TabControl Grid.Row="2" Margin="0,8,0,0">
 
             <!-- ===== APPLICATION LOG TAB ===== -->
-            <TabItem Header="Application log">
+            <TabItem Header="Application log" Style="{StaticResource ProTabItem}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
@@ -165,7 +165,7 @@
             </TabItem>
 
             <!-- ===== AUDIT TRAIL TAB ===== -->
-            <TabItem Header="Audit trail">
+            <TabItem Header="Audit trail" Style="{StaticResource ProTabItem}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
