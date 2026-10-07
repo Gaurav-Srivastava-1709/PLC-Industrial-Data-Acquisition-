@@ -393,15 +393,17 @@
         <Setter Property="Margin" Value="6,2,6,2" />
         <Setter Property="Padding" Value="12,0,8,0" />
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        <!-- Fixed light-slate: sidebar ab hamesha dark hai (dono themes me),
+             isliye adaptive brush ki jagah fixed rang taaki text dikhe. -->
+        <Setter Property="Foreground" Value="#CBD5E1" />
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
                 <Setter Property="Background" Value="{StaticResource WttNavHoverBackgroundBrush}" />
-                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                <Setter Property="Foreground" Value="#FFFFFF" />
             </Trigger>
             <Trigger Property="IsActive" Value="True">
                 <Setter Property="Background" Value="{StaticResource WttNavSelectedBackgroundBrush}" />
-                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                <Setter Property="Foreground" Value="#FFFFFF" />
                 <Setter Property="FontWeight" Value="SemiBold" />
             </Trigger>
             <MultiTrigger>
@@ -425,7 +427,7 @@
         <Setter Property="Margin" Value="16,10,0,2" />
         <Setter Property="Padding" Value="0" />
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
+        <Setter Property="Foreground" Value="#94A3B8" />
     </Style>
 
     <!-- Brand block at the top of the pane. Non-clickable identity header. -->
@@ -435,7 +437,7 @@
         <Setter Property="Margin" Value="6,8,6,4" />
         <Setter Property="Padding" Value="10,6" />
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        <Setter Property="Foreground" Value="#FFFFFF" />
     </Style>
 
     <!-- All table headers app-wide: blue (#1D4ED8) background, white text.

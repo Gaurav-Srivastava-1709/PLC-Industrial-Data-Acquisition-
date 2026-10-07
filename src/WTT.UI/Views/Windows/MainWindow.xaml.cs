@@ -43,6 +43,7 @@ public partial class MainWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        Services.TitleBarTint.ApplySlate();
         _logger.LogInformation("MainWindow loaded — navigating to DashboardPage.");
         var ok = _navigation.Navigate(typeof(Pages.DashboardPage));
         _logger.LogInformation("Navigate to DashboardPage returned {Result}.", ok);

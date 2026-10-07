@@ -5,7 +5,7 @@
         xmlns:pages="clr-namespace:WTT.UI.Views.Pages"
         Title="" Height="800" Width="1280" MinHeight="560" MinWidth="720"
         WindowStartupLocation="CenterScreen" WindowState="Maximized"
-        Background="{DynamicResource ApplicationBackgroundBrush}">
+        Background="#1E293B">
     <Window.InputBindings>
         <KeyBinding Key="D" Modifiers="Control" Command="{Binding OpenDashboardCommand}" />
         <KeyBinding Key="L" Modifiers="Control" Command="{Binding LogoutCommand}" />
@@ -17,16 +17,24 @@
         </Grid.RowDefinitions>
 
         <ui:NavigationView x:Name="RootNavigation" Grid.Row="1"
-                           PaneDisplayMode="Left" IsBackButtonVisible="Collapsed" IsPaneToggleVisible="True" OpenPaneLength="248"
+                           PaneDisplayMode="Left" IsBackButtonVisible="Collapsed" IsPaneToggleVisible="False" OpenPaneLength="248"
                            FontFamily="{StaticResource WttNavFontFamily}" FontSize="13.5">
-            <!-- Accent + washes: one industrial sky accent for both themes.
-                 Unknown keys are ignored harmlessly; known WPF-UI keys restyle
-                 the selection indicator bar and item states. -->
+            <!-- NOTE: Pane ka apna koi background brush nahi hai (WPF-UI template
+                 PaneBorder ko transparent rakhta hai), isliye Window ka #1E293B
+                 background hi sidebar me dikhta hai. Content area par iska asar
+                 nahi (uski apni NavigationViewContentBackground hai).
+                 Hamburger toggle hata diya: uska icon theme-foreground se aata
+                 hai jo dark sidebar par invisible ho jata. -->
             <ui:NavigationView.Resources>
-                <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="#0EA5E9" />
-                <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#2E0EA5E9" />
-                <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#400EA5E9" />
-                <SolidColorBrush x:Key="NavigationViewItemBackgroundPointerOver" Color="#140EA5E9" />
+                <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="#FFFFFF" />
+                <SolidColorBrush x:Key="NavigationViewItemBackground" Color="#00000000" />
+                <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#4F46E5" />
+                <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#6366F1" />
+                <SolidColorBrush x:Key="NavigationViewItemBackgroundPointerOver" Color="#14FFFFFF" />
+                <SolidColorBrush x:Key="NavigationViewItemBackgroundPressed" Color="#294F46E5" />
+                <SolidColorBrush x:Key="NavigationViewItemForeground" Color="#CBD5E1" />
+                <SolidColorBrush x:Key="NavigationViewItemForegroundPointerOver" Color="#FFFFFF" />
+                <SolidColorBrush x:Key="LeftNavigationViewSeparatorBrush" Color="#1E293B" />
             </ui:NavigationView.Resources>
             <ui:NavigationView.MenuItems>
                 <!-- Brand identity: gradient tile + product name. Non-clickable. -->
@@ -40,11 +48,14 @@
                                         <GradientStop Color="#0369A1" Offset="1" />
                                     </LinearGradientBrush>
                                 </Border.Background>
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#400EA5E9" BlurRadius="12" ShadowDepth="0" Opacity="0.7" />
+                                </Border.Effect>
                                 <ui:SymbolIcon Symbol="Pulse24" Foreground="White" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
                             <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="WTT" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                                <TextBlock Text="INDUSTRIAL DATA ACQUISITION" FontSize="9" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                <TextBlock Text="WTT" FontSize="17" FontWeight="Bold" Foreground="White" />
+                                <TextBlock Text="INDUSTRIAL DATA ACQUISITION" FontSize="9" FontWeight="SemiBold" Foreground="#94A3B8" />
                             </StackPanel>
                         </StackPanel>
                     </ui:NavigationViewItem.Content>

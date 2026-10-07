@@ -129,9 +129,12 @@ public sealed class ThemeManager
         if (app is not null && !app.Dispatcher.CheckAccess())
         {
             app.Dispatcher.Invoke(() => ApplicationThemeManager.Apply(appTheme, WindowBackdropType.None, true));
+            TitleBarTint.ApplySlate();
             return;
         }
         ApplicationThemeManager.Apply(appTheme, WindowBackdropType.None, true);
+        // WPF-UI caption color reset kar deta hai - slate wapas lagao.
+        TitleBarTint.ApplySlate();
     }
 }
 

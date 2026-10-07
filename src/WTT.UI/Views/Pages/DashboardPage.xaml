@@ -374,10 +374,17 @@
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Text="Ingestion &amp; buffer activity"
-                                       Style="{StaticResource DashPanelTitle}" />
-                            <TextBlock Grid.Row="1" Text="{Binding TrendSummary}"
-                                       Style="{StaticResource DashPanelSubtitle}" Margin="0,1,0,6" />
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,6">
+                                <Border Background="#EEF2FF" CornerRadius="8" Width="30" Height="30" Margin="0,0,10,0">
+                                    <ui:SymbolIcon Symbol="ChartMultiple24" Foreground="#4F46E5" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Ingestion &amp; buffer activity"
+                                               Style="{StaticResource DashPanelTitle}" />
+                                    <TextBlock Text="{Binding TrendSummary}"
+                                               Style="{StaticResource DashPanelSubtitle}" Margin="0,1,0,0" />
+                                </StackPanel>
+                            </StackPanel>
 
                             <!-- The view model normalises its points into a 300 x 80 box
                                  (and maps a flat series to y = 80). The canvas is 300 x 96
@@ -393,6 +400,7 @@
                                  a chart that failed to fill its box. -->
                             <Border Grid.Row="2" Height="170" CornerRadius="6" Padding="10,6"
                                     Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                    BorderBrush="#6366F1" BorderThickness="1"
                                     ClipToBounds="True">
                                 <Viewbox Stretch="Uniform" StretchDirection="Both"
                                          HorizontalAlignment="Stretch" VerticalAlignment="Center">
@@ -402,12 +410,12 @@
                                         <Line Style="{StaticResource DashChartGridLine}" X1="0" Y1="60" X2="300" Y2="60" />
                                         <Line Style="{StaticResource DashChartGridLine}" X1="0" Y1="80" X2="300" Y2="80" />
                                         <Polyline Points="{Binding ReadingTrend}"
-                                                  Stroke="{DynamicResource TextFillColorPrimaryBrush}"
-                                                  StrokeThickness="1.4" StrokeLineJoin="Round"
+                                                  Stroke="#6366F1"
+                                                  StrokeThickness="1.6" StrokeLineJoin="Round"
                                                   StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
                                         <Polyline Points="{Binding BufferTrend}"
-                                                  Stroke="{DynamicResource SystemFillColorCautionBrush}"
-                                                  StrokeThickness="1.2" StrokeDashArray="3,2" StrokeLineJoin="Round"
+                                                  Stroke="#F59E0B"
+                                                  StrokeThickness="1.4" StrokeDashArray="3,2" StrokeLineJoin="Round"
                                                   StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
                                     </Canvas>
                                 </Viewbox>
@@ -418,7 +426,7 @@
                                  operator (ISA-101 requires colour + shape + position). -->
                             <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
                                 <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
-                                    <Border Width="14" Height="2" Background="{DynamicResource TextFillColorPrimaryBrush}"
+                                    <Border Width="14" Height="3" Background="#6366F1" CornerRadius="2"
                                             VerticalAlignment="Center" />
                                     <TextBlock Text="Readings" Style="{StaticResource DashRowLabel}" Margin="6,0,0,0" />
                                     <TextBlock Text="{Binding ReadingsToday, StringFormat={}{0:N0}}" FontSize="11.5"
@@ -426,7 +434,7 @@
                                                VerticalAlignment="Center" Margin="4,0,0,0" />
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal">
-                                    <Border Width="14" Height="2" Background="{DynamicResource SystemFillColorCautionBrush}"
+                                    <Border Width="14" Height="3" Background="#F59E0B" CornerRadius="2"
                                             VerticalAlignment="Center" />
                                     <TextBlock Text="Buffer" Style="{StaticResource DashRowLabel}" Margin="6,0,0,0" />
                                     <TextBlock Text="{Binding BufferedReadings, StringFormat={}{0:N0}}" FontSize="11.5"
@@ -441,9 +449,16 @@
                          stretched to match the chart and left a large blank block. -->
                     <Border Grid.Column="2" Style="{StaticResource DashCard}" Padding="14">
                         <StackPanel>
-                            <TextBlock Text="Pipeline health" Style="{StaticResource DashPanelTitle}" />
-                            <TextBlock Text="Why the buffer is or is not draining"
-                                       Style="{StaticResource DashPanelSubtitle}" />
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,2">
+                                <Border Background="#ECFDF5" CornerRadius="8" Width="30" Height="30" Margin="0,0,10,0">
+                                    <ui:SymbolIcon Symbol="HeartPulse24" Foreground="#059669" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Pipeline health" Style="{StaticResource DashPanelTitle}" />
+                                    <TextBlock Text="Why the buffer is or is not draining"
+                                               Style="{StaticResource DashPanelSubtitle}" />
+                                </StackPanel>
+                            </StackPanel>
 
                             <Grid Margin="0,10,0,0">
                                 <Grid.ColumnDefinitions>
@@ -453,19 +468,24 @@
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Text="TRANSFERRED" Style="{StaticResource DashMiniLabel}" />
                                     <TextBlock Text="{Binding TransferredToday, StringFormat={}{0:N0}}"
-                                               Style="{StaticResource DashMiniValue}" />
+                                               Style="{StaticResource DashMiniValue}" Foreground="#059669" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" HorizontalAlignment="Right">
                                     <TextBlock Text="WAITING" Style="{StaticResource DashMiniLabel}" TextAlignment="Right" />
                                     <TextBlock Text="{Binding BufferedReadings, StringFormat={}{0:N0}}"
-                                               Style="{StaticResource DashMiniValue}" TextAlignment="Right" />
+                                               Style="{StaticResource DashMiniValue}" TextAlignment="Right" Foreground="#D97706" />
                                 </StackPanel>
                             </Grid>
 
-                            <Border Height="6" CornerRadius="999" Margin="0,8,0,0"
+                            <Border Height="8" CornerRadius="999" Margin="0,8,0,0"
                                     Background="{DynamicResource ControlFillColorSecondaryBrush}" ClipToBounds="True">
-                                <Border Height="6" CornerRadius="999" HorizontalAlignment="Left"
-                                        Background="{DynamicResource TextFillColorTertiaryBrush}">
+                                <Border Height="8" CornerRadius="999" HorizontalAlignment="Left">
+                                    <Border.Background>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                            <GradientStop Color="#34D399" Offset="0" />
+                                            <GradientStop Color="#059669" Offset="1" />
+                                        </LinearGradientBrush>
+                                    </Border.Background>
                                     <Border.Width>
                                         <MultiBinding Converter="{StaticResource RatioToWidth}" ConverterParameter="220">
                                             <Binding Path="TransferredToday" />
@@ -507,14 +527,14 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Capture" Style="{StaticResource DashRowLabel}" />
-                                <Border Grid.Column="1" Style="{StaticResource DashPill}">
+                                <Border Grid.Column="1" Style="{StaticResource DashPill}" Background="#FEF3C7" BorderBrush="#FDE68A" BorderThickness="1">
                                     <TextBlock Text="Paused" Style="{StaticResource DashPillText}"
-                                               Foreground="{DynamicResource SystemFillColorCautionBrush}"
+                                               Foreground="#B45309"
                                                Visibility="{Binding CapturePaused, Converter={StaticResource BoolToVis}}" />
                                 </Border>
-                                <Border Grid.Column="1" Style="{StaticResource DashPill}">
+                                <Border Grid.Column="1" Style="{StaticResource DashPill}" Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1">
                                     <TextBlock Text="Running" Style="{StaticResource DashPillText}"
-                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               Foreground="#047857"
                                                Visibility="{Binding CapturePaused, Converter={StaticResource InverseBoolToVis}}" />
                                 </Border>
                             </Grid>
@@ -525,14 +545,14 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Transfer" Style="{StaticResource DashRowLabel}" />
-                                <Border Grid.Column="1" Style="{StaticResource DashPill}">
+                                <Border Grid.Column="1" Style="{StaticResource DashPill}" Background="#FEF3C7" BorderBrush="#FDE68A" BorderThickness="1">
                                     <TextBlock Text="Paused" Style="{StaticResource DashPillText}"
-                                               Foreground="{DynamicResource SystemFillColorCautionBrush}"
+                                               Foreground="#B45309"
                                                Visibility="{Binding TransferPaused, Converter={StaticResource BoolToVis}}" />
                                 </Border>
-                                <Border Grid.Column="1" Style="{StaticResource DashPill}">
+                                <Border Grid.Column="1" Style="{StaticResource DashPill}" Background="#ECFDF5" BorderBrush="#A7F3D0" BorderThickness="1">
                                     <TextBlock Text="Running" Style="{StaticResource DashPillText}"
-                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               Foreground="#047857"
                                                Visibility="{Binding TransferPaused, Converter={StaticResource InverseBoolToVis}}" />
                                 </Border>
                             </Grid>
