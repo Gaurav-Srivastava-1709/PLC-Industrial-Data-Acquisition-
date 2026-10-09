@@ -4,6 +4,7 @@
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:pages="clr-namespace:WTT.UI.Views.Pages"
         Title="" Height="800" Width="1280" MinHeight="560" MinWidth="720"
+        Icon="pack://application:,,,/Resources/WTTLogo.png"
         WindowStartupLocation="CenterScreen" WindowState="Maximized"
         Background="#1E293B">
     <Window.InputBindings>
@@ -19,12 +20,12 @@
         <ui:NavigationView x:Name="RootNavigation" Grid.Row="1"
                            PaneDisplayMode="Left" IsBackButtonVisible="Collapsed" IsPaneToggleVisible="False" OpenPaneLength="248"
                            FontFamily="{StaticResource WttNavFontFamily}" FontSize="13.5">
-            <!-- NOTE: Pane ka apna koi background brush nahi hai (WPF-UI template
-                 PaneBorder ko transparent rakhta hai), isliye Window ka #1E293B
-                 background hi sidebar me dikhta hai. Content area par iska asar
-                 nahi (uski apni NavigationViewContentBackground hai).
-                 Hamburger toggle hata diya: uska icon theme-foreground se aata
-                 hai jo dark sidebar par invisible ho jata. -->
+            <!-- NOTE: The pane has no background brush of its own (the WPF-UI template
+                 keeps PaneBorder transparent), so the Window's #1E293B
+                 background is what shows as the sidebar. This does not affect
+                 the content area (it has its own NavigationViewContentBackground).
+                 Hamburger toggle removed: its icon comes from theme-foreground
+                 which turns invisible on the dark sidebar. -->
             <ui:NavigationView.Resources>
                 <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="#FFFFFF" />
                 <SolidColorBrush x:Key="NavigationViewItemBackground" Color="#00000000" />

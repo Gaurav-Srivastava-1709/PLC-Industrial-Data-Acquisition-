@@ -26,7 +26,7 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly Func<ChangePasswordViewModel> _changePasswordFactory;
     private readonly IOptions<LoggingOptions> _loggingOptions;
 
-    // Runtime logging controller — restart ki zaroorat nahi (Manager Req #3)
+    // Runtime logging controller — no restart needed (Manager Req #3)
     private readonly LoggingController _loggingController;
 
     public SettingsViewModel(
@@ -70,7 +70,7 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty] private string _displayName = string.Empty;
     [ObservableProperty] private string _roleName = string.Empty;
 
-    // File logging ON/OFF toggle — LoggingController se sync hota hai
+    // File logging ON/OFF toggle — synced with LoggingController
     [ObservableProperty] private bool _enableFileLogging = true;
 
     public bool CanManage => _currentUser.HasPermission(Permission.ManageSettings);
@@ -107,8 +107,8 @@ public partial class SettingsViewModel : ViewModelBase
         await RunAsync(async () =>
         {
             IsDarkMode = _theme.Current == AppTheme.Dark;
-            // Non-admin users bhi Settings khol sakte hain (My Account ke liye)
-            // Save abhi bhi CanManage se gated hai
+            // Non-admin users can also open Settings (for My Account)
+            // Save is still gated by CanManage
             try
             {
                 UseMockPlc = _runtime.UseMockPlc;
@@ -116,7 +116,7 @@ public partial class SettingsViewModel : ViewModelBase
                 TransferredRetentionDays = _runtime.TransferredRetentionDays;
                 TransferIntervalSeconds = _runtime.TransferIntervalSeconds;
 
-                // LoggingController se current state lo (accurate hai — appsettings se nahi)
+                // Take the current state from LoggingController (accurate — not from appsettings)
                 EnableFileLogging = _loggingController.IsFileLoggingEnabled;
             }
             catch { }
@@ -145,14 +145,14 @@ public partial class SettingsViewModel : ViewModelBase
                 return;
             }
 
-            // Runtime settings save karo (DB mein — instant effect)
+            // Save runtime settings (in DB — instant effect)
             await _settings.SetAsync(AppSettingKeys.UseMockPlc, UseMockPlc.ToString());
             await _settings.SetAsync(AppSettingKeys.SessionTimeoutMinutes, Math.Clamp(SessionTimeoutMinutes, 1, 720).ToString());
             await _settings.SetAsync(AppSettingKeys.TransferredRetentionDays, Math.Clamp(TransferredRetentionDays, 1, 3650).ToString());
             await _settings.SetAsync(AppSettingKeys.TransferIntervalSeconds, Math.Clamp(TransferIntervalSeconds, 1, 3600).ToString());
 
-            // File logging toggle — RUNTIME mein apply hota hai (NO restart needed!)
-            // LoggingController internally LoggingLevelSwitch update karta hai + appsettings.json persist karta hai
+            // File logging toggle — applied at RUNTIME (NO restart needed!)
+            // LoggingController internally updates LoggingLevelSwitch + persists appsettings.json
             if (EnableFileLogging != _loggingController.IsFileLoggingEnabled)
             {
                 await _loggingController.SetFileLoggingAsync(EnableFileLogging);
@@ -170,7 +170,7 @@ public partial class SettingsViewModel : ViewModelBase
                 $"Mock={UseMockPlc}; Session={SessionTimeoutMinutes}m; Retention={TransferredRetentionDays}d; " +
                 $"TransferInterval={TransferIntervalSeconds}s; FileLogging={EnableFileLogging}");
 
-            // Industry: logging toggle bhi turant effective — no restart message nahi chahiye
+            // Industry standard: the logging toggle is also effective immediately — no restart message needed
             Dialogs.Toast("Settings", "Settings saved successfully. All changes are effective immediately.", ToastKind.Success);
 
         }, inlineErrors: true);

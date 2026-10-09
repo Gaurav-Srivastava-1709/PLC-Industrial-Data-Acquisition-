@@ -629,9 +629,9 @@
                                                         </Setter.Value>
                                                     </Setter>
                                                 </Trigger>
-                                                <!-- Critical Abnormal state: Running par connection fail / error.
-                                                     Theme-aware brushes (light me halka pink, dark me dark red tint)
-                                                     taaki dono mode me readable rahe. -->
+                                                <!-- Critical Abnormal state: Running but connection failed / error.
+                                                     Theme-aware brushes (light pink in light mode, dark red tint in dark mode)
+                                                     so it stays readable in both modes. -->
                                                 <MultiDataTrigger>
                                                     <MultiDataTrigger.Conditions>
                                                         <Condition Binding="{Binding IsRunning}" Value="True" />
@@ -680,7 +680,7 @@
                                                                 </MultiBinding>
                                                             </Ellipse.Fill>
                                                         </Ellipse>
-                                                        <!-- Device Title: Bada (15.5px) aur ExtraBold taaki turant nazar aaye -->
+                                                        <!-- Device Title: large (15.5px) and ExtraBold so it catches the eye immediately -->
                                                         <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
                                                                    FontWeight="ExtraBold" FontSize="15.5"
                                                                    Foreground="#FFFFFF"
@@ -813,7 +813,7 @@
                                                     </Grid>
                                                 </Border>
 
-                                                <!-- Error banner if any (theme-aware: dono mode me readable) -->
+                                                <!-- Error banner if any (theme-aware: readable in both modes) -->
                                                 <Border Background="{DynamicResource SystemFillColorCriticalBackgroundBrush}" BorderBrush="{DynamicResource SystemFillColorCriticalBrush}" BorderThickness="1" CornerRadius="6" Padding="8,5" Margin="0,0,0,10"
                                                         Visibility="{Binding LastError, Converter={StaticResource NotNullToVis}}">
                                                     <TextBlock Text="{Binding LastError}" Style="{StaticResource ErrorText}" FontSize="10.5"
@@ -821,7 +821,7 @@
                                                 </Border>
 
                                                 <!-- Toggles: Capture & Monitor switches (SemiBold + Display formatting
-                                                     taaki dark background par white label sharp dikhe, blur nahi) -->
+                                                     so the white label renders sharp on dark backgrounds, not blurry) -->
                                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                                                     <ui:ToggleSwitch IsChecked="{Binding IsCaptureEnabled, Mode=OneWay}"
                                                                      OnContent="Capture" OffContent="Capture"

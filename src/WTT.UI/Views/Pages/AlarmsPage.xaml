@@ -9,8 +9,8 @@
       mc:Ignorable="d" Title="Alarms" d:DesignHeight="768" d:DesignWidth="1024">
     <Page.Resources>
         <Style x:Key="RowBtn" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
-            <!-- Compact visible pill: theme fill + stroke taaki row me button
-                 ki tarah dikhe (flat secondary par gayab ho jata tha). -->
+            <!-- Compact visible pill: theme fill + stroke so it looks like a button in the row
+                 (it disappeared on flat secondary). -->
             <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
             <Setter Property="BorderThickness" Value="1" />

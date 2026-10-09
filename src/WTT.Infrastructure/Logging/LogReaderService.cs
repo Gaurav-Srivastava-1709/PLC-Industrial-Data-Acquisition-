@@ -8,13 +8,13 @@ using WTT.Application.Interfaces;
 namespace WTT.Infrastructure.Logging;
 
 /// <summary>
-/// WTT log files ko padhta hai — both old flat structure aur new date-folder structure support karta hai.
+/// Reads WTT log files — supports both the old flat structure and the new date-folder structure.
 /// 
 /// Supported path patterns:
 ///   Old: LogDirectory/wtt-20260930-220000.log
 ///   New: LogDirectory/2026-09-30/wtt-20260930-220000.log  ← DateFolderFileSink ka output
 /// 
-/// Manager Requirement #2: Date-based folders se logs padhna.
+/// Manager Requirement #2: Read logs from date-based folders.
 /// </summary>
 public sealed partial class LogReaderService : ILogReaderService
 {
@@ -39,18 +39,18 @@ public sealed partial class LogReaderService : ILogReaderService
     {
         if (!Directory.Exists(LogDirectory)) return Array.Empty<LogEntry>();
 
-        // --- Date-folder structure se files dhundho ---
-        // New style:  Logs/yyyy-MM-dd/wtt-*.log   (DateFolderFileSink ka output)
+        // --- Locate files in the date-folder structure ---
+        // New style:  Logs/yyyy-MM-dd/wtt-*.log   (DateFolderFileSink output)
         // Old style:  Logs/wtt-*.log               (flat, backward compatibility)
         var logDir = new DirectoryInfo(LogDirectory);
 
-        // Pichle 7 din ke date folders bhi scan karo + root folder
+        // Also scan date folders from the last 7 days + the root folder
         var allFiles = logDir
-            .GetFiles("wtt-*.log", SearchOption.AllDirectories)  // recursive = date sub-folders bhi
+            .GetFiles("wtt-*.log", SearchOption.AllDirectories)  // recursive = includes date sub-folders
             .OrderByDescending(f => f.LastWriteTimeUtc)
-            .GroupBy(f => f.FullName)          // duplicates hatao (agar same file 2 baar aa jaaye)
+            .GroupBy(f => f.FullName)          // remove duplicates (in case the same file appears twice)
             .Select(g => g.First())
-            .Take(10)                           // performance: sirf last 10 files (zyada kaafi hai)
+            .Take(10)                           // performance: only the last 10 files (more than enough)
             .ToList();
 
         var minIndex = minimumLevel is null ? 0 : Math.Max(0, Array.IndexOf(LevelOrder, NormalizeLevel(minimumLevel)));

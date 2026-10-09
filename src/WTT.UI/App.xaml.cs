@@ -81,7 +81,7 @@ public partial class App : System.Windows.Application
                 services.AddTransient<AlarmsViewModel>();
                 services.AddTransient<UsersPage>();
                 services.AddTransient<UsersViewModel>();
-                // Logs & Audit Viewer (Singleton taaki Dashboard par jaakar wapas aane par Auto-refresh aur filters reset na ho)
+                // Logs & Audit Viewer (Singleton so Auto-refresh and filters are not reset when navigating away and back from Dashboard)
                 services.AddSingleton<LogViewerPage>();
                 services.AddSingleton<LogViewerViewModel>();
                 services.AddTransient<SettingsPage>();

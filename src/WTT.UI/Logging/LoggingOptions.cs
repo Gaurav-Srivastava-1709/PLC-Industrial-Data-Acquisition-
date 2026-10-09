@@ -114,8 +114,8 @@ public sealed class LoggingOptions
         => Environment.ExpandEnvironmentVariables(LogDirectory);
 
     /// <summary>
-    /// MinimumLevel string ko Serilog LogEventLevel enum mein safely convert karta hai.
-    /// JSON se string aata hai, Serilog ko enum chahiye — ye bridge method hai.
+    /// Safely converts the MinimumLevel string to the Serilog LogEventLevel enum.
+    /// The value arrives as a string from JSON while Serilog needs an enum — this is the bridge method.
     /// </summary>
     public LogEventLevel GetMinimumLogEventLevel()
     {

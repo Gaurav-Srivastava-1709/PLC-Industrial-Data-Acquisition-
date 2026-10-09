@@ -5,29 +5,29 @@ using System.IO;
 namespace WTT.UI.Logging;
 
 /// <summary>
-/// Runtime logging controller — app restart ki zaroorat nahi!
+/// Runtime logging controller — no app restart required!
 /// 
 /// Industry standard approach:
-/// - Serilog ka LoggingLevelSwitch use karo level runtime mein change karne ke liye.
-/// - File logging toggle ke liye ek thread-safe flag use karo.
-/// - Ye singleton DI mein register hota hai aur SettingsViewModel se use hota hai.
+/// - Use Serilog's LoggingLevelSwitch to change the level at runtime.
+/// - Use a thread-safe flag for the file logging toggle.
+/// - Registered as a singleton in DI and consumed by SettingsViewModel.
 /// 
-/// Manager Requirement #3: Toggle to turn off log generation (runtime mein, bina restart ke).
+/// Manager Requirement #3: Toggle to turn off log generation (at runtime, without restart).
 /// </summary>
 public sealed class LoggingController
 {
-    // Serilog LoggingLevelSwitch — ye live mein level change karta hai (no restart needed)
-    // "Off" = LogEventLevel.Fatal + 1 ka trick hai Serilog mein logging completely band karne ke liye
+    // Serilog LoggingLevelSwitch — changes the level live (no restart needed)
+    // "Off" = LogEventLevel.Fatal + 1 trick to turn off Serilog logging completely
     private readonly LoggingLevelSwitch _levelSwitch;
     private readonly LoggingOptions _options;
 
-    // File logging toggle ka current state (thread-safe volatile)
+    // Current state of the file logging toggle (thread-safe volatile)
     private volatile bool _fileLoggingEnabled;
 
-    // Fatal+1 level = effectively OFF (koi bhi event is level se nahi guzarta)
+    // Fatal+1 level = effectively OFF (no event passes this level)
     private const LogEventLevel OffLevel = (LogEventLevel)1 + (int)LogEventLevel.Fatal;
 
-    // Jab logging status change ho to UI ko notify karne ke liye event
+    // Event to notify the UI when the logging status changes
     public event EventHandler<bool>? FileLoggingToggled;
 
     public LoggingController(LoggingLevelSwitch levelSwitch, LoggingOptions options)
@@ -38,7 +38,7 @@ public sealed class LoggingController
     }
 
     /// <summary>
-    /// File logging currently enabled hai ya nahi.
+    /// Whether file logging is currently enabled.
     /// </summary>
     public bool IsFileLoggingEnabled => _fileLoggingEnabled;
 
@@ -48,8 +48,8 @@ public sealed class LoggingController
     public LogEventLevel CurrentLevel => _levelSwitch.MinimumLevel;
 
     /// <summary>
-    /// File logging runtime mein ON/OFF karta hai.
-    /// Ye appsettings.json bhi update karta hai taaki app restart ke baad bhi setting yaad rahe.
+    /// Turns file logging ON/OFF at runtime.
+    /// Also updates appsettings.json so the setting persists across app restarts.
     /// </summary>
     public async Task SetFileLoggingAsync(bool enabled)
     {
@@ -57,20 +57,20 @@ public sealed class LoggingController
 
         if (enabled)
         {
-            // Logging restore karo original level par
+            // Restore logging to the original level
             _levelSwitch.MinimumLevel = _options.GetMinimumLogEventLevel();
         }
         else
         {
-            // Logging completely band karo — "Off" level trick
-            // Note: Serilog mein built-in "Off" nahi hai, Fatal+1 use karte hain
+            // Turn logging off completely — "Off" level trick
+            // Note: Serilog has no built-in "Off"; Fatal+1 is used instead
             _levelSwitch.MinimumLevel = LogEventLevel.Fatal;
         }
 
-        // Persist to appsettings.json (taaki restart ke baad bhi yaad rahe)
+        // Persist to appsettings.json (so it is remembered after restart)
         await PersistToAppSettingsAsync(enabled);
 
-        // UI ko notify karo
+        // Notify the UI
         FileLoggingToggled?.Invoke(this, enabled);
 
         System.Diagnostics.Debug.WriteLine(
@@ -78,7 +78,7 @@ public sealed class LoggingController
     }
 
     /// <summary>
-    /// Log level runtime mein change karta hai (e.g., debug karne ke liye temporarily Verbose).
+    /// Changes the log level at runtime (e.g., temporarily Verbose for debugging).
     /// </summary>
     public void SetMinimumLevel(LogEventLevel level)
     {
@@ -89,8 +89,8 @@ public sealed class LoggingController
     }
 
     /// <summary>
-    /// appsettings.json ko update karta hai taaki app restart ke baad setting survive kare.
-    /// Proper JSON round-trip: sirf EnableFileLogging field update karta hai, baaki sab intact.
+    /// Updates appsettings.json so the setting survives app restarts.
+    /// Proper JSON round-trip: only updates the EnableFileLogging field, everything else stays intact.
     /// </summary>
     private static async Task PersistToAppSettingsAsync(bool enableFileLogging)
     {
@@ -105,19 +105,19 @@ public sealed class LoggingController
 
             var json = await File.ReadAllTextAsync(configPath);
 
-            // JsonNode use karo — ye nested objects ko safely handle karta hai
-            // Dictionary<string,object> ka issue: nested objects JsonElement ban jaate hain,
-            // cast karne par InvalidCastException aata hai (bug tha pehle)
+            // Use JsonNode — it safely handles nested objects
+            // The Dictionary<string,object> issue: nested objects become JsonElements,
+            // which throws InvalidCastException on cast (was a bug before)
             var node = System.Text.Json.Nodes.JsonNode.Parse(json);
             if (node is System.Text.Json.Nodes.JsonObject root)
             {
-                // Logging section dhundho ya banao
+                // Find or create the Logging section
                 if (!root.ContainsKey("Logging"))
                     root["Logging"] = new System.Text.Json.Nodes.JsonObject();
 
                 if (root["Logging"] is System.Text.Json.Nodes.JsonObject loggingSection)
                 {
-                    // Sirf EnableFileLogging field update karo — baaki sab untouched
+                    // Update only the EnableFileLogging field — everything else untouched
                     loggingSection["EnableFileLogging"] = enableFileLogging;
                 }
 
@@ -133,7 +133,7 @@ public sealed class LoggingController
         }
         catch (Exception ex)
         {
-            // appsettings.json update fail hone par silently log karo — app crash nahi hona chahiye
+            // If the appsettings.json update fails, log silently — the app must not crash
             System.Diagnostics.Debug.WriteLine(
                 $"[WTT LoggingController] WARNING: Failed to persist logging setting: {ex.Message}");
         }

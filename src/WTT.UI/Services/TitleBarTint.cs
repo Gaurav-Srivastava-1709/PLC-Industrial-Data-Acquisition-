@@ -6,13 +6,13 @@ using WTT.UI.Views.Windows;
 namespace WTT.UI.Services;
 
 /// <summary>
-/// Native title bar (min/max/close wali patti) ko hamesha sidebar wale slate
-/// (#1E293B) me rakhta hai, aur MainWindow ka background bhi slate par wapas
-/// lata hai. WPF-UI ka ApplicationThemeManager.Apply har theme change par
-/// caption color reset (RemoveTitlebarBackground) aur window background overwrite
-/// kar deta hai, isliye ThemeManager.Apply ke baad ise dobara lagana padta hai.
-/// Caption tint sirf Windows 11+ par asar karta hai; background restore har
-/// Windows par kaam karta hai.
+/// Keeps the native title bar (min/max/close strip) always in the sidebar slate
+/// (#1E293B), and restores the MainWindow background to slate as well.
+/// WPF-UI's ApplicationThemeManager.Apply resets the caption color
+/// (RemoveTitlebarBackground) and overwrites the window background on every
+/// theme change, so this must be re-applied after ThemeManager.Apply.
+/// The caption tint only takes effect on Windows 11+; the background restore
+/// works on every Windows version.
 /// </summary>
 public static class TitleBarTint
 {
@@ -45,9 +45,9 @@ public static class TitleBarTint
             {
                 try
                 {
-                    // Sidebar pane transparent hai - Window ka background hi
-                    // sidebar ka rang hai. Theme-apply isko overwrite kar deta
-                    // hai, isliye yahan wapas slate karo (sirf MainWindow par).
+                    // The sidebar pane is transparent — the Window background is what
+                    // shows as the sidebar color. Theme-apply overwrites it,
+                    // so re-apply slate here (MainWindow only).
                     if (window is MainWindow mw)
                     {
                         mw.Background = SlateBackground;
@@ -61,13 +61,13 @@ public static class TitleBarTint
                 }
                 catch
                 {
-                    // Ek window fail ho to dusri par asar nahi.
+                    // If one window fails, the others are unaffected.
                 }
             }
         }
         catch
         {
-            // Title bar tint best-effort hai; kabhi app flow nahi rokta.
+            // Title bar tint is best-effort; it never blocks the app flow.
         }
     }
 
@@ -75,11 +75,11 @@ public static class TitleBarTint
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, int[] attrValue, int attrSize);
 
     /// <summary>
-    /// Content area ka background wapas fully-opaque karta hai. WPF-UI ka
-    /// NavigationViewContentBackground 50% transparent safed hai - safed Window
-    /// par safed dikhta tha, lekin slate Window par bhoora (grey) pad jata hai.
-    /// Isliye current theme ke window-rang ko opaque karke content par lagao,
-    /// taaki content hamesha pehle jaisa dikhe (sidebar par asar nahi).
+    /// Restores the content area background to fully opaque. WPF-UI's
+    /// NavigationViewContentBackground is 50% transparent white — it looked
+    /// white on a white Window, but turns greyish on a slate Window.
+    /// So take the current theme's window color, make it opaque and apply it
+    /// to the content, keeping the content visually consistent (sidebar unaffected).
     /// </summary>
     private static void RestoreOpaqueContentBackground(MainWindow mw)
     {
@@ -95,7 +95,7 @@ public static class TitleBarTint
         }
         catch
         {
-            // Best-effort; fail ho to theme default rehta hai.
+            // Best-effort; on failure the theme default stays.
         }
     }
 

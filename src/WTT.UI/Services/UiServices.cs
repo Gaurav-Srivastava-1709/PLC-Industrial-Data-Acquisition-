@@ -133,7 +133,7 @@ public sealed class ThemeManager
             return;
         }
         ApplicationThemeManager.Apply(appTheme, WindowBackdropType.None, true);
-        // WPF-UI caption color reset kar deta hai - slate wapas lagao.
+        // WPF-UI resets the caption color — re-apply slate.
         TitleBarTint.ApplySlate();
     }
 }

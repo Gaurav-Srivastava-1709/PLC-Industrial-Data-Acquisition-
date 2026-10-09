@@ -8,6 +8,8 @@
     <AssemblyName>WTT</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- Taskbar / window / exe icon: Web Tech Talk logo -->
+    <ApplicationIcon>Resources\WTTLogo.ico</ApplicationIcon>
     <!-- WPF generated code triggers a few analyzer warnings we do not control -->
     <NoWarn>$(NoWarn);CA1812;CA1822;CA1001;CA1063;CA1816;CA2213;CA1303</NoWarn>
   </PropertyGroup>
@@ -32,6 +34,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Resource Include="Resources\WTTLogo.png" />
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

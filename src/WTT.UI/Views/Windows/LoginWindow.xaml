@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         Title="WTT — Sign in" Height="598" Width="912" ResizeMode="NoResize"
+        Icon="pack://application:,,,/Resources/WTTLogo.png"
         WindowStartupLocation="CenterScreen" WindowStyle="None" AllowsTransparency="True"
         FontFamily="Segoe UI Variable Text, Segoe UI"
         UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">

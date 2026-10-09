@@ -15,13 +15,13 @@ public partial class LogViewerViewModel : ViewModelBase
     private readonly IAuditService _audit;
 
     // ─── Bindable Collections ───────────────────────────────────────────
-    // Industry pattern: ObservableCollection ko REPLACE karte hain, Clear+Add loop nahi karte.
-    // Yeh "swap" pattern ek single CollectionChanged event fire karta hai
-    // instead of N individual Add() events jo UI thread ko choke karte hain.
+    // Industry pattern: REPLACE the ObservableCollection instead of a Clear+Add loop.
+    // This "swap" pattern fires a single CollectionChanged event
+    // instead of N individual Add() events that would choke the UI thread.
     public ObservableCollection<LogEntry> Entries { get; } = new();
     public ObservableCollection<Domain.Entities.AuditLog> AuditEntries { get; } = new();
 
-    // Levels list — full names taaki ComboBox mein clearly dikh sake
+    // Levels list — full names so they display clearly in the ComboBox
     public IReadOnlyList<string> Levels { get; } = ["Verbose", "Debug", "Information", "Warning", "Error", "Fatal"];
 
     [ObservableProperty] private string _minimumLevel = "Information";
@@ -34,14 +34,14 @@ public partial class LogViewerViewModel : ViewModelBase
     private readonly System.Windows.Threading.DispatcherTimer _autoRefreshTimer;
     private readonly System.Windows.Threading.DispatcherTimer _searchDebounceTimer;
 
-    // Stacked refresh guard — double-click / fast navigation se crash prevent karta hai
+    // Stacked refresh guard — prevents crashes from double-click / fast navigation
     private int _refreshing;
 
     public string LogDirectory => _logs.LogDirectory;
 
     /// <summary>
-    /// IsEmpty = true jab koi log entry nahi hai — empty state UI show karta hai.
-    /// User ko samajh aata hai ki logging ON hai ya nahi.
+    /// IsEmpty = true when there is no log entry — shows the empty state UI.
+    /// Lets the user understand whether logging is ON or not.
     /// </summary>
     public bool IsEmpty => Entries.Count == 0 && !IsBusy;
 
@@ -62,7 +62,7 @@ public partial class LogViewerViewModel : ViewModelBase
                 _ = RefreshAsync();
         };
 
-        // 300ms debounce timer — user ke typing karte waqt UI hang na ho
+        // 300ms debounce timer — so the UI does not hang while the user is typing
         _searchDebounceTimer = new System.Windows.Threading.DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(300)
@@ -74,10 +74,10 @@ public partial class LogViewerViewModel : ViewModelBase
         };
     }
 
-    // Auto-refresh jab minimum level change ho
+    // Auto-refresh when the minimum level changes
     partial void OnMinimumLevelChanged(string value) => _ = RefreshAsync();
 
-    // Text search box ke liye debounce — har letter par database query nahi hogi
+    // Debounce for the text search box — no database query on every letter
     partial void OnContainsChanged(string value)
     {
         _searchDebounceTimer.Stop();
@@ -89,7 +89,7 @@ public partial class LogViewerViewModel : ViewModelBase
         if (value)
         {
             _autoRefreshTimer.Start();
-            _ = RefreshAsync(); // instantly ek baar refresh karo
+            _ = RefreshAsync(); // refresh once immediately
         }
         else
         {
@@ -97,12 +97,12 @@ public partial class LogViewerViewModel : ViewModelBase
         }
     }
 
-    // Page navigate hone par data load karo — UI immediately show ho, data background mein aata hai
+    // Load data when the page is navigated to — the UI shows immediately, data arrives in the background
     public override Task OnNavigatedToAsync()
     {
         _ = RefreshAsync();
         
-        // Agar user ne Auto-refresh ON rakha tha, toh wapas aane par timer resume karo
+        // If the user had left Auto-refresh ON, resume the timer when coming back
         if (IsAutoRefreshEnabled)
         {
             _autoRefreshTimer.Start();
@@ -113,7 +113,7 @@ public partial class LogViewerViewModel : ViewModelBase
 
     public override Task OnNavigatedFromAsync()
     {
-        // Memory leaks prevent karne ke liye timers zaroor roko jab page hide ho
+        // Always stop the timers when the page is hidden to prevent memory leaks
         _autoRefreshTimer.Stop();
         _searchDebounceTimer.Stop();
         return Task.CompletedTask;
@@ -122,7 +122,7 @@ public partial class LogViewerViewModel : ViewModelBase
     [RelayCommand]
     private async Task RefreshAsync()
     {
-        // Agar pehle se refresh chal raha hai toh naya request ignore karo (concurrency guard)
+        // If a refresh is already running, ignore the new request (concurrency guard)
         if (System.Threading.Interlocked.Exchange(ref _refreshing, 1) == 1) return;
         try
         {
@@ -130,7 +130,7 @@ public partial class LogViewerViewModel : ViewModelBase
             {
                 var queryFilter = string.IsNullOrWhiteSpace(Contains) ? null : Contains.Trim();
 
-                // ─── STEP 1: Background thread par data fetch karo (UI block nahi hoga) ───
+                // ─── STEP 1: Fetch data on a background thread (UI will not block) ───
                 var logTask   = _logs.ReadRecentAsync(MaxLines, MinimumLevel, queryFilter);
                 var auditTask = _audit.GetRecentAsync(150);
                 await Task.WhenAll(logTask, auditTask);
@@ -138,7 +138,7 @@ public partial class LogViewerViewModel : ViewModelBase
                 var logResults = await logTask;
                 var auditResults = await auditTask;
 
-                // ─── STEP 2: In-memory filter for audit (agar search active hai) ───
+                // ─── STEP 2: In-memory filter for audit (if search is active) ───
                 IEnumerable<Domain.Entities.AuditLog> filteredAudit = auditResults;
                 if (!string.IsNullOrWhiteSpace(queryFilter))
                 {
@@ -151,12 +151,12 @@ public partial class LogViewerViewModel : ViewModelBase
                 }
 
                 // ─── STEP 3: Batch replace — SINGLE UI update instead of N Add() calls ───
-                // Yeh industry pattern hai: pehle collection se DataGrid ko disconnect karo,
-                // data bharo, phir reconnect karo. Result: 1 re-render, not 150.
+                // This is the industry pattern: first disconnect the DataGrid from the collection,
+                // fill the data, then reconnect. Result: 1 re-render, not 150.
                 BatchReplace(Entries, logResults);
                 BatchReplace(AuditEntries, filteredAudit);
 
-                // IsEmpty update karo — empty state show/hide karo
+                // Update IsEmpty — show/hide the empty state
                 OnPropertyChanged(nameof(IsEmpty));
             });
         }
@@ -178,7 +178,7 @@ public partial class LogViewerViewModel : ViewModelBase
         // Materialize to list to avoid multiple enumeration
         var items = source as IReadOnlyList<T> ?? source.ToList();
 
-        // Agar items same count aur same references hain, skip karo (no-op optimization)
+        // Skip when the items have the same count and same references (no-op optimization)
         if (target.Count == items.Count)
         {
             bool same = true;
@@ -190,7 +190,7 @@ public partial class LogViewerViewModel : ViewModelBase
                     break;
                 }
             }
-            if (same) return; // Data identical hai, UI ko touch mat karo
+            if (same) return; // Data is identical, do not touch the UI
         }
 
         // Clear + bulk add: WPF DataGrid internally handles this with a single layout pass
@@ -205,7 +205,7 @@ public partial class LogViewerViewModel : ViewModelBase
     {
         try
         {
-            // Windows Explorer mein log folder kholna
+            // Open the log folder in Windows Explorer
             Process.Start(new ProcessStartInfo { FileName = _logs.LogDirectory, UseShellExecute = true });
         }
         catch (Exception ex)

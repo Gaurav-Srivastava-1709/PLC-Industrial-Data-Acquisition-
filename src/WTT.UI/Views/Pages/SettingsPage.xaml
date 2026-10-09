@@ -97,7 +97,7 @@
                     </Grid>
 
                     <!-- Log File Generation Toggle — Manager Requirement #3 -->
-                    <!-- Ye toggle disk pe log files banana band karta hai (testing/dev ke liye useful) -->
+                    <!-- This toggle stops writing log files to disk (useful for testing/dev) -->
                     <Separator Margin="0,16,0,12" />
                     <TextBlock Text="Log File Generation" Style="{StaticResource SectionTitle}" Margin="0,0,0,4"/>
                     <ui:ToggleSwitch x:Name="LoggingToggle"

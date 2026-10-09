@@ -76,7 +76,7 @@
                 <DataGridTemplateColumn Header="Actions" Width="200" MinWidth="196" CanUserResize="False">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <!-- Actions StackPanel: VerticalAlignment=Center rakha hai taaki DataGrid cell ke andar buttons exact middle me align hon -->
+                            <!-- Actions StackPanel: VerticalAlignment=Center so the buttons align exactly in the middle of the DataGrid cell -->
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                                 <!-- Configure button: Dark navy background (#1e3a5f) and white text & icon -->
                                 <Button FontSize="12" Margin="0,0,6,0" Padding="8,3" MinWidth="88" Style="{StaticResource ConfigureBtn}"

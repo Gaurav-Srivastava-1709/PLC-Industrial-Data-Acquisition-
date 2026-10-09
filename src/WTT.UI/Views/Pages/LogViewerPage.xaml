@@ -14,21 +14,21 @@
         <Grid Grid.Row="0">
             <StackPanel>
                 <TextBlock Text="Logs &amp; audit" Style="{StaticResource PageTitle}" />
-                <!-- Log file path dikhao taaki user ko pata chale kahan files hain (Manager Req #2) -->
+                <!-- Show the log file path so the user knows where the files are (Manager Req #2) -->
                 <TextBlock Style="{StaticResource PageSubtitle}">
                     <Run Text="Application log files live in " />
                     <Run Text="{Binding LogDirectory, Mode=OneWay}" FontFamily="Consolas" />
                 </TextBlock>
             </StackPanel>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
-                <!-- Level filter: sirf relevant logs dikhao -->
+                <!-- Level filter: show only relevant logs -->
                 <ComboBox ItemsSource="{Binding Levels}" SelectedItem="{Binding MinimumLevel}"
                           Width="130" Margin="0,0,8,0" ToolTip="Minimum log level filter" />
                 <!-- Text search filter -->
                 <ui:TextBox PlaceholderText="Contains…" Width="220"
                             Text="{Binding Contains, UpdateSourceTrigger=PropertyChanged}"
                             Margin="0,0,8,0" ToolTip="Search in message or source" />
-                <!-- Auto-Refresh Toggle: TwoWay binding taaki UI switch aur ViewModel state dono sync rahein -->
+                <!-- Auto-Refresh Toggle: TwoWay binding so the UI switch and ViewModel state stay in sync -->
                 <ui:ToggleSwitch IsChecked="{Binding IsAutoRefreshEnabled, Mode=TwoWay}"
                                  OnContent="Live (30s)" OffContent="Auto-refresh"
                                  Margin="0,0,8,0" VerticalAlignment="Center" />
@@ -85,7 +85,7 @@
                             <KeyBinding Key="C" Modifiers="Control" Command="{Binding CopySelectedCommand}" />
                         </DataGrid.InputBindings>
                         <DataGrid.Columns>
-                            <!-- Timestamp: full precision taaki debugging aasan ho -->
+                            <!-- Timestamp: full precision for easier debugging -->
                             <DataGridTextColumn Header="Time"
                                                Binding="{Binding Timestamp, StringFormat=yyyy-MM-dd HH:mm:ss.fff}"
                                                Width="180" MinWidth="170" FontFamily="Consolas" />
@@ -141,7 +141,7 @@
                         </DataGrid.Columns>
                     </DataGrid>
 
-                    <!-- Empty state: koi log nahi mila to user ko batao kyu -->
+                    <!-- Empty state: if no log was found, tell the user why -->
                     <StackPanel Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Center"
                                 Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVis}}">
                         <ui:SymbolIcon Symbol="DocumentText24" FontSize="48"

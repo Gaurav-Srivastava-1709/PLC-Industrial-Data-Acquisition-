@@ -74,9 +74,9 @@
         <Setter Property="AutoGenerateColumns" Value="False" />
         <Setter Property="IsReadOnly" Value="True" />
         <Setter Property="AlternationCount" Value="2" />
-        <!-- Alternate row cream + dark text DONO set hai taaki dark mode me bhi
-             padha jaye (dark theme ka safed text cream par gayab ho jata tha).
-             Selection (green) template-level par isse upar rehta hai. -->
+        <!-- Alternate row cream + dark text BOTH set so it stays readable in dark mode
+             (the dark theme's white text disappeared on cream).
+             Selection (green) stays above this at template level. -->
         <Setter Property="RowStyle">
             <Setter.Value>
                 <Style TargetType="{x:Type DataGridRow}">
@@ -96,7 +96,7 @@
         <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
         <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
         <Setter Property="HeadersVisibility" Value="Column" />
-        <!-- Table row height ko 38px set kiya taaki cell action buttons (Edit/Delete) neeche se cut na hon -->
+        <!-- Table row height set to 38px so cell action buttons (Edit/Delete) are not cut off at the bottom -->
         <Setter Property="RowHeight" Value="38" />
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
@@ -393,8 +393,8 @@
         <Setter Property="Margin" Value="6,2,6,2" />
         <Setter Property="Padding" Value="12,0,8,0" />
         <Setter Property="Background" Value="Transparent" />
-        <!-- Fixed light-slate: sidebar ab hamesha dark hai (dono themes me),
-             isliye adaptive brush ki jagah fixed rang taaki text dikhe. -->
+        <!-- Fixed light-slate: the sidebar is now always dark (in both themes),
+             so a fixed color is used instead of the adaptive brush to keep text visible. -->
         <Setter Property="Foreground" Value="#CBD5E1" />
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
@@ -441,26 +441,26 @@
     </Style>
 
     <!-- All table headers app-wide: blue (#1D4ED8) background, white text.
-         Sirf rang hai - koi template change nahi, isliye header ka
-         design, separator aur sort arrow bilkul pehle jaisa rahega. -->
+         Colors only — no template change, so the header
+         design, separator and sort arrow stay exactly as before. -->
     <Style TargetType="{x:Type DataGridColumnHeader}">
         <Setter Property="Background" Value="#1D4ED8" />
         <Setter Property="Foreground" Value="White" />
     </Style>
 
-    <!-- Selected table row app-wide: blue ki jagah light green (Excel jaisa).
-         Sirf selection ke rang hai - koi template change nahi. -->
+    <!-- Selected table row app-wide: light green instead of blue (Excel-like).
+         Selection colors only — no template change. -->
     <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#C6EFCE" />
     <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#006100" />
     <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#E2EFDA" />
     <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#006100" />
 
-    <!-- Table row ke action buttons (Write/Configure/Edit/Verify...): cream
-         alternate row par dark mode ka safed text gayab ho jata tha.
-         Danger (red) buttons ka apna background hai, unhe ye nahi chahiye. -->
+    <!-- Table row action buttons (Write/Configure/Edit/Verify...): the dark mode's
+         white text disappeared on the cream alternate row.
+         Danger (red) buttons have their own background; they don't need this. -->
     <Style x:Key="RowActionBtn" TargetType="{x:Type ui:Button}" BasedOn="{StaticResource {x:Type ui:Button}}">
-        <!-- Compact visible pill: theme fill + stroke taaki row me button
-             ki tarah dikhe (flat secondary par gayab ho jata tha). -->
+        <!-- Compact visible pill: theme fill + stroke so it looks like a button in the row
+             (it disappeared on flat secondary). -->
         <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
         <Setter Property="BorderThickness" Value="1" />
@@ -475,9 +475,9 @@
         </Style.Triggers>
     </Style>
 
-    <!-- Shared colourful KPI cards (Tailwind-admin inspired, Dashboard jaisa):
-         FIXED pastel gradients + dark text, isliye Light aur Dark dono me
-         same dikhte hai. DashboardPage me inhi ki local copy hai. -->
+    <!-- Shared colourful KPI cards (Tailwind-admin inspired, same as Dashboard):
+         FIXED pastel gradients + dark text, so they look identical in Light and Dark.
+         DashboardPage has its own local copy of these. -->
     <LinearGradientBrush x:Key="KpiBlueBg" StartPoint="0,0" EndPoint="1,1">
         <GradientStop Color="#DBEAFE" Offset="0" />
         <GradientStop Color="#BFDBFE" Offset="1" />
@@ -540,13 +540,12 @@
     </Style>
 
     <!-- Refresh buttons - rich indigo gradient (flat, rounded, white icon + text).
-         Indigo (#6366F1 family) primary-blue se alag dikhta hai phir bhi professional
-         blue-family me rehta hai. Bagal wale royal-blue (Export/Add) buttons se
-         clash nahi karta.
-         Native Button + apna template taaki hover par rang na badle
-         (WPF-UI Button hover override karta hai - Delete wala sabak).
-         Text wale = CoralRefreshBtn, icon-only = CoralRefreshIconBtn. (Key naam same
-         rakha taaki 9 pages ke usages na chhedne pade - sirf rang badla hai.) -->
+         Indigo (#6366F1 family) differs from primary-blue yet stays in the professional
+         blue family. Does not clash with the neighboring royal-blue (Export/Add) buttons.
+         Native Button + custom template so the color does not change on hover
+         (WPF-UI Button overrides hover — lesson from Delete).
+         Text variants = CoralRefreshBtn, icon-only = CoralRefreshIconBtn. (Key names kept
+         unchanged so the usages across 9 pages stay untouched — only colors changed.) -->
     <Style x:Key="CoralRefreshBtn" TargetType="{x:Type Button}">
         <Setter Property="Background">
             <Setter.Value>
@@ -873,8 +872,8 @@
         </Setter>
     </Style>
 
-    <!-- Amber key icon button (Reset password) - EditBtn jaisa gradient, alag rang.
-         Amber = caution/action, Edit (blue) aur Delete (red) dono se alag. -->
+    <!-- Amber key icon button (Reset password) — same gradient style as EditBtn, different color.
+         Amber = caution/action, distinct from both Edit (blue) and Delete (red). -->
     <Style x:Key="KeyBtn" TargetType="{x:Type Button}">
         <Setter Property="Background">
             <Setter.Value>
@@ -943,8 +942,8 @@
         </Setter>
     </Style>
 
-    <!-- Violet unlock icon button - EditBtn jaisa gradient, alag rang.
-         Violet app ke KPI palette se match karta hai, blue/green/red se alag. -->
+    <!-- Violet unlock icon button — same gradient style as EditBtn, different color.
+         Violet matches the app's KPI palette, distinct from blue/green/red. -->
     <Style x:Key="UnlockBtn" TargetType="{x:Type Button}">
         <Setter Property="Background">
             <Setter.Value>
@@ -1013,9 +1012,9 @@
         </Setter>
     </Style>
 
-    <!-- Royal-blue export button (Export CSV) - app ke header/tab wale #1D4ED8
-         rang me, taaki toolbar me perfectly suit kare. Fixed height taaki
-         bagal wale ComboBox/Filter/Refresh jitna bada dikhe. -->
+    <!-- Royal-blue export button (Export CSV) — same #1D4ED8 as the app header/tabs
+         so it suits the toolbar perfectly. Fixed height so it renders
+         as tall as the neighboring ComboBox/Filter/Refresh controls. -->
     <Style x:Key="ExportBtn" TargetType="{x:Type Button}">
         <Setter Property="Background" Value="#1D4ED8" />
         <Setter Property="BorderBrush" Value="#1E40AF" />
@@ -1063,8 +1062,8 @@
         </Setter>
     </Style>
 
-    <!-- Segmented time-window pill (1m/5m/15m...) - segmented control look:
-         transparent in group, hover/press par soft fill taaki clickable lage. -->
+    <!-- Segmented time-window pill (1m/5m/15m...) — segmented control look:
+         transparent in group, soft fill on hover/press so it looks clickable. -->
     <Style x:Key="SegmentBtn" TargetType="{x:Type Button}">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="Transparent" />
@@ -1143,8 +1142,8 @@
         </Setter>
     </Style>
 
-    <!-- Primary action button (Add, Save...) - same royal-blue look as ExportBtn.
-         Alias only, taaki intentXAML me saaf dikhe (Add/Save vs CSV export). -->
+    <!-- Primary action button (Add, Save...) — same royal-blue look as ExportBtn.
+         Alias only, so the intent reads clearly in XAML (Add/Save vs CSV export). -->
     <Style x:Key="PrimaryBtn" TargetType="{x:Type Button}" BasedOn="{StaticResource ExportBtn}" />
 
     <!-- Danger solid button (destructive confirm: Write, Delete...) - app-wide
@@ -1192,10 +1191,10 @@
         </Setter>
     </Style>
 
-    <!-- Neutral ghost button (Cancel, Select all, Clear, Back...) - research-backed
-         secondary hierarchy: solid fill nahi, halka adaptive surface + border +
-         dark text. Dono themes me readable (adaptive brushes), primary blue
-         buttons ke bagal me sahi lagta hai. Text-only content ke liye. -->
+    <!-- Neutral ghost button (Cancel, Select all, Clear, Back...) — research-backed
+         secondary hierarchy: no solid fill, light adaptive surface + border +
+         dark text. Readable in both themes (adaptive brushes), sits well
+         next to the primary blue buttons. For text-only content. -->
     <Style x:Key="NeutralBtn" TargetType="{x:Type Button}">
         <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
@@ -1237,7 +1236,7 @@
     </Style>
 
     <!-- Dark-red trash icon button (flat, rounded square, subtle shadow).
-         Native Button + apna template taaki hover par rang pakka rahe. -->
+         Native Button + custom template so the color stays solid on hover. -->
     <Style x:Key="TrashBtn" TargetType="{x:Type Button}">
         <!-- Industry red background (#DC2626) -->
         <Setter Property="Background" Value="#DC2626" />
@@ -1245,7 +1244,7 @@
         <Setter Property="Foreground" Value="White" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="FontSize" Value="13" />
-        <!-- Padding zero rakha taaki icon DataGrid cell ke andar cut na ho -->
+        <!-- Padding kept at zero so the icon is not clipped inside the DataGrid cell -->
         <Setter Property="Padding" Value="0" />
         <Setter Property="MinWidth" Value="28" />
         <Setter Property="MinHeight" Value="28" />
@@ -1262,7 +1261,7 @@
                             CornerRadius="6" Padding="{TemplateBinding Padding}"
                             SnapsToDevicePixels="True">
                         <Border.Effect>
-                            <!-- Shadow depth 1px aur blur 4px focus rakhi hai jisse bottom edge clipping solve hoti hai -->
+                            <!-- Shadow depth 1px and blur 4px kept in focus to fix bottom-edge clipping -->
                             <DropShadowEffect Color="#30DC2626" BlurRadius="4"
                                               ShadowDepth="1" Direction="270" Opacity="0.4" />
                         </Border.Effect>
@@ -1289,9 +1288,9 @@
         </Setter>
     </Style>
 
-    <!-- Selected tab: solid #1D4ED8 background + white text (Device Config wala
-         blue-pill look). Pure app me har TabControl isi ko use karega taaki
-         selected tab hamesha ek jaisa dikhe. Unselected transparent rahega. -->
+    <!-- Selected tab: solid #1D4ED8 background + white text (Device Config's
+         blue-pill look). Every TabControl in the app uses this so the
+         selected tab always looks the same. Unselected stays transparent. -->
     <Style x:Key="ProTabItem" TargetType="TabItem">
         <Setter Property="FontSize" Value="13.5" />
         <Setter Property="Padding" Value="14,9" />

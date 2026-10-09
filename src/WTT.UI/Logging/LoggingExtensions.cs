@@ -40,14 +40,14 @@ public static class LoggingExtensions
         // 2. Create base logger configuration
         var minimumLevel = options.GetMinimumLogEventLevel();
 
-        // LoggingLevelSwitch — runtime mein level change karne ka official Serilog way
-        // Ye singleton hai, LoggingController isse use karke runtime toggle karta hai
+        // LoggingLevelSwitch — the official Serilog way to change the level at runtime
+        // It is a singleton; LoggingController uses it for the runtime toggle
         var levelSwitch = new LoggingLevelSwitch(minimumLevel);
 
         // LoggingController — runtime logging toggle (manager requirement #3, NO restart needed)
         var loggingController = new LoggingController(levelSwitch, options);
-        services.AddSingleton(levelSwitch);         // agar koi direct access chahiye
-        services.AddSingleton(loggingController);   // SettingsViewModel inject karega isko
+        services.AddSingleton(levelSwitch);         // in case direct access is needed
+        services.AddSingleton(loggingController);   // SettingsViewModel injects this
 
         var loggerConfig = new LoggerConfiguration()
             .Enrich.FromLogContext()
@@ -69,11 +69,11 @@ public static class LoggingExtensions
         // 3. Configure sinks based on options
         ConfigureSinks(loggerConfig, options);
 
-        // 4. Build logger aur globally register karo
+        // 4. Build the logger and register it globally
         var logger = loggerConfig.CreateLogger();
         Log.Logger = logger;
 
-        // Microsoft.Extensions.Logging (ILogger<T>) ko Serilog pe redirect karo
+        // Redirect Microsoft.Extensions.Logging (ILogger<T>) to Serilog
         services.AddLogging(loggingBuilder =>
         {
             loggingBuilder.ClearProviders();
@@ -95,8 +95,8 @@ public static class LoggingExtensions
                 // Industry-grade output template:
                 // - Timestamp with timezone
                 // - Log level (3-char: INF/WRN/ERR/FTL)
-                // - Thread ID (debugging concurrent issues mein helpful)
-                // - Source class name (kahan se log aaya)
+                // - Thread ID (helpful when debugging concurrent issues)
+                // - Source class name (where the log came from)
                 // - Message + Exception stack trace (manager req #1: descriptive logs)
                 var plainTemplate =
                     "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] [T{ThreadId}] [{SourceContext}] {Message:lj}{NewLine}{Exception}";
@@ -124,8 +124,8 @@ public static class LoggingExtensions
             }
             catch (Exception ex)
             {
-                // File sink fail hone par app crash nahi honi chahiye.
-                // Debug output mein error dikhao — at least debug sink se logs milenge.
+                // If the file sink fails, the app must not crash.
+                // Show the error in debug output — logs will still be available via the debug sink.
                 System.Diagnostics.Debug.WriteLine(
                     $"[WTT Logging] WARNING: File sink initialization failed: {ex.Message}. " +
                     $"Check permissions for: {options.GetExpandedLogDirectory()}");
