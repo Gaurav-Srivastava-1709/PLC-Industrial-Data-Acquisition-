@@ -1,9 +1,22 @@
 # WTT User Guide (Complete)
 
-Version: 1.2.0
-Application: WTT Industrial Data Acquisition
-Components: WPF client (`WTT.UI`) + background Windows Service (`WTTData`) + local SQL Server Express database (`WTT`)
-Audience: Operators, Administrators, Viewers, Support Engineers
+**Version:** 1.2.0
+**Application:** WTT Industrial Data Acquisition
+**Components:** WPF client (`WTT.UI` → `WTT.exe`) + background Windows Service (`WTTData`) + local SQL Server Express database (`WTT`)
+**Audience:** Operators, Administrators, Viewers, Support Engineers
+
+This guide explains how to *use* WTT: what every screen does, how to configure capture safely, how to read transfer health, and what to do when something looks wrong.
+
+**Related documents:**
+
+| Document | Read it for |
+|---|---|
+| `docs/ADMIN_GUIDE.md` | Security rules, write-safety policy, backup, monitoring checklist |
+| `docs/ARCHITECTURE.md` | How the system works internally (for developers and deep support) |
+| `docs/INSTALL_AND_UPDATE.md` | Installation, update, rollback |
+| `docs/SQL_SERVER_EXPRESS.md` | Database provisioning, backup, 10 GB ceiling |
+| `docs/UI_STYLE_GUIDE.md` | UI colours, buttons, tabs (for UI developers) |
+| `docs/MANUAL_TEST_PLAN_HINDI.md` | Step-by-step manual acceptance test plan |
 
 ## Contents
 
@@ -19,19 +32,21 @@ Audience: Operators, Administrators, Viewers, Support Engineers
 10. Capture Modes and Triggers in Detail
 11. Live Data, PLC Write Safety and CSV Export in Detail
 12. Data Transfer in Detail
-13. Log Viewer in Detail
-14. User Management in Detail (Admin Only)
-15. Settings in Detail (Admin Only)
-16. External SQL Queries in Detail
-17. Service Behavior, Restart and Data Safety
-18. Database Tables - Simple Meaning
-19. Daily Operating Procedures
-20. Verification Queries for Support
-21. Troubleshooting Matrix
-22. Safety Rules
-23. Support Package - What to Send
-24. Glossary
-25. Document History
+13. Historian Trends in Detail
+14. Alarms and Events in Detail (ISA-18.2)
+15. Log Viewer in Detail
+16. User Management in Detail (Admin Only)
+17. Settings in Detail
+18. External SQL Queries in Detail
+19. Service Behavior, Restart and Data Safety
+20. Database Tables - Simple Meaning
+21. Daily Operating Procedures
+22. Verification Queries for Support
+23. Troubleshooting Matrix
+24. Safety Rules
+25. Support Package - What to Send
+26. Glossary
+27. Document History
 
 ---
 
@@ -41,17 +56,17 @@ WTT collects data from PLC devices over the plant network, stores every scan in 
 
 Three parts work together:
 
-- `WTT.UI`: the WPF desktop application you click and operate. It shows dashboards, configuration screens, live values, transfer status, logs, users and settings. It does not talk to PLCs directly.
-- `WTTData` service: the background Windows Service that owns polling, PLC communication, local storage and central transfer. It keeps running even when the UI is closed.
-- SQL Server Express database `WTT`: the single source of truth for configuration, users, readings, batches, audit logs, settings and service heartbeat.
+- `WTT.UI`: the WPF desktop application you click and operate. It shows dashboards, configuration screens, live values, historian trends, alarms, transfer status, logs, users and settings. It does not talk to PLCs directly.
+- `WTTData` service: the background Windows Service that owns polling, PLC communication, local storage, alarm evaluation and central transfer. It keeps running even when the UI is closed.
+- SQL Server Express database `WTT`: the single source of truth for configuration, users, readings, batches, alarms, audit logs, settings and service heartbeat.
 
 Typical data flow:
 
 ```text
 PLC device -> Driver (Modbus TCP / Siemens S7 / Allen-Bradley EtherNet/IP / Simulator)
-  -> Capture worker -> Local WTT.TagReadings table
+  -> Capture worker -> alarm evaluation -> Local WTT.TagReadings table
   -> Transfer worker -> Central TagDetail table
-  -> Dashboard / Live Data / Transfer pages read from SQL
+  -> Dashboard / Live Data / Trends / Alarms / Transfer pages read from SQL
 ```
 
 Closing the UI never stops capture. Stopping SQL Server or the `WTTData` service does stop capture and transfer. This is by design.
@@ -83,7 +98,8 @@ WTT has three fixed roles. Permissions are enforced in both the UI and the backg
 | View Devices and device list | Yes | Yes | Yes |
 | View Data Transfer status and batches | Yes | Yes | Yes |
 | Start / Stop capture, Start / Stop transfer, Transfer Now | Yes | Yes | No |
-| View logs | Yes | Yes | No |
+| View logs (application log and audit trail) | Yes | Yes | No |
+| View alarms (acknowledge: Admin/Operator only) | Yes | Yes | Yes |
 | Add / Edit / Delete devices | Yes | No | No |
 | Add / Edit address blocks, tags, triggers, queries, transfer servers | Yes | No | No |
 | Write a value to PLC | Yes | No | No |
@@ -144,19 +160,62 @@ Idle sessions sign out automatically. The default is 30 minutes.
 
 ## 5. Main Window and Navigation
 
-After login the main window has a left navigation rail and a content area plus a top status bar.
+After login the main window has a dark slate sidebar on the left (`#1E293B`), a content area on the right, and a top status bar with the alarm bell and an **Account** button.
 
-Pages:
+### 5.1 Sidebar structure
 
-- Dashboard: plant health, counts, charts, per-device status, service heartbeat.
-- Devices: PLC connection and capture configuration. Admin only for edits.
-- Live Data: current values per device, filters, PLC write dialog, CSV export.
-- Data Transfer: pending counts, destinations, recent batches, manual transfer.
-- Log Viewer: searchable application logs.
-- Users: Admin-only user administration.
-- Settings: Admin-only theme, simulator, timeouts, intervals, retention, SQL information.
+The sidebar is grouped into two sections plus a footer:
 
-Notifications appear as snackbars at the bottom for success, warning and error. Windows can be resized down to about 720 px width without overlap; grids scroll horizontally when needed.
+```text
+[brand tile]   WTT / INDUSTRIAL DATA ACQUISITION
+
+MONITOR
+  Dashboard        plant health, KPIs, per-device cards, sparklines
+  Live Data        current tag values, filters, PLC write, CSV export
+  Trends           multi-pen historian trends
+  Alarms           active alarms + history, with a live red badge
+
+MANAGE
+  Devices          PLC connection and capture configuration
+  Data Transfer    pending counts, destinations, recent batches
+  Users            Admin-only user administration
+  Logs             application log and audit trail
+
+──────────────────────
+Settings         theme, simulator, security, retention, log generation
+```
+
+Items you do not have permission for are hidden entirely, not just disabled —
+except **Dashboard**, **Alarms** and **Settings**, which have no visibility gate
+and are shown to every role. (Viewing alarms is allowed for all roles;
+acknowledging demands the `AcknowledgeAlarm` permission, which Viewers lack.
+**Trends** shares the Live Data permission — there is no separate Trends
+permission; hiding Live Data hides Trends too.)
+
+### 5.2 Page guide
+
+| Page | What it answers | Primary users |
+|---|---|---|
+| **Dashboard** | Is data flowing? Is anything buffered? Is the service alive? | All |
+| **Live Data** | What are the tags reading *right now*? | All |
+| **Trends** | How did a value behave over the last minutes/hours? | All |
+| **Alarms** | What needs attention, and what has already been acknowledged? | Operator, Admin |
+| **Devices** | How are the PLCs configured? | Admin (edits), all (view) |
+| **Data Transfer** | Is data reaching the central database? | Operator, Admin |
+| **Users** | Who can sign in, and with what role? | Admin |
+| **Logs** | What did the application and the audit trail record? | Admin, Operator |
+| **Settings** | Theme, simulator, security, retention, log generation | All (sections vary) |
+| **My Profile** (header → Account) | My details, status, security and what I am allowed to do | All |
+
+### 5.3 Status bar
+
+- **Alarm bell with badge** — shows the count of active alarms; clicking it opens the Alarms page. (Sidebar badge `#EF4444`, header bell badge hard-coded `#E53935`.)
+- **Account** button — opens My Profile, from which you can change your password or sign out.
+- **Snackbars** appear at the bottom for success, warning and error messages.
+
+### 5.4 Layout behaviour
+
+Windows can be resized down to about 720 px width without overlap; grids scroll horizontally when needed. Tab strips (Device Config, Alarms, Logs) use the same solid blue selected tab with white bold text everywhere. Sidebar, title bar and header buttons follow a single colour system documented in `docs/UI_STYLE_GUIDE.md`.
 
 ## 6. Dashboard in Detail
 
@@ -458,24 +517,175 @@ Automatic cycles run on the configured interval. Transfer Now forces one cycle f
 
 Do not stop production SQL Server. For a safe drill change the test device destination to `invalid-test-server`, keep capture ON, confirm an error batch appears with local rows preserved, then restore server to `.` and database to `WTT_Central_Test` and confirm automatic drain.
 
-## 13. Log Viewer in Detail
+## 13. Historian Trends in Detail
 
-The Logs page shows UI logs from `%LocalAppData%\WTT\Logs`. Service logs live in `%ProgramData%\WTT\Logs` and are referenced from the same screen.
+The **Trends** page is the SCADA-style multi-pen trend viewer: *"Multi-pen real-time and historical process trends across all PLC machines."* It draws directly from the local historian (`TagReadings`), so it works whether or not the plant network is up.
+
+### 13.1 What is on the page
+
+| Element | Purpose |
+|---|---|
+| Device selector | Chooses whose tags are listed |
+| Tag list with text filter | Find tags by name; each row has a visibility checkbox |
+| **Select All / Clear All** | Blue text actions (`LinkBtn`) for bulk pen selection |
+| Time-window segments | `1m · 5m · 15m · 30m · 1h` — segmented pills (`SegmentBtn`) in a track |
+| **Reset View** | Restores pan/zoom and Y mode |
+| **Export CSV** | Royal-blue `ExportBtn` — exports the visible window |
+| **Refresh** | Indigo icon + text button, reloads the historical window |
+| Live toggle | Follow new data in real time, or freeze the current window |
+| Y-mode toggle | **Shared** axis (all pens on one scale) vs **Normalized** (each pen to its own range) |
+| Pen legend | Shows pen name, colour, current value and engineering unit; each pen can be hidden independently |
+
+### 13.2 How to use it
+
+1. Select a device.
+2. Click **Select All**, or tick individual tags.
+3. Choose a time window — `5m` for a recent disturbance, `1h` for a shift overview.
+4. Read the pens. Analog pens draw as lines; digital/boolean pens draw as steps in their own lane.
+5. Hover the plot to read exact values at a point in time (lookup is binary-searched over the samples).
+6. Toggle **Live** on to keep the window sliding forward as new readings arrive.
+7. **Export CSV** when you need the numbers.
+
+> PNG export exists in the view-model (`ExportPngCommand`) but its toolbar
+> button is currently commented out in `TrendsPage.xaml` — do not document it
+> as available until the button is restored.
+
+### 13.3 Things worth knowing
+
+- **Quality gaps break the line.** When readings are missing or Bad quality, the plot stops the pen rather than drawing a straight line across the outage. A gap is real information — do not "fix" it by widening the window.
+- **Shared vs Normalized:** Shared shows true engineering magnitude, so a 0–100 % pen and a 0–200 °C pen sit on one axis. Normalized stretches each pen to fill the plot, which is better for comparing shapes rather than values.
+- **Historical queries are downsampled.** Long windows fetch up to a bounded point count and are downsampled (LTTB, gap-aware) so the plot stays responsive. Peaks in a very long window are therefore representative, not exhaustive — zoom in for exact values.
+- **The trend page and the Logs page survive navigation.** Both are kept alive as singletons, so your pens, filters and time window are still there when you come back from another page.
+- **No charting library is used.** The plot is a hand-rendered control (`ScadaTrendPlot`), which is why it supports pan/zoom, digital lanes and quality gaps natively.
+
+### 13.4 Troubleshooting Trends
+
+| Symptom | Likely cause | Action |
+|---|---|---|
+| Empty plot | No readings in the window, or no tags selected | Widen the time window; press **Select All**; confirm capture is ON |
+| Pens flat at zero | Tags have no scaling, or the device is not being polled | Check Live Data for the same tags |
+| Gaps everywhere | Communications problems or Bad quality | Check the device card on the Dashboard and the Logs page |
+| Only some pens visible | Pens individually hidden in the legend | Re-tick them in the legend |
+| Slow to load | Window too wide for the data volume | Use a shorter window, or export CSV for the full range |
+
+## 14. Alarms and Events in Detail (ISA-18.2)
+
+The **Alarms** page is the operator-facing alarm console: active alarms on one tab, searchable history on the other. Alarm *configuration* lives on the tag editor (Admin); alarm *acknowledgement* is an Operator and Admin action.
+
+### 14.1 The two tabs
+
+**Active Alarms**
+
+- Lists alarms currently in `Active` or `Acknowledged` state.
+- Columns include priority, type (High/Low), device, tag, trigger value, threshold, unit, duration and who acknowledged it.
+- **Acknowledge** on a single row, or **Acknowledge All** in the toolbar.
+- **Refresh** reloads the list (indigo icon + text button).
+- Rows are colour-coded by priority so Critical and High stand out immediately.
+
+**Alarm History**
+
+- Every alarm that has ever fired, with filters for device, tag, priority and
+  state. (Date-range and type filter properties exist in the view-model but no
+  date pickers or type selector are bound in the UI yet.)
+- **Clear** resets the filter set; **Next Page** / **Prev Page** page through results.
+- The header also offers **Save Retention** (apply the retention window) and **Delete Now** (purge immediately, red button). **Delete Now has no role gate in the UI** — anyone who can open the Alarms page can purge history, so treat page access as the control.
+
+### 14.2 Alarm states
+
+| State | Meaning |
+|---|---|
+| `Active` | Condition is still bad and nobody has acknowledged it |
+| `Acknowledged` | An operator has seen it; the condition may or may not still be bad |
+| `Cleared` | Condition returned to normal; the row moves to history |
+| `Shelved` | Temporarily suppressed — **maximum 24 hours**, and this limit cannot be raised |
+
+Acknowledging does **not** clear an alarm. It records that a human has seen it. The alarm clears only when the process value returns inside the deadband for the off-delay period.
+
+### 14.3 How an alarm fires (what the operator sees)
+
+1. A tag has **Alarm enabled** with a Minimum and/or Maximum threshold, a deadband, on/off delays and a priority (set by an Admin on the tag).
+2. The value must stay outside the limit for the **on-delay** seconds before the alarm triggers — momentary spikes do not alarm.
+3. On trigger: a row is written, the sidebar **Alarms badge** increments, and the audible beep sounds (Critical = 3 bursts at 1200 Hz, High = 2 bursts at 1000 Hz).
+4. The value must return inside the limit **beyond the deadband** for the **off-delay** seconds before it clears.
+5. The operator acknowledges; the acknowledgement, user and time are recorded.
+
+**Deadband is in absolute engineering units** (default 2.0). If a High alarm is at 100 with deadband 2, the value must fall below 98 before it clears — this is what stops an alarm flapping on and off at the threshold.
+
+### 14.4 Built-in protections
+
+| Protection | Behaviour |
+|---|---|
+| Flood suppression | At most **10 alarms per minute per tag** — a broken sensor cannot bury the console |
+| Shelving limit | **24 hours maximum**, for safety |
+| On/off delay | Configurable per tag to ignore transient spikes |
+| Critical alarms | Written directly to the database, bypassing the queue, so they cannot be dropped |
+| Acknowledge All | Clears the acknowledgement backlog in one action without deleting history |
+
+### 14.5 Alarm administration (Admin)
+
+On the tag editor → alarm section:
+
+| Setting | Notes |
+|---|---|
+| Alarm enabled | Master switch for this tag |
+| Min threshold | Low alarm |
+| Max threshold | High alarm |
+| Deadband | Absolute engineering units, 0–50, default 2.0 |
+| On-delay / Off-delay seconds | Debounce in and out |
+| Priority | Critical / High / Medium / Low (default Medium) |
+| Description | Shown to the operator |
+
+Validation: minimum < maximum, at least one threshold set, deadband within 0–50.
+
+Retention is configured in **Settings → Security & retention** (`Alarm retention days`, default 90; `0` keeps history forever; values outside 0–3650 are rejected). Purging runs at startup and then every 24 hours. Audible alarms are toggled by the **Beep** checkbox in the Alarms page header (applies to Critical/High only).
+
+> Note: the beep choice is written to `Alarm.BeepEnabled` but is not re-read after a restart — the app falls back to the configured default until the checkbox is toggled again.
+
+### 14.6 Troubleshooting Alarms
+
+| Symptom | Likely cause | Action |
+|---|---|---|
+| No alarms firing | Alarm not enabled on the tag, or no threshold set | Open the tag editor and check the alarm section |
+| Alarms firing constantly | Threshold outside normal range, or deadband too small | Widen the deadband; review thresholds against real values |
+| Alarm never clears | Off-delay too long, or value genuinely still out of range | Watch Live Data; verify the off-delay |
+| No beep | Beep disabled, or priority below High | Settings → enable audible alarm; only Critical/High beep |
+| Sidebar badge missing | No active alarms, or page not refreshed | Press Refresh on the Alarms page |
+| History missing old rows | Retention purge | Raise `Alarm retention days` |
+
+## 15. Log Viewer in Detail
+
+The Logs page has **two tabs**:
+
+| Tab | Shows | Columns |
+|---|---|---|
+| **Application log** | UI logs parsed from `%LocalAppData%\WTT\Logs` | Time, Level, Source, Message |
+| **Audit trail** | Security-relevant actions recorded in the database | Time, User, Action |
+
+Service logs live in `%ProgramData%\WTT\Logs` and are referenced from the same screen.
 
 - Filter by level: Information for normal flow, Warning for retries and recoverable faults, Error for failures needing action.
 - Search for `transfer`, `login`, `capture`, device name or tag name.
-- Select Refresh after changing filters.
-- Open the log folder directly when you need to attach files.
+- Select **Refresh** after changing filters (indigo icon + text button).
+- **Open folder** launches the log directory directly when you need to attach files.
+- **Copy:** there is no Copy toolbar button — select lines and press **Ctrl+C** (hint shown under the grid).
+- **Auto-refresh toggle** (`Live (30s)` / `Auto-refresh`) keeps the log reloading every 30 seconds without pressing Refresh.
+
+The log page survives navigation — your filters are still applied when you come back to it.
 
 Privacy: passwords and full connection strings are never logged. Usernames, device names and error messages are logged for diagnosis.
 
-## 14. User Management in Detail (Admin Only)
+## 16. User Management in Detail (Admin Only)
 
 1. Open Users as Admin.
-2. Select Add User and enter username (unique), full name, role and strong temporary password.
-3. Save. The user appears as active.
-4. Edit resets passwords, changes roles or disables accounts. Disable preserves history; delete removes the login but preserves audit rows.
-5. The last active administrator cannot be deleted or demoted. The UI rejects the action with an explanation.
+2. Select **Add user** and enter username (unique), full name, role and strong temporary password.
+3. Save. The user appears as active and is forced to change the temporary password at first login.
+4. Row actions:
+   - **Edit** (blue) — change full name, role or active state.
+   - **Reset password** (amber key icon) — issue a new temporary password.
+   - **Unlock** (violet) — release an account that locked out after 5 failed logins.
+   - **Delete** (red trash) — remove the login; audit rows are preserved.
+5. Disable preserves history; delete removes the login but preserves audit rows.
+6. The last active administrator cannot be deleted or demoted. The UI rejects the action with an explanation.
 
 Example test accounts:
 
@@ -492,21 +702,29 @@ Sign in as each and confirm:
 
 Never write test passwords in reports.
 
-## 15. Settings in Detail (Admin Only)
+## 17. Settings in Detail
 
-| Setting | Meaning | Default / Test |
-|---|---|---|
-| Theme | Dark or Light, applied instantly | Dark |
-| PLC simulator | ON uses Mock PLC with random temperatures and pressures; OFF uses real drivers | ON for tests |
-| Session timeout minutes | Idle auto-logout | 30, 1 for timeout test then restore |
-| Transfer interval seconds | Delay between automatic transfer cycles | per deployment |
-| Transferred retention days | Age after which transferred readings are cleaned | per policy |
-| Untransferred max age days | Safety purge horizon for never-transferred rows, with warning | 0 means disabled |
-| SQL instance info | Read-only display of server and edition | `DESKTOP... / WTT`, Express Edition |
+Settings are grouped into sections on one page. Runtime settings are stored in the local database and apply **immediately — no restart needed**.
 
-Save shows a success notification. Settings persist in `AppSettings` and survive restarts. Changing simulator mode or capture settings triggers an immediate worker reconcile.
+**Not admin-only:** *My Account* and *Appearance* are available to every role. Only *Simulation*, *Security & retention* and the database section are gated by `CanManage` (Admin).
 
-## 16. External SQL Queries in Detail
+| Section | Setting | Meaning | Default / Test |
+|---|---|---|---|
+| **My Account** | Change password / Logout | Your own credentials | — |
+| **Appearance** | Theme | Dark or Light, applied instantly | Dark |
+| **Simulation** | PLC simulator | ON uses the deterministic Mock PLC; OFF uses real drivers | ON for tests |
+| **Security & retention** | Session timeout minutes | Idle auto-logout | 30, 1 for timeout test then restore |
+| | Transfer interval seconds | Delay between automatic transfer cycles | 5 |
+| | Transferred retention days | Age after which transferred readings are cleaned | 7 |
+| | Untransferred max age days | Safety purge horizon for never-transferred rows, with warning | 0 means disabled |
+| | Alarm retention days | Age after which alarm history is purged | 90, 0 means keep forever |
+| **Log File Generation** | Enable file logging | Toggle log file writing at runtime without restarting | ON |
+| **Local database** | Edition and size | Read-only display of server, edition and data size | `DESKTOP... / WTT`, Express Edition |
+| **About** | Version and components | Product version and build information | 1.2.0 |
+
+Save shows a success notification. Settings persist in `AppSettings` and survive restarts. Changing simulator mode or capture settings triggers an immediate worker reconcile — within about 5 seconds the workers restart with the new configuration.
+
+## 18. External SQL Queries in Detail
 
 External queries attach MES or ERP context to historian rows without allowing writes through WTT.
 
@@ -549,7 +767,7 @@ SELECT 1; DROP TABLE dbo.ProductionContext;
 
 Expected: rejected, table intact.
 
-## 17. Service Behavior, Restart and Data Safety
+## 19. Service Behavior, Restart and Data Safety
 
 - UI closed, service running: capture and transfer continue. Reopen the UI to see fresh timestamps with no gap.
 - Service restarted: heartbeat gets a new instance ID and start time; stale instances never show as connected.
@@ -566,7 +784,7 @@ cd "D:\Spring Boot\PLC Project\WTT_PLC\New PLc"
 
 Expected: `The backup set ... is valid`, file under `C:\ProgramData\WTT\Backups`. Keep a second encrypted off-machine copy and run restore drills; `VERIFYONLY` alone is not a disaster-recovery test.
 
-## 18. Database Tables - Simple Meaning
+## 20. Database Tables - Simple Meaning
 
 Do not delete tables manually. Fresh databases start empty and gain rows as features are used.
 
@@ -590,7 +808,7 @@ Do not delete tables manually. Fresh databases start empty and gain rows as feat
 
 Fresh-start counts: Users 0, Devices 0, Tags 0, Readings 0, Migrations 6. After first Admin: Users 1, others still 0 except migrations.
 
-## 19. Daily Operating Procedures
+## 21. Daily Operating Procedures
 
 Morning checks (Operator, 2 minutes):
 
@@ -620,7 +838,7 @@ End of test or shift:
 3. Disable test transfer servers if no further testing is planned.
 4. Stop debugging with Shift+F5; preserve `WTT_Central_Test` until results are reviewed.
 
-## 20. Verification Queries for Support
+## 22. Verification Queries for Support
 
 Run in SSMS with Windows Authentication against `.`.
 
@@ -680,7 +898,7 @@ SELECT TOP (20) * FROM dbo.DeviceRuntimeStates;
 SELECT COUNT(*) AS Pending FROM dbo.TagReadings WHERE IsTransferred = 0;
 ```
 
-## 21. Troubleshooting Matrix
+## 23. Troubleshooting Matrix
 
 | Symptom | Likely Cause | Action |
 |---|---|---|
@@ -699,7 +917,7 @@ SELECT COUNT(*) AS Pending FROM dbo.TagReadings WHERE IsTransferred = 0;
 | Slow startup over 2 seconds | SQL load, disk, many workers | Check SQL, disk space, poll intervals |
 | 8 GB database warning | Transfer behind | Fix transfer, extend retention review, never delete pending silently |
 
-## 22. Safety Rules
+## 24. Safety Rules
 
 - Use only `127.0.0.1` or clearly fake IPs for tests. Never enter a real plant PLC IP in a test system.
 - Keep PLC simulator ON for acceptance. Turn OFF only for supervised commissioning.
@@ -710,7 +928,7 @@ SELECT COUNT(*) AS Pending FROM dbo.TagReadings WHERE IsTransferred = 0;
 - Turn Capture and Monitor OFF after tests.
 - Preserve test users and central test data until results are reviewed.
 
-## 23. Support Package - What to Send
+## 25. Support Package - What to Send
 
 When data stops or an error persists, send:
 
@@ -723,7 +941,7 @@ When data stops or an error persists, send:
 
 Do not include passwords, private keys or full production connection strings.
 
-## 24. Glossary
+## 26. Glossary
 
 - Capture: storing polled scans in the local historian.
 - Monitor: refreshing live values without historian storage.
@@ -736,11 +954,12 @@ Do not include passwords, private keys or full production connection strings.
 - Trigger: boolean or logical gate controlling when capture stores rows.
 - Audit log: security record of logins, config changes and writes.
 
-## 25. Document History
+## 27. Document History
 
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 2026-09-12 | Initial production hardening user guide. |
 | 1.1 | 2026-09-13 | Added runtime status, deployment artifacts and manual test references. |
 | 1.2 | 2026-09-16 | Complete rewrite: full field reference, procedures, verification SQL, safety and support package. |
-| 1.2.0 | Current | Matches release 1.2.0, 110 automated tests passed, mock acceptance complete, real-hardware commissioning still required. |
+| 1.2.0 | Current | Matches release 1.2.0, mock acceptance complete, real-hardware commissioning still required. |
+| 1.2.0 | 2026-10-09 | Deep update: full sidebar/page reference (§5), new §13 Historian Trends and §14 Alarms (ISA-18.2), Settings sections (§17), Logs tabs and user row actions (§15–16), roles table extended with alarm permissions, cross-links to ARCHITECTURE / ADMIN_GUIDE / UI_STYLE_GUIDE. |
