@@ -38,10 +38,20 @@
                                    Style="{StaticResource Hint}" />
                     </StackPanel>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <ui:Button Content="Change password" Icon="{ui:SymbolIcon Key24}" Appearance="Secondary"
-                                   Command="{Binding ChangePasswordCommand}" Margin="0,0,8,0" />
-                        <ui:Button Content="Sign out" Icon="{ui:SymbolIcon SignOut24}" Appearance="Secondary"
-                                   Command="{Binding LogoutCommand}" />
+                        <Button Style="{StaticResource NeutralBtn}"
+                                   Command="{Binding ChangePasswordCommand}" Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <ui:SymbolIcon Symbol="Key24" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Change password" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource NeutralBtn}"
+                                   Command="{Binding LogoutCommand}">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <ui:SymbolIcon Symbol="SignOut24" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Sign out" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -103,7 +113,12 @@
                                 Title="Logs saved by date folder"
                                 Message="Daily folders: %LocalAppData%\WTT\Logs\yyyy-MM-dd\wtt-*.log  |  30 days retained  |  20 MB max per file" />
 
-                    <ui:Button Content="Save settings" Appearance="Primary" Icon="{ui:SymbolIcon Save24}" Command="{Binding SaveCommand}" Margin="0,16,0,0" HorizontalAlignment="Left" />
+                    <Button Style="{StaticResource PrimaryBtn}" Command="{Binding SaveCommand}" Margin="0,16,0,0" HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <ui:SymbolIcon Symbol="Save24" Foreground="White" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Save settings" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                     <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" Visibility="{Binding ErrorMessage, Converter={StaticResource NotNullToVis}}" />
                 </StackPanel>
             </Border>

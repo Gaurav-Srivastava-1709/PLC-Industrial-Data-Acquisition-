@@ -22,8 +22,13 @@
                         <TextBlock Text="Refresh" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
-                <ui:Button Content="Add device" Icon="{ui:SymbolIcon Add24}" Appearance="Primary" Command="{Binding AddCommand}"
-                           Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}" />
+                <Button Style="{StaticResource PrimaryBtn}" Command="{Binding AddCommand}"
+                        Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <ui:SymbolIcon Symbol="Add24" Foreground="White" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                        <TextBlock Text="Add device" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </Grid>
 

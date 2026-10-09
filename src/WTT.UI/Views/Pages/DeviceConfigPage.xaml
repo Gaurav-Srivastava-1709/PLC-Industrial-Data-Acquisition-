@@ -5,9 +5,16 @@
       Title="Device configuration">
     <Page.Resources>
         <Style x:Key="RowBtn" TargetType="ui:Button" BasedOn="{StaticResource {x:Type ui:Button}}">
+            <!-- Compact visible pill: theme fill + stroke taaki row me button
+                 ki tarah dikhe (flat secondary par gayab ho jata tha). -->
+            <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Padding" Value="6,3" />
             <Setter Property="Margin" Value="0,0,4,0" />
-            <Setter Property="Appearance" Value="Secondary" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType={x:Type DataGridRow}}, Path=(ItemsControl.AlternationIndex)}" Value="1">
                     <Setter Property="Foreground" Value="#1A1A1A" />
@@ -25,7 +32,12 @@
 
         <Grid Grid.Row="0" Margin="0,0,0,12">
             <StackPanel Orientation="Horizontal">
-                <ui:Button Icon="{ui:SymbolIcon ArrowLeft24}" Command="{Binding BackCommand}" Appearance="Secondary" Margin="0,0,12,0" VerticalAlignment="Top" />
+                <Button Style="{StaticResource NeutralBtn}" Command="{Binding BackCommand}" Margin="0,0,12,0" VerticalAlignment="Top" ToolTip="Back">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <ui:SymbolIcon Symbol="ArrowLeft24" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                        <TextBlock Text="Back" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
                 <StackPanel>
                     <TextBlock Text="{Binding Title}" Style="{StaticResource PageTitle}" />
                     <TextBlock Text="Tags, address blocks, external context, capture trigger and the central transfer target of this device." Style="{StaticResource PageSubtitle}" Margin="0" />
@@ -50,11 +62,21 @@
                     <Grid Grid.Row="0" Margin="0,0,0,8">
                         <ui:TextBox PlaceholderText="Filter tags…" Icon="{ui:SymbolIcon Search24}" Width="300" HorizontalAlignment="Left" Text="{Binding TagFilter, UpdateSourceTrigger=PropertyChanged}" />
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}">
-                            <ui:Button Content="Select all" Command="{Binding SelectAllCommand}" CommandParameter="true" Margin="0,0,6,0" />
-                            <ui:Button Content="Deselect all" Command="{Binding SelectAllCommand}" CommandParameter="false" Margin="0,0,12,0" />
-                            <ui:Button Content="Browse controller" Icon="{ui:SymbolIcon Search24}" Command="{Binding BrowseTagsCommand}" Margin="0,0,6,0"
-                                       Visibility="{Binding CanBrowse, Converter={StaticResource BoolToVis}}" />
-                            <ui:Button Content="Add PLC tag" Icon="{ui:SymbolIcon Add24}" Appearance="Primary" Command="{Binding AddTagCommand}" CommandParameter="Plc" />
+                            <Button Style="{StaticResource NeutralBtn}" Content="Select all" Command="{Binding SelectAllCommand}" CommandParameter="true" Margin="0,0,6,0" />
+                            <Button Style="{StaticResource NeutralBtn}" Content="Deselect all" Command="{Binding SelectAllCommand}" CommandParameter="false" Margin="0,0,12,0" />
+                            <Button Style="{StaticResource NeutralBtn}" Command="{Binding BrowseTagsCommand}" Margin="0,0,6,0"
+                                    Visibility="{Binding CanBrowse, Converter={StaticResource BoolToVis}}">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <ui:SymbolIcon Symbol="Search24" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="Browse controller" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource ExportBtn}" Command="{Binding AddTagCommand}" CommandParameter="Plc">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <ui:SymbolIcon Symbol="Add24" Foreground="White" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="Add PLC tag" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
                     </Grid>
                     <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding PlcTags}" SelectedItem="{Binding SelectedPlcTag}"
@@ -215,8 +237,13 @@
                     <Grid Grid.Row="0" Margin="0,0,0,8">
                         <TextBlock Style="{StaticResource Hint}" VerticalAlignment="Center" MaxWidth="700" HorizontalAlignment="Left"
                                    Text="Sequential blocks auto-generate one tag per point (e.g. CH001…CH060 for a Yokogawa). Discrete blocks are containers for manually defined tags." />
-                        <ui:Button Content="Add block" Icon="{ui:SymbolIcon Add24}" Appearance="Primary" Command="{Binding AddBlockCommand}" HorizontalAlignment="Right"
-                                   Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}" />
+                        <Button Style="{StaticResource PrimaryBtn}" Command="{Binding AddBlockCommand}" HorizontalAlignment="Right"
+                                Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <ui:SymbolIcon Symbol="Add24" Foreground="White" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Add block" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                     </Grid>
                     <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding AddressBlocks}" SelectedItem="{Binding SelectedBlock}"
                               HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1"
@@ -275,8 +302,13 @@
 
                     <Grid Grid.Row="0" Margin="0,0,0,6">
                         <TextBlock Text="Custom tags — constant values stamped into every scan (recipe, line id…)" Style="{StaticResource SectionTitle}" VerticalAlignment="Center" />
-                        <ui:Button Content="Add custom tag" Icon="{ui:SymbolIcon Add24}" Command="{Binding AddTagCommand}" CommandParameter="Custom" HorizontalAlignment="Right"
-                                   Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}" />
+                        <Button Style="{StaticResource PrimaryBtn}" Command="{Binding AddTagCommand}" CommandParameter="Custom" HorizontalAlignment="Right"
+                                Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <ui:SymbolIcon Symbol="Add24" Foreground="White" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Add custom tag" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                     </Grid>
                     <DataGrid Grid.Row="1" Style="{StaticResource Grid}" ItemsSource="{Binding CustomTags}" MinHeight="90"
                               HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1"
@@ -321,7 +353,12 @@
                                     <TextBlock Text="Refresh values now" VerticalAlignment="Center" />
                                 </StackPanel>
                             </Button>
-                            <ui:Button Content="Add query" Icon="{ui:SymbolIcon Add24}" Command="{Binding AddQueryCommand}" />
+                            <Button Style="{StaticResource PrimaryBtn}" Command="{Binding AddQueryCommand}">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <ui:SymbolIcon Symbol="Add24" Foreground="White" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="Add query" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
                     </Grid>
                     <DataGrid Grid.Row="3" Style="{StaticResource Grid}" ItemsSource="{Binding Queries}" MinHeight="90"
@@ -370,8 +407,13 @@
 
                     <Grid Grid.Row="4" Margin="0,16,0,6">
                         <TextBlock Text="External tags — bound to a column of a verified query; refreshed once per trigger cycle" Style="{StaticResource SectionTitle}" VerticalAlignment="Center" />
-                        <ui:Button Content="Add external tag" Icon="{ui:SymbolIcon Add24}" Command="{Binding AddTagCommand}" CommandParameter="External" HorizontalAlignment="Right"
-                                   Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}" />
+                        <Button Style="{StaticResource PrimaryBtn}" Command="{Binding AddTagCommand}" CommandParameter="External" HorizontalAlignment="Right"
+                                Visibility="{Binding CanManage, Converter={StaticResource BoolToVis}}">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <ui:SymbolIcon Symbol="Add24" Foreground="White" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Add external tag" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                     </Grid>
                     <DataGrid Grid.Row="5" Style="{StaticResource Grid}" ItemsSource="{Binding ExternalTags}" MinHeight="90"
                               HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" FrozenColumnCount="1"
@@ -425,8 +467,13 @@
                                         <TextBlock Text="Trigger tag (TRUE = capture):" VerticalAlignment="Center" Margin="0,0,8,0" />
                                         <ComboBox ItemsSource="{Binding BoolPlcTagNames}" SelectedItem="{Binding TriggerTagName}" Width="240" IsEditable="True" />
                                     </StackPanel>
-                                    <ui:Button Content="Save mode" Icon="{ui:SymbolIcon Save24}" Appearance="Primary" Command="{Binding SaveCaptureModeCommand}" Margin="16,0,0,0"
-                                               Visibility="{Binding CanManageDevice, Converter={StaticResource BoolToVis}}" />
+                                    <Button Style="{StaticResource PrimaryBtn}" Command="{Binding SaveCaptureModeCommand}" Margin="16,0,0,0"
+                                            Visibility="{Binding CanManageDevice, Converter={StaticResource BoolToVis}}">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <ui:SymbolIcon Symbol="Save24" Foreground="White" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                            <TextBlock Text="Save mode" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
                                 </StackPanel>
                                 <TextBlock Style="{StaticResource Hint}" Margin="0,8,0,0"
                                            Text="Manual: capture on every poll.  PLC Trigger: capture while a PLC tag reads TRUE/non-zero.  Logical: capture while the expression below is TRUE. External tags are refreshed each time the trigger switches ON." />
@@ -473,7 +520,12 @@
                                         <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Converter={StaticResource EnumDesc}}" /></DataTemplate></ComboBox.ItemTemplate>
                                     </ComboBox>
                                     <ui:TextBox Text="{Binding NewValue, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="value" Width="160" Margin="0,0,6,0" IsEnabled="{Binding NewValueEnabled}" />
-                                    <ui:Button Content="Add" Icon="{ui:SymbolIcon Add24}" Command="{Binding AddConditionCommand}" />
+                                    <Button Style="{StaticResource PrimaryBtn}" Command="{Binding AddConditionCommand}" Margin="0,0,0,0">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <ui:SymbolIcon Symbol="Add24" Foreground="White" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                            <TextBlock Text="Add" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
                                 </StackPanel>
                                 <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" Visibility="{Binding ErrorMessage, Converter={StaticResource NotNullToVis}}" />
                             </StackPanel>
@@ -510,7 +562,9 @@
                                         <TextBlock Text="Configure server" Foreground="White" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
-                                <ui:Button Content="Enable / disable" Command="{Binding ToggleServerEnabledCommand}" Margin="0,0,8,0" Visibility="{Binding Server, Converter={StaticResource NotNullToVis}}" />
+                                <Button Style="{StaticResource NeutralBtn}" Command="{Binding ToggleServerEnabledCommand}" Margin="0,0,8,0" Visibility="{Binding Server, Converter={StaticResource NotNullToVis}}">
+                                    <TextBlock Text="Enable / disable" VerticalAlignment="Center" />
+                                </Button>
                                 <Button Style="{StaticResource TrashBtn}" Padding="14,7" ToolTip="Remove server" Command="{Binding DeleteServerCommand}" Visibility="{Binding Server, Converter={StaticResource NotNullToVis}}">
                                     <TextBlock Text="Remove" VerticalAlignment="Center" />
                                 </Button>

@@ -16,8 +16,13 @@
                 <TextBlock Text="{Binding ConfirmMessage}" TextWrapping="Wrap" Foreground="#FFD97A" />
             </Border>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
-                <ui:Button Content="Cancel" Command="{Binding CancelCommand}" Margin="0,0,8,0" />
-                <ui:Button Content="{Binding WriteButtonText}" Appearance="Danger" Icon="{ui:SymbolIcon Send24}" Command="{Binding WriteCommand}" IsDefault="True" />
+                <Button Style="{StaticResource NeutralBtn}" Content="Cancel" Command="{Binding CancelCommand}" Margin="0,0,8,0" />
+                <Button Style="{StaticResource DangerBtn}" Command="{Binding WriteCommand}" IsDefault="True">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <ui:SymbolIcon Symbol="Send24" Foreground="White" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding WriteButtonText}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </StackPanel>
     </Grid>

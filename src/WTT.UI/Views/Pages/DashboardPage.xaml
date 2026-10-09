@@ -157,9 +157,12 @@
                     </StackPanel>
 
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <ui:Button Content="Trends" Icon="{ui:SymbolIcon DataHistogram24}" Margin="0,0,8,0"
-                                   Padding="12,6" Appearance="Secondary"
-                                   Command="{Binding OpenTrendsCommand}" />
+                        <Button Style="{StaticResource NeutralBtn}" Command="{Binding OpenTrendsCommand}" Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <ui:SymbolIcon Symbol="DataHistogram24" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Trends" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                         <Button Style="{StaticResource CoralRefreshBtn}" Command="{Binding RefreshCommand}" ToolTip="Refresh dashboard">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <ui:SymbolIcon Symbol="ArrowClockwise24" Foreground="White" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center" />

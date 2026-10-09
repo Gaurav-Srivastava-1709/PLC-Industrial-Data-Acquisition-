@@ -31,11 +31,11 @@
                 <!-- Time Window Selector Buttons -->
                 <Border Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="4" Padding="2" Margin="0,0,8,6">
                     <StackPanel Orientation="Horizontal">
-                        <ui:Button Content="1m" Command="{Binding SetTimeWindowCommand}" CommandParameter="1" Padding="8,4" Margin="1" Appearance="Transparent" />
-                        <ui:Button Content="5m" Command="{Binding SetTimeWindowCommand}" CommandParameter="5" Padding="8,4" Margin="1" Appearance="Transparent" />
-                        <ui:Button Content="15m" Command="{Binding SetTimeWindowCommand}" CommandParameter="15" Padding="8,4" Margin="1" Appearance="Transparent" />
-                        <ui:Button Content="30m" Command="{Binding SetTimeWindowCommand}" CommandParameter="30" Padding="8,4" Margin="1" Appearance="Transparent" />
-                        <ui:Button Content="1h" Command="{Binding SetTimeWindowCommand}" CommandParameter="60" Padding="8,4" Margin="1" Appearance="Transparent" />
+                        <Button Style="{StaticResource SegmentBtn}" Content="1m" Command="{Binding SetTimeWindowCommand}" CommandParameter="1" />
+                        <Button Style="{StaticResource SegmentBtn}" Content="5m" Command="{Binding SetTimeWindowCommand}" CommandParameter="5" />
+                        <Button Style="{StaticResource SegmentBtn}" Content="15m" Command="{Binding SetTimeWindowCommand}" CommandParameter="15" />
+                        <Button Style="{StaticResource SegmentBtn}" Content="30m" Command="{Binding SetTimeWindowCommand}" CommandParameter="30" />
+                        <Button Style="{StaticResource SegmentBtn}" Content="1h" Command="{Binding SetTimeWindowCommand}" CommandParameter="60" />
                     </StackPanel>
                 </Border>
 
@@ -179,8 +179,8 @@
 
                     <!-- Select / Clear shortcuts -->
                     <UniformGrid Grid.Row="3" Columns="2" Margin="0,8,0,0">
-                        <ui:Button Content="Select All" Command="{Binding SelectAllTagsCommand}" Margin="0,0,4,0" Appearance="Transparent" FontSize="11" />
-                        <ui:Button Content="Clear All" Command="{Binding ClearAllTagsCommand}" Margin="4,0,0,0" Appearance="Transparent" FontSize="11" />
+                        <Button Style="{StaticResource LinkBtn}" Content="Select All" Command="{Binding SelectAllTagsCommand}" Margin="0,0,4,0" HorizontalAlignment="Center" />
+                        <Button Style="{StaticResource LinkBtn}" Content="Clear All" Command="{Binding ClearAllTagsCommand}" Margin="4,0,0,0" HorizontalAlignment="Center" />
                     </UniformGrid>
                 </Grid>
             </Border>

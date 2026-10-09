@@ -109,23 +109,23 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                             <!-- Alarm Bell with Badge + Beep Toggle In-Out -->
-                            <ui:Button ToolTip="Active Alarms" Appearance="Secondary" Margin="0,0,6,0" Command="{Binding OpenAlarmsCommand}">
-                                <Grid>
-                                    <ui:SymbolIcon Symbol="Alert24" />
-                                    <Border CornerRadius="8" Background="#E53935" MinWidth="16" Height="16" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-6,0" Visibility="{Binding HasActiveAlarms, Converter={StaticResource BoolToVis}}">
-                                        <TextBlock Text="{Binding ActiveAlarmCount}" FontSize="10" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                    </Border>
-                                </Grid>
-                            </ui:Button>
+                        <Button Style="{StaticResource NeutralBtn}" ToolTip="Active Alarms" Margin="0,0,6,0" Command="{Binding OpenAlarmsCommand}">
+                            <Grid>
+                                <ui:SymbolIcon Symbol="Alert24" />
+                                <Border CornerRadius="8" Background="#E53935" MinWidth="16" Height="16" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-4,-6,0" Visibility="{Binding HasActiveAlarms, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Text="{Binding ActiveAlarmCount}" FontSize="10" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                            </Grid>
+                        </Button>
                             <!-- <CheckBox IsChecked="{Binding IsBeepEnabled}" Content="Beep" ToolTip="Beep Silent/ON (Critical/High only)" VerticalAlignment="Center" Margin="0,0,12,0" /> -->
                             <!-- Compact account entry: full profile opens on its own page. -->
-                            <ui:Button ToolTip="My Profile" Appearance="Secondary"
-                                       Command="{Binding OpenProfileCommand}">
+                            <Button Style="{StaticResource NeutralBtn}" ToolTip="My Profile"
+                                    Command="{Binding OpenProfileCommand}">
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <ui:SymbolIcon Symbol="PersonCircle24" FontSize="16" Margin="0,0,6,0" />
                                     <TextBlock Text="Account" FontWeight="SemiBold" VerticalAlignment="Center" />
                                 </StackPanel>
-                            </ui:Button>
+                            </Button>
                         </StackPanel>
                     </Grid>
                 </Border>

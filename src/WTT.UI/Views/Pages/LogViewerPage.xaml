@@ -38,9 +38,14 @@
                         <TextBlock Text="Refresh" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
-                <ui:Button Content="Open folder" Icon="{ui:SymbolIcon FolderOpen24}"
-                           Command="{Binding OpenFolderCommand}"
-                           ToolTip="Open the log folder in Windows Explorer" />
+                <Button Style="{StaticResource NeutralBtn}"
+                        Command="{Binding OpenFolderCommand}"
+                        ToolTip="Open the log folder in Windows Explorer">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <ui:SymbolIcon Symbol="FolderOpen24" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                        <TextBlock Text="Open folder" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </Grid>
 

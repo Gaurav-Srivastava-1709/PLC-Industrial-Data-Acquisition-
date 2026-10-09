@@ -26,8 +26,13 @@
             </StackPanel>
             <TextBlock Text="{Binding ErrorMessage}" Style="{StaticResource ErrorText}" Visibility="{Binding ErrorMessage, Converter={StaticResource NotNullToVis}}" />
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
-                <ui:Button Content="Cancel" Command="{Binding CancelCommand}" Margin="0,0,8,0" />
-                <ui:Button Content="Save" Appearance="Primary" Icon="{ui:SymbolIcon Save24}" Command="{Binding SaveCommand}" IsDefault="True" />
+                <Button Style="{StaticResource NeutralBtn}" Content="Cancel" Command="{Binding CancelCommand}" Margin="0,0,8,0" />
+                <Button Style="{StaticResource ExportBtn}" Command="{Binding SaveCommand}" IsDefault="True">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <ui:SymbolIcon Symbol="Save24" Foreground="White" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                        <TextBlock Text="Save" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
             </StackPanel>
         </StackPanel>
     </Grid>

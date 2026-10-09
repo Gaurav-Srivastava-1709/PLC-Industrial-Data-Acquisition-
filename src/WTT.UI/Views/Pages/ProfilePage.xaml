@@ -93,12 +93,20 @@
                                    Visibility="{Binding IsLockedOut, Converter={StaticResource BoolToVis}}" />
                         <Border Height="1" Margin="0,14,0,0"
                                 Background="{DynamicResource TextFillColorTertiaryBrush}" Opacity="0.16" />
-                        <ui:Button Content="Change password" Icon="{ui:SymbolIcon Key24}" Appearance="Secondary"
-                                   Command="{Binding ChangePasswordCommand}" Margin="0,14,0,0" HorizontalAlignment="Stretch"
-                                   HorizontalContentAlignment="Center" />
-                        <ui:Button Content="Sign out" Icon="{ui:SymbolIcon SignOut24}" Appearance="Secondary"
-                                   Command="{Binding LogoutCommand}" Margin="0,8,0,0" HorizontalAlignment="Stretch"
-                                   HorizontalContentAlignment="Center" />
+                        <Button Style="{StaticResource NeutralBtn}"
+                                   Command="{Binding ChangePasswordCommand}" Margin="0,14,0,0" HorizontalAlignment="Stretch">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <ui:SymbolIcon Symbol="Key24" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Change password" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource NeutralBtn}"
+                                   Command="{Binding LogoutCommand}" Margin="0,8,0,0" HorizontalAlignment="Stretch">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                <ui:SymbolIcon Symbol="SignOut24" FontSize="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Sign out" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                         <TextBlock Text="Signing out returns to the login screen. Capture keeps running in the background service."
                                    Style="{StaticResource Hint}" Margin="0,8,0,0" />
                     </StackPanel>
