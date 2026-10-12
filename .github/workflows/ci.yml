@@ -83,6 +83,9 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
+      - name: Restore tools
+        run: dotnet tool restore
+
       - name: Restore
         # -r win-x64: publish steps below use --runtime win-x64 --no-restore,
         # which requires the RID-specific assets (WTT.UI declares no
