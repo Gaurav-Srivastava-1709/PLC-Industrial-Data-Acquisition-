@@ -8,27 +8,15 @@ on:
 
 env:
   DOTNET_VERSION: '10.0.x'
-  SQL_SERVER_VERSION: '2022-latest'
 
 jobs:
   build-and-test:
     runs-on: windows-latest
     timeout-minutes: 30
 
-    services:
-      sql-server:
-        image: mcr.microsoft.com/mssql/server:2022-latest
-        env:
-          ACCEPT_EULA: "Y"
-          MSSQL_SA_PASSWORD: "Password123!"
-        ports:
-          - 1433:1433
-        options: >-
-          --health-cmd "sqlcmd -S localhost -U sa -P 'Password123!' -Q 'SELECT 1'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-
+    # NOTE: GitHub service containers run on Linux runners only, so the SQL
+    # Server container approach cannot work on windows-latest (it fails at
+    # "Initialize containers"). SQL Server 2022 is installed natively instead.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,6 +28,13 @@ jobs:
 
       - name: Restore tools
         run: dotnet tool restore
+
+      - name: Install SQL Server 2022
+        uses: potatoqualitee/mssqlsuite@v1
+        with:
+          install: sqlengine
+          version: 2022
+          sa-password: 'Password123!'
 
       - name: Wait for SQL Server
         run: |

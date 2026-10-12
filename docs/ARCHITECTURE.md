@@ -1817,12 +1817,15 @@ dotnet build WTT.slnx -c Debug
 ### 17.2 CI — `.github/workflows/ci.yml`
 
 `name: CI`, triggers on `push`/`pull_request` to `main`.
-Env: `DOTNET_VERSION=10.0.x`, `SQL_SERVER_VERSION=2022-latest`.
+Env: `DOTNET_VERSION=10.0.x`.
 
 **Job `build-and-test`** (`windows-latest`, 30 min):
 
-1. Service container `mcr.microsoft.com/mssql/server:2022-latest`, SA password
-   `Password123!`, port 1433, `sqlcmd` health check
+1. Native SQL Server 2022 via `potatoqualitee/mssqlsuite@v1`
+   (`install: sqlengine`, SA password `Password123!`, reachable at `localhost`).
+   A Docker `services:` container is deliberately **not** used — GitHub runs
+   service containers on Linux runners only, so it fails on `windows-latest`
+   at "Initialize containers" before any step executes.
 2. checkout → setup-dotnet → `dotnet tool restore`
 3. poll `sqlcmd` until ready (30 × 5 s)
 4. `dotnet restore WTT.slnx`
