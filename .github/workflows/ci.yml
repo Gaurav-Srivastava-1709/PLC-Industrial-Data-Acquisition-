@@ -33,7 +33,6 @@ jobs:
         uses: potatoqualitee/mssqlsuite@v1
         with:
           install: sqlengine
-          version: 2022
           sa-password: 'Password123!'
 
       - name: Wait for SQL Server
@@ -85,7 +84,11 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Restore
-        run: dotnet restore "WTT.slnx"
+        # -r win-x64: publish steps below use --runtime win-x64 --no-restore,
+        # which requires the RID-specific assets (WTT.UI declares no
+        # RuntimeIdentifier of its own, so a plain restore lacks the
+        # net10.0-windows/win-x64 target and publish fails with NETSDK1047).
+        run: dotnet restore "WTT.slnx" -r win-x64
 
       - name: Build Release
         run: dotnet build "WTT.slnx" --configuration Release --no-restore
