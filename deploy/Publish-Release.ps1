@@ -35,6 +35,9 @@ Copy-Item "$root\docs" "$Output\docs" -Recurse -Force
 @{ version = $Version; createdUtc = (Get-Date).ToUniversalTime().ToString("o"); runtime = "win-x64" } |
     ConvertTo-Json | Set-Content -LiteralPath "$Output\release.json" -Encoding UTF8
 if (Test-Path -LiteralPath "$Output.zip") { Remove-Item -LiteralPath "$Output.zip" -Force }
-& tar.exe -a -c -f "$Output.zip" -C "$Output" .
-if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath "$Output.zip")) { throw "Release ZIP creation failed." }
+# Windows Explorer compatibility ke liye standard .NET ZipFile use kar rahe hain
+# tar.exe se relative path './' store hota tha jisse Windows Explorer empty show karta tha
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+[System.IO.Compression.ZipFile]::CreateFromDirectory((Resolve-Path $Output).Path, "$Output.zip", [System.IO.Compression.CompressionLevel]::Optimal, $false)
+if (-not (Test-Path -LiteralPath "$Output.zip")) { throw "Release ZIP creation failed." }
 "Release created: $Output.zip"
